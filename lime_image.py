@@ -42,6 +42,8 @@ import warnings
 # 19/8/23 DH:
 import time, sys
 import matplotlib.pyplot as plt
+# 27/8/23 DH:
+import pickle
 
 print('Notebook running: keras ', keras.__version__)
 np.random.seed(222)
@@ -158,7 +160,7 @@ image, 68 superpixels were generated. The generated superpixels are shown in the
 superpixels = skimage.segmentation.quickshift(Xi, kernel_size=6,max_dist=200, ratio=0.2)
 num_superpixels = np.unique(superpixels).shape[0]
 # 71 superpixels
-print("\nNumber of superpixels:",num_superpixels,"(from 'skimage.segmentation.quickshift()' of:",
+print("\nNumber of superpixels:",num_superpixels,"(from 'skimage.segmentation.quickshift()' return:",
       superpixels.shape,")")
 print()
 
@@ -228,8 +230,60 @@ def perturb_image(img, perturbation, segments):
   perturbed_image = perturbed_image*mask[:,:,np.newaxis]
   return perturbed_image
 
+# 26/8/23 DH:
+def getSegmentMidpoint(prev, segments, cnt):
+  midPoint = []
+
+  segPrevArray = (segments == prev)
+  # 26/8/23 DH: 'np.where()' returns a 'tuple' (a static list) which needs to get converted into 'ndarray'
+  segPrevArrayTrue = np.array(np.where(segPrevArray == True))
+  
+  """
+  print("segments == prev:")
+  print(segPrevArray, type(segPrevArray), segPrevArray.shape)
+  print("segPrevArray = True", segPrevArrayTrue, type(segPrevArrayTrue), segPrevArrayTrue.shape)
+
+  segPrevArrayFalse = np.array(np.where(segPrevArray == False))
+  print("segPrevArray = False", segPrevArrayFalse, type(segPrevArrayFalse), segPrevArrayFalse.shape)
+  """
+  
+  pixelsY = segPrevArrayTrue[0]
+  pixelsX = segPrevArrayTrue[1]
+  
+  pixelsXSorted = np.sort(pixelsX)
+  pixelsYSorted = np.sort(pixelsY)
+
+  minX = pixelsXSorted[0]
+  maxX = pixelsXSorted[pixelsXSorted.shape[0] - 1]
+  midX = round( (minX + maxX) / 2 )
+
+  minY = pixelsYSorted[0]
+  maxY = pixelsYSorted[pixelsYSorted.shape[0] - 1]
+  midY = round( (minY + maxY) / 2 )
+
+  """
+  print("=====================",cnt,"=======================")
+  for i in range(pixelsX.shape[0]):
+    print(pixelsX[i],",",pixelsY[i])
+
+  print("Min X:",minX)
+  print("Max X:",maxX)
+  print("Mid X:",midX)
+
+  print("Min Y:",minY)
+  print("Max Y:",maxY)
+  print("Mid Y:",midY)
+  print("===================== END: ",cnt,"=======================")
+  """
+  
+  midPoint.append(midX)
+  midPoint.append(midY)
+
+  return midPoint
+
 # 24/8/23 DH:
-def highlight_image(img, segMask, currentSegsMask, segments):
+def highlight_image(img, segMask, currentSegsMask, segments, num_top_features, last_features):
+  print("---------------- highlight_image() -------------------")
   print("np.where(segMask == 1):",np.where(segMask == 1))
   prev_active_pixels = np.where(segMask == 1)[0]
   print("np.where(currentSegsMask == 1):",np.where(currentSegsMask == 1))
@@ -239,12 +293,47 @@ def highlight_image(img, segMask, currentSegsMask, segments):
   for active in active_pixels:
     mask[segments == active] = 1
 
-  for prev in prev_active_pixels:
-    mask[segments == prev] = 0.5
+  print()
+  print("prev_active_pixels (in index NOT TOP FEATURE ORDER):",prev_active_pixels)
+  print("last_features:",last_features)
+  cnt = 0
+
+  #for prev in prev_active_pixels:
+  # 28/8/23 DH: 'prev_active_pixels' was just previous segment top feature in index order
+  for prev in last_features:
+    # 'mask[segments == prev] = 0' makes segment black
+    mask[segments == prev] = 0.5 # half transparent
+
+    # 26/8/23 DH: 
+    midPoint = getSegmentMidpoint(prev, segments, cnt)
+    print("Mid point:",midPoint)
+
+    # Add horizontal line at mid-point of segment (visible across all non-black segments)
+    #mask[midPoint[0]] = 1
+
+    (digitLabelSizeX, digitLabelSizeY) = digitLabelsDict[num_top_features-cnt].shape
+
+    # 28/8/23 DH: *** NOTE: The image 'y' axis is the 2-D array 'x' index ***
+    for x in range(digitLabelSizeX):
+      for y in range(digitLabelSizeY):
+        mask[midPoint[1]+x][midPoint[0]+y] = digitLabelsDict[num_top_features-cnt][x][y]
+
+        #if x == (digitLabelSizeX -1) and y == (digitLabelSizeY -1):
+        #  print("x:",x,",y:",y,"=",digitLabelsDict[featureNum][x][y])
+
+    cnt += 1
 
   highlighted_image = copy.deepcopy(img)
-  print("highlighted_image:",type(highlighted_image),highlighted_image.shape)
-  highlighted_image = highlighted_image*mask[:,:,np.newaxis]
+  print("highlighted_image:", type(highlighted_image), highlighted_image.shape)
+  print("mask/segments:", type(mask), mask.shape)
+  print("segMask:", type(segMask), segMask.shape)
+  print("currentSegsMask:", type(currentSegsMask), currentSegsMask.shape)
+  print("---------------- END: highlight_image() -------------------")
+
+  # 26/8/23 DH: [start:stop:step], 
+  #             [:,:,np.newaxis], 'np.newaxis' = "add another layer" so make 'mask' 3D like 'highlighted_image'
+  highlighted_image = highlighted_image * mask[:,:,np.newaxis]
+  
   return highlighted_image
 
 """
@@ -261,18 +350,47 @@ computed. From the shape of the predictions we can see for each of the perturbat
 probability for each of the 1000 classes in Inception V3.
 """
 
-predictions = []
-pertNum = 0
-for pert in perturbations:
-  perturbed_img = perturb_image(Xi,pert,superpixels)
-  pertNum += 1
-  print("Pertubation",pertNum)
-  # Get a trained 'inceptionV3_model' model prediction for the current pertubation
-  pred = inceptionV3_model.predict(perturbed_img[np.newaxis,:,:,:])
-  predictions.append(pred)
+# 27/8/23 DH: Pkl the 'predictions' array
+def getPredictions():
+  predictionsFile = "predictions.pkl"
 
-predictions = np.array(predictions)
-#predictions.shape
+  try:
+    with open(predictionsFile, 'rb') as fp:
+      predictions = pickle.load(fp)
+      print("\nLoaded 'predictions':",predictions.shape)
+
+      #print(decode_predictions(preds)[0]) #Top 5 classes (as default)
+      #top_pred_classes = preds[0].argsort()[-5:][::-1]
+      
+      # 28/8/23 DH: https://www.tensorflow.org/api_docs/python/tf/keras/applications/imagenet_utils/decode_predictions
+      # Returns:
+      #  A list of lists of top class prediction tuples (class_name, class_description, score). 
+      #  One list of tuples per sample in batch input. 
+      topPrediction = decode_predictions(preds=predictions[0].argsort()[-1:][::-1], top=1)[0][0]
+
+      print("Top prediction of first prediction:", topPrediction[1])
+      print()
+    
+  except FileNotFoundError as e:
+    predictions = []
+    pertNum = 0
+    for pert in perturbations:
+      perturbed_img = perturb_image(Xi,pert,superpixels)
+      pertNum += 1
+      print("Pertubation",pertNum, "for 'inceptionV3_model.predict()'")
+      # Get a trained 'inceptionV3_model' model prediction for the current pertubation
+      pred = inceptionV3_model.predict(perturbed_img[np.newaxis,:,:,:])
+      predictions.append(pred)
+
+    predictions = np.array(predictions)
+    #predictions.shape
+
+    with open(predictionsFile, 'wb') as fp:
+      pickle.dump(predictions, fp)
+
+  return predictions
+
+predictions = getPredictions()
 
 """### Step 3: Compute distances between the original image and each of the perturbed images and compute 
 weights (importance) of each perturbed image.
@@ -332,40 +450,163 @@ while float(self.accuracyPercent) < 0.90:
   self.desiredIncrease += 0.05
   self.rlRunPart(rl)
 """
+
+# 26/8/23 DH: 
+def createDigitLabels():
   
-num_top_features = 4
+  digitLabelsDict = {}
+
+  """
+  # 28/8/23 DH: '0' is black pixel
+  digitLabelsDict[0] = np.asarray([
+                          [1,1,1,1,1,1],
+                          [1,1,0,0,1,1],
+                          [1,0,1,1,0,1],
+                          [1,0,1,1,0,1],
+                          [1,0,1,1,0,1],
+                          [1,1,0,0,1,1],
+                          [1,1,1,1,1,1]])
+  
+  digitLabelsDict[4] = np.asarray([
+                              [  1,  1,  1,  1,  1,  1],
+                              [  1,  1,  1,  0,  0,  1],
+                              [  1,  1,  0,  1,  0,  1],
+                              [  1,  0,  1,  1,  0,  1],
+                              [  0,  1,  1,  1,  0,  1],
+                              [  0,  0,  0,  0,  0,  0],
+                              [  1,  1,  1,  0,  0,  1],
+                              [  1,  1,  1,  0,  0,  1],
+                              [  1,  1,  1,  1,  1,  1]
+                              ])
+  """
+
+  # 28/8/23 DH: --------------- Taken from 'mnist-training-errors/tf_config_image.py' ----------------
+  # 6 * 7 = 42 pixels
+  
+  digitLabelsDict[0] = np.asarray(
+                            [[  0,  0,255,255,  0,  0],
+                              [  0,255,255,255,255,  0],
+                              [255,255,  0,  0,255,255],
+                              [255,  0,  0,  0,  0,255],
+                              [255,255,  0,  0,255,255],
+                              [  0,255,255,255,255,  0],
+                              [  0,  0,255,255,  0,  0]])
+
+  digitLabelsDict[1] = np.asarray(
+                            [[  0,255,255,255,  0,  0],
+                              [  0,255,255,255,  0,  0],
+                              [  0,  0,  0,255,  0,  0],
+                              [  0,  0,  0,255,  0,  0],
+                              [  0,  0,  0,255,  0,  0],
+                              [  0,255,255,255,255,  0],
+                              [  0,255,255,255,255,  0]])
+  
+  digitLabelsDict[2] = np.asarray(
+                            [[  0,  0,255,255,  0,  0],
+                              [  0,255,  0,255,255,  0],
+                              [  0,  0,  0,  0,255,  0],
+                              [  0,  0,  0,  0,255,  0],
+                              [  0,  0,  0,255,255,  0],
+                              [  0,  0,255,255,  0,  0],
+                              [  0,255,255,255,255,255]])
+  
+  digitLabelsDict[3] = np.asarray(
+                            [[  0,  0,255,255,255,  0],
+                              [  0,255,  0,  0,255,255],
+                              [  0,  0,  0,  0,  0,255],
+                              [  0,  0,  0,255,255,  0],
+                              [  0,  0,  0,  0,  0,255],
+                              [  0,255,  0,  0,255,255],
+                              [  0,  0,255,255,255,  0]])
+  
+  digitLabelsDict[4] = np.asarray(
+                            [[  0,  0,  0,255,255,  0],
+                              [  0,  0,255,  0,255,  0],
+                              [  0,255,  0,  0,255,  0],
+                              [255,  0,  0,  0,255,  0],
+                              [255,255,255,255,255,255],
+                              [  0,  0,  0,  0,255,  0],
+                              [  0,  0,  0,  0,255,  0]])
+
+  digitLabelsDict[5] = np.asarray(
+                            [[255,255,255,255,  0,  0],
+                              [255,  0,  0,  0,  0,  0],
+                              [255,255,255,255,  0,  0],
+                              [  0,  0,  0,255,255,  0],
+                              [  0,  0,  0,  0,255,  0],
+                              [255,  0,  0,255,255,  0],
+                              [255,255,255,255,  0,  0]])
+
+  digitLabelsDict[6] = np.asarray(
+                            [[  0,  0,255,255,  0,  0],
+                              [  0,255,  0,  0,  0,  0],
+                              [  0,255,  0,  0,  0,  0],
+                              [  0,255,255,255,255,  0],
+                              [  0,255,  0,  0,255,  0],
+                              [  0,255,  0,  0,255,  0],
+                              [  0,  0,255,255,255,  0]])
+
+  digitLabelsDict[7] = np.asarray(
+                            [[255,255,255,255,255,255],
+                              [255,255,255,255,255,255],
+                              [  0,  0,  0,  0,255,255],
+                              [  0,  0,  0,255,255,  0],
+                              [  0,  0,255,255,  0,  0],
+                              [  0,255,255,  0,  0,  0],
+                              [255,255,  0,  0,  0,  0]])
+  
+  digitLabelsDict[8] = np.asarray(
+                            [[  0,  0,255,255,255,  0],
+                              [  0,255,255,  0,255,255],
+                              [  0,255,  0,  0,  0,255],
+                              [  0,  0,255,255,255,  0],
+                              [  0,255,  0,  0,  0,255],
+                              [  0,255,255,  0,255,255],
+                              [  0,  0,255,255,255,  0]])
+
+  digitLabelsDict[9] = np.asarray(
+                            [[  0,255,255,255,  0,  0],
+                              [  0,255,  0,  0,255,  0],
+                              [  0,255,  0,  0,255,  0],
+                              [  0,  0,255,255,255,  0],
+                              [  0,  0,  0,  0,255,  0],
+                              [  0,  0,  0,  0,255,  0],
+                              [  0,  0,  0,  0,255,  0]])
+  
+  return digitLabelsDict
+
+  
+num_top_featureS = num_top_feature = 4
+
 # 24/8/23 DH:
-last_feature = -1
-while num_top_features > 0:
+last_features = -1
+digitLabelsDict = createDigitLabels()
+
+while num_top_feature > 0:
   # https://numpy.org/doc/stable/reference/generated/numpy.argsort.html
   # "It returns an array of indices ... in sorted order."
   # "kind=None: Sorting algorithm. The default is ‘quicksort’."
-  top_features = np.argsort(coeff)[-num_top_features:]
+  top_features = np.argsort(coeff)[-num_top_feature:]
   print("\ntop_features:",top_features)
-
-  """#### Show LIME explanation (image with top features)
-  Let's show the most important superpixels defined in the previous step in an image after covering up less 
-  relevant superpixels.
-  """
 
   currentSegmentsMask = np.zeros(num_superpixels)
   lastSegmentMask = np.zeros(num_superpixels)
 
   currentSegmentsMask[top_features] = True #Activate top superpixels
-  print("Showing feature number ",num_top_features)
+  print("Showing feature number ",num_top_feature)
 
-  #img = perturb_image(Xi/2+0.5,currentSegmentsMask,superpixels)
+  if last_features != -1:
+    print("last_feature: ",last_features)
+    lastSegmentMask[last_features] = True
 
-  if last_feature != -1:
-    last_feature.append(top_features[0])
-    print("last_feature: ",last_feature)
-    lastSegmentMask[last_feature] = True
-    img2 = highlight_image(img, lastSegmentMask, currentSegmentsMask, superpixels)
+    # def highlight_image(img, segMask, currentSegsMask, segments, featureNum):
+    img2 = highlight_image(img, lastSegmentMask, currentSegmentsMask, superpixels, 
+                           num_top_featureS, last_features)
 
+    last_features.append(top_features[0])
   else: # first time
-    last_feature = []
-    #last_feature = top_features[0]
-    last_feature.append(top_features[0])
+    last_features = []
+    last_features.append(top_features[0])
     img = perturb_image(Xi/2+0.5,currentSegmentsMask,superpixels)
     img2 = img
 
@@ -373,6 +614,6 @@ while num_top_features > 0:
   skimage.io.imshow( img3 )
   plt.show()
 
-  num_top_features -= 1
+  num_top_feature -= 1
 
 #time.sleep(5)
