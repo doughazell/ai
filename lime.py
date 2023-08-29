@@ -88,10 +88,6 @@ class Lime(object):
     the "Labrador Retriever" is the top class for the given image.
     """
 
-    np.random.seed(222)
-    print("\n'np.random.seed(222)' ???\n")
-    #preds = inceptionV3_model.predict(Xi[np.newaxis,:,:,:])
-
     # 22/8/23 DH: 'inception_v3' needs 4-D input:
     # ValueError: Input 0 of layer "inception_v3" is incompatible with the layer: 
     # expected shape=(None, 299, 299, 3), found shape=(None, 299, 3)
@@ -101,9 +97,6 @@ class Lime(object):
     print("inceptionV3_model.predict(): ",self.preds.shape)
 
     self.img = img
-
-    print("\nDEBUG")
-    self.superpixels = skimage.segmentation.quickshift(self.img, kernel_size=6,max_dist=200, ratio=0.2)
 
   def getTopPredictions(self):
     """
@@ -135,7 +128,6 @@ class Lime(object):
   (`perturbation`) and predefined superpixels (`segments`)."""
 
   def perturb_image(self, img, perturbation, segments):
-    print("np.where(pertubation == 1):",np.where(perturbation == 1))
     active_pixels = np.where(perturbation == 1)[0]
     mask = np.zeros(segments.shape)
     for active in active_pixels:
@@ -146,22 +138,15 @@ class Lime(object):
   
   # 24/8/23 DH:
   def highlight_image(self, img, segMask, currentSegsMask, segments, num_top_features, last_features):
-    print("---------------- highlight_image() -------------------")
-    print("np.where(segMask == 1):",np.where(segMask == 1))
-    prev_active_pixels = np.where(segMask == 1)[0]
-    print("np.where(currentSegsMask == 1):",np.where(currentSegsMask == 1))
+    
     active_pixels = np.where(currentSegsMask == 1)[0]
     
     mask = np.zeros(segments.shape)
     for active in active_pixels:
       mask[segments == active] = 1
 
-    print()
-    print("prev_active_pixels (in index NOT TOP FEATURE ORDER):",prev_active_pixels)
-    print("last_features:",last_features)
     cnt = 0
 
-    #for prev in prev_active_pixels:
     # 28/8/23 DH: 'prev_active_pixels' was just previous segment top feature in index order
     for prev in last_features:
       # 'mask[segments == prev] = 0' makes segment black
@@ -169,7 +154,6 @@ class Lime(object):
 
       # 26/8/23 DH: 
       midPoint = self.lime_utils.getSegmentMidpoint(prev, segments)
-      print("Mid point:",midPoint)
 
       # Add horizontal line at mid-point of segment (visible across all non-black segments)
       #mask[midPoint[0]] = 1
@@ -181,18 +165,10 @@ class Lime(object):
         for y in range(digitLabelSizeY):
           mask[midPoint[1]+x][midPoint[0]+y] = self.lime_utils.digitLabelsDict[num_top_features-cnt][x][y]
 
-          #if x == (digitLabelSizeX -1) and y == (digitLabelSizeY -1):
-          #  print("x:",x,",y:",y,"=",digitLabelsDict[featureNum][x][y])
-
       cnt += 1
 
     highlighted_image = copy.deepcopy(img)
-    print("highlighted_image:", type(highlighted_image), highlighted_image.shape)
-    print("mask/segments:", type(mask), mask.shape)
-    print("segMask:", type(segMask), segMask.shape)
-    print("currentSegsMask:", type(currentSegsMask), currentSegsMask.shape)
-    print("---------------- END: highlight_image() -------------------")
-
+    
     # 26/8/23 DH: [start:stop:step], 
     #             [:,:,np.newaxis], 'np.newaxis' = "add another layer" so make 'mask' 3D like 'highlighted_image'
     highlighted_image = highlighted_image * mask[:,:,np.newaxis]
@@ -231,10 +207,10 @@ class Lime(object):
 
     # 21/8/23 DH:
     #num_perturb = 150
-    num_perturb = 100
-    probSuccess = 0.5
+    self.num_perturb = 100
+    self.probSuccess = 0.5
 
-    self.perturbations = np.random.binomial(1, probSuccess, size=(num_perturb, self.num_superpixels))
+    self.perturbations = np.random.binomial(1, self.probSuccess, size=(self.num_perturb, self.num_superpixels))
     print("Showing pertubation 0 (from",self.perturbations.shape,"pertubations 2-D array)")
     print(self.perturbations[0]) #Show example of perturbation
 
@@ -335,7 +311,6 @@ class Lime(object):
       lastSegmentMask = np.zeros(self.num_superpixels)
 
       currentSegmentsMask[top_features] = True #Activate top superpixels
-      print("Showing feature number ",num_top_feature)
 
       if last_features != -1:
         print("last_feature: ",last_features)
@@ -398,10 +373,11 @@ if __name__ == '__main__':
   limeImage.getImagePrediction()
   limeImage.getTopPredictions()
 
-  #limeImage.lime_utils.displayDistrib(perturbations, num_perturb, num_superpixels, probSuccess)
-  
   limeImage.segmentImage()
   limeImage.createRandomPertubations()
+  limeImage.lime_utils.displayDistrib(limeImage.perturbations, limeImage.num_perturb, 
+                                      limeImage.num_superpixels, limeImage.probSuccess)
+
   limeImage.getPredictions()
   limeImage.getDistanceWeights()
   limeImage.getLinearRegressionCoefficients()
