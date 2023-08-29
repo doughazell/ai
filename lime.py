@@ -70,6 +70,8 @@ class Lime(object):
     self.inceptionV3_model = keras.applications.inception_v3.InceptionV3()
     self.lime_utils = LimeUtils()
 
+  # --------------------------------- Prelims --------------------------------
+
   def getImagePrediction(self):
     # image is resized and pre-processed to be suitable for Inception V3.
 
@@ -127,6 +129,52 @@ class Lime(object):
   """The following function `perturb_image` perturbs the given image (`img`) based on a perturbation vector 
   (`perturbation`) and predefined superpixels (`segments`)."""
 
+  def segmentImage(self):
+    # https://scikit-image.org/docs/stable/api/skimage.segmentation.html#skimage.segmentation.quickshift
+    # kernel_size: Width of Gaussian kernel used in smoothing the sample density. Higher means fewer clusters.
+    # max_dist: ...Higher means fewer clusters
+    # ratio: 0-1, Higher values give more weight to color-space.
+    #
+    # Returns: "Integer mask indicating segment labels."
+
+    #superpixels = skimage.segmentation.quickshift(self.img, kernel_size=4,max_dist=200, ratio=0.2)
+
+    self.superpixels = skimage.segmentation.quickshift(self.img, kernel_size=6,max_dist=200, ratio=0.2)
+    self.num_superpixels = np.unique(self.superpixels).shape[0]
+    # 71 superpixels
+    print("\nNumber of superpixels:",self.num_superpixels,"(from 'skimage.segmentation.quickshift()' return:",
+          self.superpixels.shape,")")
+    print()
+
+    #skimage.io.imshow(skimage.segmentation.mark_boundaries(Xi/2+0.5, superpixels))
+    #plt.show()
+
+  # --------------------------------- END: Prelims ---------------------------
+  
+  # ----------------------------- Step 1/4 ---------------------------------
+
+  def createRandomPertubations(self):
+    """
+    #### Create random perturbations
+    In this example, 150 perturbations were used. However, for real life applications, a larger number of 
+    perturbations will produce more reliable explanations. Random zeros and ones are generated and shaped as a 
+    matrix with perturbations as rows and superpixels as columns. An example of a perturbation (the first one) 
+    is show below. Here, `1` represent that a superpixel is on and `0` represents it is off. Notice that the 
+    length of the shown vector corresponds to the number of superpixels in the image.
+    """
+
+    # 21/8/23 DH:
+    #num_perturb = 150
+    self.num_perturb = 100
+    self.probSuccess = 0.5
+
+    self.perturbations = np.random.binomial(1, self.probSuccess, size=(self.num_perturb, self.num_superpixels))
+    print("Showing pertubation 0 (from",self.perturbations.shape,"pertubations 2-D array)")
+    print(self.perturbations[0]) #Show example of perturbation
+
+  # ----------------------------- Step 2/4 ---------------------------------
+
+  # 29/8/23 DH: Also used in first segment of 'displayTopFeatures()'
   def perturb_image(self, img, perturbation, segments):
     active_pixels = np.where(perturbation == 1)[0]
     mask = np.zeros(segments.shape)
@@ -135,7 +183,82 @@ class Lime(object):
     perturbed_image = copy.deepcopy(img)
     perturbed_image = perturbed_image*mask[:,:,np.newaxis]
     return perturbed_image
+
+  # 27/8/23 DH: Pkl the 'predictions' array
+  def getPredictions(self):
+    predictionsFile = "predictions.pkl"
+
+    try:
+      with open(predictionsFile, 'rb') as fp:
+        self.predictions = pickle.load(fp)
+        print("\nLoaded 'predictions':",self.predictions.shape)
+
+        #top_pred_classes = self.predictions[0].argsort()[-5:][::-1]
+        
+        # 28/8/23 DH: https://www.tensorflow.org/api_docs/python/tf/keras/applications/imagenet_utils/decode_predictions
+        # Returns:
+        #  A list of lists of top class prediction tuples (class_name, class_description, score). 
+        #  One list of tuples per sample in batch input. 
+        topPrediction = decode_predictions(preds=self.predictions[0].argsort()[-1:][::-1], top=1)[0][0]
+
+        print("Top prediction of first prediction:", topPrediction[1])
+        print()
+      
+    except FileNotFoundError as e:
+      self.predictions = []
+      pertNum = 0
+      for pert in self.perturbations:
+        perturbed_img = self.perturb_image(self.img, pert, self.superpixels)
+        pertNum += 1
+        print("Pertubation",pertNum, "for 'inceptionV3_model.predict()'")
+        # Get a trained 'inceptionV3_model' model prediction for the current pertubation
+        pred = self.inceptionV3_model.predict(perturbed_img[np.newaxis,:,:,:])
+        self.predictions.append(pred)
+
+      self.predictions = np.array(self.predictions)
+
+      with open(predictionsFile, 'wb') as fp:
+        pickle.dump(self.predictions, fp)
+
+    return self.predictions
+
+  # ----------------------------- Step 3/4 ---------------------------------
+
+  def getDistanceWeights(self):
+    original_image = np.ones(self.num_superpixels)[np.newaxis,:] #Perturbation with all superpixels enabled
+    distances = sklearn.metrics.pairwise_distances(self.perturbations,original_image, metric='cosine').ravel()
+
+    """#### Use kernel function to compute weights
+    The distances are then mapped to a value between zero and one (weight) using a kernel function. 
+    An example of a kernel function with different kernel widths is shown in the plot below. 
+
+    Here the x axis represents distances and the y axis the weights. Depeding on how we set the kernel width, 
+    it defines how wide we want the "locality" around our instance to be. This kernel width can be set based on 
+    expected distance values. For the case of cosine distances, we expect them to be somehow stable 
+    (between 0 and 1); therefore, no fine tunning of the kernel width might be required.
+
+    <img src="https://arteagac.github.io/blog/lime_image/img/kernel.png" alt="Drawing" width="600"/>
+    """
+
+    kernel_width = 0.25
+    self.weights = np.sqrt(np.exp(-(distances**2)/kernel_width**2)) #Kernel function
   
+  # ----------------------------- Step 4/4 ---------------------------------
+
+  def getLinearRegressionCoefficients(self):
+    class_to_explain = self.top_pred_classes[0]
+    # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html
+    simpler_model = LinearRegression()
+    simpler_model.fit(X=self.perturbations, y=self.predictions[:,:,class_to_explain], sample_weight=self.weights)
+    
+    self.coeff = simpler_model.coef_[0]
+
+    print("coeff:",self.coeff)
+    print()
+    print("np.argsort(coeff):",np.argsort(self.coeff))
+
+  # ----------------------------- END: Step 4/4 ---------------------------------
+
   # 24/8/23 DH:
   def highlight_image(self, img, segMask, currentSegsMask, segments, num_top_features, last_features):
     
@@ -175,115 +298,6 @@ class Lime(object):
     
     return highlighted_image
 
-  def segmentImage(self):
-    # https://scikit-image.org/docs/stable/api/skimage.segmentation.html#skimage.segmentation.quickshift
-    # kernel_size: Width of Gaussian kernel used in smoothing the sample density. Higher means fewer clusters.
-    # max_dist: ...Higher means fewer clusters
-    # ratio: 0-1, Higher values give more weight to color-space.
-    #
-    # Returns: "Integer mask indicating segment labels."
-
-    #superpixels = skimage.segmentation.quickshift(self.img, kernel_size=4,max_dist=200, ratio=0.2)
-
-    self.superpixels = skimage.segmentation.quickshift(self.img, kernel_size=6,max_dist=200, ratio=0.2)
-    self.num_superpixels = np.unique(self.superpixels).shape[0]
-    # 71 superpixels
-    print("\nNumber of superpixels:",self.num_superpixels,"(from 'skimage.segmentation.quickshift()' return:",
-          self.superpixels.shape,")")
-    print()
-
-    #skimage.io.imshow(skimage.segmentation.mark_boundaries(Xi/2+0.5, superpixels))
-    #plt.show()
-
-  def createRandomPertubations(self):
-    """
-    #### Create random perturbations
-    In this example, 150 perturbations were used. However, for real life applications, a larger number of 
-    perturbations will produce more reliable explanations. Random zeros and ones are generated and shaped as a 
-    matrix with perturbations as rows and superpixels as columns. An example of a perturbation (the first one) 
-    is show below. Here, `1` represent that a superpixel is on and `0` represents it is off. Notice that the 
-    length of the shown vector corresponds to the number of superpixels in the image.
-    """
-
-    # 21/8/23 DH:
-    #num_perturb = 150
-    self.num_perturb = 100
-    self.probSuccess = 0.5
-
-    self.perturbations = np.random.binomial(1, self.probSuccess, size=(self.num_perturb, self.num_superpixels))
-    print("Showing pertubation 0 (from",self.perturbations.shape,"pertubations 2-D array)")
-    print(self.perturbations[0]) #Show example of perturbation
-
-  # 27/8/23 DH: Pkl the 'predictions' array
-  def getPredictions(self):
-    predictionsFile = "predictions.pkl"
-
-    try:
-      with open(predictionsFile, 'rb') as fp:
-        self.predictions = pickle.load(fp)
-        print("\nLoaded 'predictions':",self.predictions.shape)
-
-        #print(decode_predictions(preds)[0]) #Top 5 classes (as default)
-        #top_pred_classes = preds[0].argsort()[-5:][::-1]
-        
-        # 28/8/23 DH: https://www.tensorflow.org/api_docs/python/tf/keras/applications/imagenet_utils/decode_predictions
-        # Returns:
-        #  A list of lists of top class prediction tuples (class_name, class_description, score). 
-        #  One list of tuples per sample in batch input. 
-        topPrediction = decode_predictions(preds=self.predictions[0].argsort()[-1:][::-1], top=1)[0][0]
-
-        print("Top prediction of first prediction:", topPrediction[1])
-        print()
-      
-    except FileNotFoundError as e:
-      self.predictions = []
-      pertNum = 0
-      for pert in self.perturbations:
-        perturbed_img = self.perturb_image(self.img, pert, self.superpixels)
-        pertNum += 1
-        print("Pertubation",pertNum, "for 'inceptionV3_model.predict()'")
-        # Get a trained 'inceptionV3_model' model prediction for the current pertubation
-        pred = self.inceptionV3_model.predict(perturbed_img[np.newaxis,:,:,:])
-        self.predictions.append(pred)
-
-      self.predictions = np.array(self.predictions)
-      #predictions.shape
-
-      with open(predictionsFile, 'wb') as fp:
-        pickle.dump(self.predictions, fp)
-
-    return self.predictions
-
-  def getDistanceWeights(self):
-    original_image = np.ones(self.num_superpixels)[np.newaxis,:] #Perturbation with all superpixels enabled
-    distances = sklearn.metrics.pairwise_distances(self.perturbations,original_image, metric='cosine').ravel()
-
-    """#### Use kernel function to compute weights
-    The distances are then mapped to a value between zero and one (weight) using a kernel function. 
-    An example of a kernel function with different kernel widths is shown in the plot below. 
-
-    Here the x axis represents distances and the y axis the weights. Depeding on how we set the kernel width, 
-    it defines how wide we want the "locality" around our instance to be. This kernel width can be set based on 
-    expected distance values. For the case of cosine distances, we expect them to be somehow stable 
-    (between 0 and 1); therefore, no fine tunning of the kernel width might be required.
-
-    <img src="https://arteagac.github.io/blog/lime_image/img/kernel.png" alt="Drawing" width="600"/>
-    """
-
-    kernel_width = 0.25
-    self.weights = np.sqrt(np.exp(-(distances**2)/kernel_width**2)) #Kernel function
-    
-  def getLinearRegressionCoefficients(self):
-    class_to_explain = self.top_pred_classes[0]
-    # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html
-    simpler_model = LinearRegression()
-    simpler_model.fit(X=self.perturbations, y=self.predictions[:,:,class_to_explain], sample_weight=self.weights)
-    
-    self.coeff = simpler_model.coef_[0]
-
-    print("coeff:",self.coeff)
-    print()
-    print("np.argsort(coeff):",np.argsort(self.coeff))
 
   def displayTopFeatures(self):
     """#### Compute top features (superpixels)
@@ -372,14 +386,18 @@ if __name__ == '__main__':
 
   limeImage.getImagePrediction()
   limeImage.getTopPredictions()
-
   limeImage.segmentImage()
+
+  # Step 1/4
   limeImage.createRandomPertubations()
   limeImage.lime_utils.displayDistrib(limeImage.perturbations, limeImage.num_perturb, 
                                       limeImage.num_superpixels, limeImage.probSuccess)
 
+  # Step 2/4
   limeImage.getPredictions()
+  # Step 3/4
   limeImage.getDistanceWeights()
+  # Step 4/4
   limeImage.getLinearRegressionCoefficients()
 
   limeImage.displayTopFeatures()
