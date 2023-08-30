@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import copy
 
 class LimeUtils(object):
 
@@ -187,3 +188,42 @@ class LimeUtils(object):
     midPoint.append(midY)
 
     return midPoint
+  
+  # 24/8/23 DH:
+  def highlight_image(self, img, currentSegsMask, segments, num_top_features, last_features):
+    
+    active_pixels = np.where(currentSegsMask == 1)[0]
+    
+    mask = np.zeros(segments.shape)
+    for active in active_pixels:
+      mask[segments == active] = 1
+
+    cnt = 0
+
+    # 28/8/23 DH: 'prev_active_pixels' was just previous segment top feature in index order
+    for prev in last_features:
+      # 'mask[segments == prev] = 0' makes segment black
+      mask[segments == prev] = 0.5 # half transparent
+
+      # 26/8/23 DH: 
+      midPoint = self.getSegmentMidpoint(prev, segments)
+
+      # Add horizontal line at mid-point of segment (visible across all non-black segments)
+      #mask[midPoint[0]] = 1
+
+      (digitLabelSizeX, digitLabelSizeY) = self.digitLabelsDict[num_top_features-cnt].shape
+
+      # 28/8/23 DH: *** NOTE: The image 'y' axis is the 2-D array 'x' index ***
+      for x in range(digitLabelSizeX):
+        for y in range(digitLabelSizeY):
+          mask[midPoint[1]+x][midPoint[0]+y] = self.digitLabelsDict[num_top_features-cnt][x][y]
+
+      cnt += 1
+
+    highlighted_image = copy.deepcopy(img)
+    
+    # 26/8/23 DH: [start:stop:step], 
+    #             [:,:,np.newaxis], 'np.newaxis' = "add another layer" so make 'mask' 3D like 'highlighted_image'
+    highlighted_image = highlighted_image * mask[:,:,np.newaxis]
+    
+    return highlighted_image
