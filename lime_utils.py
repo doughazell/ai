@@ -1,6 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
+
+# 30/8/23 DH:
 import copy
+import skimage.io
+import skimage.segmentation
+from lime import *
 
 class LimeUtils(object):
 
@@ -227,3 +232,53 @@ class LimeUtils(object):
     highlighted_image = highlighted_image * mask[:,:,np.newaxis]
     
     return highlighted_image
+  
+  # 30/8/23 DH: Encapsulated requirements in 'limeImage':
+  #             coeff, num_superpixels, superpixels, img, perturb_image(), 
+  def displayTopFeatures(self, limeImage):
+    """#### Compute top features (superpixels)
+    Now we just need to sort the coefficients to figure out which are the supperpixels that have larger 
+    coefficients (magnitude) for the prediction of labradors. The identifiers of these top features or 
+    superpixels are shown below. Even though here we use the magnitude of the coefficients to determine the 
+    most important features, other alternatives such as forward or backward elimination can be used for feature 
+    importance selection.
+    """
+
+    num_top_featureS = num_top_feature = 4
+
+    # 24/8/23 DH:
+    last_features = -1
+    self.createDigitLabels()
+
+    while num_top_feature > 0:
+      # https://numpy.org/doc/stable/reference/generated/numpy.argsort.html
+      # "It returns an array of indices ... in sorted order."
+      # "kind=None: Sorting algorithm. The default is ‘quicksort’."
+      top_features = np.argsort(limeImage.coeff)[-num_top_feature:]
+      print("\ntop_features:",top_features)
+
+      currentSegmentsMask = np.zeros(limeImage.num_superpixels)
+      lastSegmentMask = np.zeros(limeImage.num_superpixels)
+
+      currentSegmentsMask[top_features] = True #Activate top superpixels
+
+      if last_features != -1:
+        print("last_feature: ",last_features)
+        lastSegmentMask[last_features] = True
+
+        img2 = self.highlight_image(img, currentSegmentsMask, limeImage.superpixels, 
+                                               num_top_featureS, last_features)
+
+        last_features.append(top_features[0])
+      else: # first time
+        last_features = []
+        last_features.append(top_features[0])
+        img = limeImage.perturb_image(limeImage.img/2+0.5, currentSegmentsMask, limeImage.superpixels)
+        img2 = img
+
+      img3 = skimage.segmentation.mark_boundaries(img2, limeImage.superpixels)
+      skimage.io.imshow( img3 )
+      plt.show()
+
+      num_top_feature -= 1
+
