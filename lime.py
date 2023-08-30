@@ -62,8 +62,9 @@ class Lime(object):
     print("-------------------------------------")
     #print("TensorFlow version:", tf.__version__)
     print('Notebook running: keras ', keras.__version__)
-    np.random.seed(222)
     print("-------------------------------------")
+
+    np.random.seed(222)
 
     # InceptionV3 initialization: use the pre-trained InceptionV3 model available in Keras.
     warnings.filterwarnings('ignore')
@@ -260,7 +261,7 @@ class Lime(object):
   # ----------------------------- END: Step 4/4 ---------------------------------
 
   # 24/8/23 DH:
-  def highlight_image(self, img, segMask, currentSegsMask, segments, num_top_features, last_features):
+  def highlight_image(self, img, currentSegsMask, segments, num_top_features, last_features):
     
     active_pixels = np.where(currentSegsMask == 1)[0]
     
@@ -330,9 +331,7 @@ class Lime(object):
         print("last_feature: ",last_features)
         lastSegmentMask[last_features] = True
 
-        # def highlight_image(img, segMask, currentSegsMask, segments, featureNum):
-        img2 = self.highlight_image(img, lastSegmentMask, currentSegmentsMask, self.superpixels, 
-                              num_top_featureS, last_features)
+        img2 = self.highlight_image(img, currentSegmentsMask, self.superpixels, num_top_featureS, last_features)
 
         last_features.append(top_features[0])
       else: # first time
