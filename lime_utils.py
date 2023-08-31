@@ -257,8 +257,8 @@ class LimeUtils(object):
       top_features = np.argsort(limeImage.coeff)[-num_top_feature:]
       print("\ntop_features:",top_features)
 
-      currentSegmentsMask = np.zeros(limeImage.num_superpixels)
-      lastSegmentMask = np.zeros(limeImage.num_superpixels)
+      currentSegmentsMask = np.zeros(limeImage.numSegments)
+      lastSegmentMask = np.zeros(limeImage.numSegments)
 
       currentSegmentsMask[top_features] = True #Activate top superpixels
 
@@ -266,17 +266,17 @@ class LimeUtils(object):
         print("last_feature: ",last_features)
         lastSegmentMask[last_features] = True
 
-        img2 = self.highlight_image(img, currentSegmentsMask, limeImage.superpixels, 
+        img2 = self.highlight_image(img, currentSegmentsMask, limeImage.imgSegmentMask, 
                                                num_top_featureS, last_features)
 
         last_features.append(top_features[0])
       else: # first time
         last_features = []
         last_features.append(top_features[0])
-        img = limeImage.perturb_image(limeImage.img/2+0.5, currentSegmentsMask, limeImage.superpixels)
+        img = limeImage.perturb_image(limeImage.img/2+0.5, currentSegmentsMask, limeImage.imgSegmentMask)
         img2 = img
 
-      img3 = skimage.segmentation.mark_boundaries(img2, limeImage.superpixels)
+      img3 = skimage.segmentation.mark_boundaries(img2, limeImage.imgSegmentMask)
       skimage.io.imshow( img3 )
       plt.show()
 

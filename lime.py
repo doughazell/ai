@@ -140,11 +140,11 @@ class Lime(object):
 
     #superpixels = skimage.segmentation.quickshift(self.img, kernel_size=4,max_dist=200, ratio=0.2)
 
-    self.superpixels = skimage.segmentation.quickshift(self.img, kernel_size=6,max_dist=200, ratio=0.2)
-    self.num_superpixels = np.unique(self.superpixels).shape[0]
-    # 71 superpixels
-    print("\nNumber of superpixels:",self.num_superpixels,"(from 'skimage.segmentation.quickshift()' return:",
-          self.superpixels.shape,")")
+    self.imgSegmentMask = skimage.segmentation.quickshift(self.img, kernel_size=6,max_dist=200, ratio=0.2)
+    self.numSegments = np.unique(self.imgSegmentMask).shape[0]
+    # 71 segments
+    print("\nNumber of segments:",self.numSegments,"(from 'skimage.segmentation.quickshift()' return:",
+          self.imgSegmentMask.shape,")")
     print()
 
     #skimage.io.imshow(skimage.segmentation.mark_boundaries(Xi/2+0.5, superpixels))
@@ -169,7 +169,7 @@ class Lime(object):
     self.num_perturb = 100
     self.probSuccess = 0.5
 
-    self.perturbations = np.random.binomial(1, self.probSuccess, size=(self.num_perturb, self.num_superpixels))
+    self.perturbations = np.random.binomial(1, self.probSuccess, size=(self.num_perturb, self.numSegments))
     print("Showing pertubation 0 (from",self.perturbations.shape,"pertubations 2-D array)")
     print(self.perturbations[0]) #Show example of perturbation
 
@@ -193,8 +193,6 @@ class Lime(object):
       with open(predictionsFile, 'rb') as fp:
         self.predictions = pickle.load(fp)
         print("\nLoaded 'predictions':",self.predictions.shape)
-
-        #top_pred_classes = self.predictions[0].argsort()[-5:][::-1]
         
         # 28/8/23 DH: https://www.tensorflow.org/api_docs/python/tf/keras/applications/imagenet_utils/decode_predictions
         # Returns:
@@ -209,7 +207,7 @@ class Lime(object):
       self.predictions = []
       pertNum = 0
       for pert in self.perturbations:
-        perturbed_img = self.perturb_image(self.img, pert, self.superpixels)
+        perturbed_img = self.perturb_image(self.img, pert, self.imgSegmentMask)
         pertNum += 1
         print("Pertubation",pertNum, "for 'inceptionV3_model.predict()'")
         # Get a trained 'inceptionV3_model' model prediction for the current pertubation
@@ -226,7 +224,7 @@ class Lime(object):
   # ----------------------------- Step 3/4 ---------------------------------
 
   def getDistanceWeights(self):
-    original_image = np.ones(self.num_superpixels)[np.newaxis,:] #Perturbation with all superpixels enabled
+    original_image = np.ones(self.numSegments)[np.newaxis,:] #Perturbation with all superpixels enabled
     distances = sklearn.metrics.pairwise_distances(self.perturbations,original_image, metric='cosine').ravel()
 
     """#### Use kernel function to compute weights
@@ -303,7 +301,7 @@ if __name__ == '__main__':
   # Step 1/4
   limeImage.createRandomPertubations()
   limeImage.lime_utils.displayDistrib(limeImage.perturbations, limeImage.num_perturb, 
-                                      limeImage.num_superpixels, limeImage.probSuccess)
+                                      limeImage.numSegments, limeImage.probSuccess)
 
   # Step 2/4
   limeImage.getPredictions()
@@ -312,4 +310,6 @@ if __name__ == '__main__':
   # Step 4/4
   limeImage.getLinearRegressionCoefficients()
 
+  # 30/8/23 DH: Interface to utils "wrapper" by sending a copy of the Lime object with necessary attribs
+  #             ...nicely fractal...
   limeImage.lime_utils.displayTopFeatures(limeImage)
