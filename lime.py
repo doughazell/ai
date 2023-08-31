@@ -128,7 +128,7 @@ class Lime(object):
     print("\ntop_pred_classes (from 'inceptionV3_model.predict()'):",self.top_pred_classes) #Index of top 5 classes
 
   """The following function `perturb_image` perturbs the given image (`img`) based on a perturbation vector 
-  (`perturbation`) and predefined superpixels (`segments`)."""
+  (`perturbation`) and predefined imgSegmentMask (`segments`)."""
 
   def segmentImage(self):
     # https://scikit-image.org/docs/stable/api/skimage.segmentation.html#skimage.segmentation.quickshift
@@ -138,7 +138,7 @@ class Lime(object):
     #
     # Returns: "Integer mask indicating segment labels."
 
-    #superpixels = skimage.segmentation.quickshift(self.img, kernel_size=4,max_dist=200, ratio=0.2)
+    #imgSegmentMask = skimage.segmentation.quickshift(self.img, kernel_size=4,max_dist=200, ratio=0.2)
 
     self.imgSegmentMask = skimage.segmentation.quickshift(self.img, kernel_size=6,max_dist=200, ratio=0.2)
     self.numSegments = np.unique(self.imgSegmentMask).shape[0]
@@ -147,7 +147,7 @@ class Lime(object):
           self.imgSegmentMask.shape,")")
     print()
 
-    #skimage.io.imshow(skimage.segmentation.mark_boundaries(Xi/2+0.5, superpixels))
+    #skimage.io.imshow(skimage.segmentation.mark_boundaries(Xi/2+0.5, imgSegmentMask))
     #plt.show()
 
   # --------------------------------- END: Prelims ---------------------------
@@ -159,9 +159,9 @@ class Lime(object):
     #### Create random perturbations
     In this example, 150 perturbations were used. However, for real life applications, a larger number of 
     perturbations will produce more reliable explanations. Random zeros and ones are generated and shaped as a 
-    matrix with perturbations as rows and superpixels as columns. An example of a perturbation (the first one) 
+    matrix with perturbations as rows and imgSegmentMask as columns. An example of a perturbation (the first one) 
     is show below. Here, `1` represent that a superpixel is on and `0` represents it is off. Notice that the 
-    length of the shown vector corresponds to the number of superpixels in the image.
+    length of the shown vector corresponds to the number of imgSegmentMask in the image.
     """
 
     # 21/8/23 DH:
@@ -224,7 +224,7 @@ class Lime(object):
   # ----------------------------- Step 3/4 ---------------------------------
 
   def getDistanceWeights(self):
-    original_image = np.ones(self.numSegments)[np.newaxis,:] #Perturbation with all superpixels enabled
+    original_image = np.ones(self.numSegments)[np.newaxis,:] #Perturbation with all imgSegmentMask enabled
     distances = sklearn.metrics.pairwise_distances(self.perturbations,original_image, metric='cosine').ravel()
 
     """#### Use kernel function to compute weights
