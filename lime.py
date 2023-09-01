@@ -184,6 +184,7 @@ class Lime(object):
     except FileNotFoundError as e:
       self.predictions = []
       pertNum = 0
+      # Loop through binomial distrib samples of segment mask inclusion (from 'createRandomPertubations()')
       for pert in self.perturbations:
         perturbed_img = self.perturb_image(self.img, pert, self.imgSegmentMask)
         pertNum += 1
@@ -203,18 +204,19 @@ class Lime(object):
 
   def getDistanceWeights(self):
     original_image = np.ones(self.numSegments)[np.newaxis,:] #Perturbation with all imgSegmentMask enabled
-    distances = sklearn.metrics.pairwise_distances(self.perturbations,original_image, metric='cosine').ravel()
+    # Binomial distrib sample set of segment mask inclusion (from 'createRandomPertubations()')
+    distances = sklearn.metrics.pairwise_distances(X=self.perturbations,Y=original_image, metric='cosine').ravel()
+    print("sklearn.metrics.pairwise_distances() of segment mask binomial sample set:",distances.shape)
+    sortedDistances = np.argsort(distances)
+    print("eg...lowest:", distances[sortedDistances[0]], ", highest:",distances[sortedDistances[-1]], "\n")
 
     """#### Use kernel function to compute weights
     The distances are then mapped to a value between zero and one (weight) using a kernel function. 
-    An example of a kernel function with different kernel widths is shown in the plot below. 
 
     Here the x axis represents distances and the y axis the weights. Depeding on how we set the kernel width, 
     it defines how wide we want the "locality" around our instance to be. This kernel width can be set based on 
     expected distance values. For the case of cosine distances, we expect them to be somehow stable 
     (between 0 and 1); therefore, no fine tunning of the kernel width might be required.
-
-    <img src="https://arteagac.github.io/blog/lime_image/img/kernel.png" alt="Drawing" width="600"/>
     """
 
     kernel_width = 0.25
@@ -231,9 +233,9 @@ class Lime(object):
     
     self.coeff = simpler_model.coef_[0]
 
-    print("coeff:",self.coeff)
-    print()
-    print("np.argsort(coeff):",np.argsort(self.coeff))
+    print("LinearRegression() coeffs from weights:",self.coeff.shape)
+    sortedCoeffs = np.argsort(self.coeff)
+    print("eg...lowest:",self.coeff[sortedCoeffs[0]],", highest:",self.coeff[sortedCoeffs[-1]])
 
   # ----------------------------- END: Step 4/4 ---------------------------------
 

@@ -240,7 +240,7 @@ class LimeUtils(object):
     Now we just need to sort the coefficients to figure out which of the segments have larger coefficients 
     (magnitude) for the prediction of labradors. The identifiers of these top features or segments are shown 
     below. 
-    
+
     (Even though here we use the magnitude of the coefficients to determine the most important features, 
     other alternatives such as forward or backward elimination can be used for feature importance selection.)
     """
@@ -255,8 +255,10 @@ class LimeUtils(object):
       # https://numpy.org/doc/stable/reference/generated/numpy.argsort.html
       # "It returns an array of indices ... in sorted order."
       # "kind=None: Sorting algorithm. The default is ‘quicksort’."
+
       top_features = np.argsort(limeImage.coeff)[-num_top_feature:]
-      print("\ntop_features:",top_features)
+      top_feature = np.argsort(limeImage.coeff)[-num_top_feature]
+      print("\ntop_feature:",top_feature,"=",limeImage.coeff[top_feature])
 
       currentSegmentsMask = np.zeros(limeImage.numSegments)
       lastSegmentMask = np.zeros(limeImage.numSegments)
