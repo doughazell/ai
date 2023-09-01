@@ -236,12 +236,13 @@ class LimeUtils(object):
   # 30/8/23 DH: Encapsulated requirements in 'limeImage':
   #             coeff, numSegments, imgSegmentMask, img, perturb_image(), 
   def displayTopFeatures(self, limeImage):
-    """#### Compute top features (imgSegmentMask)
-    Now we just need to sort the coefficients to figure out which are the supperpixels that have larger 
-    coefficients (magnitude) for the prediction of labradors. The identifiers of these top features or 
-    imgSegmentMask are shown below. Even though here we use the magnitude of the coefficients to determine the 
-    most important features, other alternatives such as forward or backward elimination can be used for feature 
-    importance selection.
+    """#### Compute top features (segments)
+    Now we just need to sort the coefficients to figure out which of the segments have larger coefficients 
+    (magnitude) for the prediction of labradors. The identifiers of these top features or segments are shown 
+    below. 
+    
+    (Even though here we use the magnitude of the coefficients to determine the most important features, 
+    other alternatives such as forward or backward elimination can be used for feature importance selection.)
     """
 
     num_top_featureS = num_top_feature = 4

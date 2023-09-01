@@ -13,27 +13,6 @@ works, I recommend you to check my previous blog post [Interpretable Machine Lea
 Also, the following YouTube video explains this notebook step by step:
 https://www.youtube.com/embed/ENa-w65P1xM
 
-## LIME explanation:
-The following figure illustrates the basic idea behind LIME. 
-
-The figure shows light and dark gray areas which are the decision boundaries for the classes 
-for each (x1,x2) pairs in the dataset. LIME is able to provide explanations for the predictions of an 
-individual record (blue dot). The  explanations are created by generating a new dataset of perturbations 
-around the instance to be explained (colored markers around the blue dot). 
-
-The output or class of each generated perturbation is predicted with the machine-learning model 
-(colored markers inside and outside the decision boundaries). The importance of each perturbation 
-is determined by measuring its distance from the original instance to be explained. 
-
-These distances are converted to weights by mapping the distances to a zero-one scale using a 
-kernel function (see color scale for the weights). All this information: the new generated dataset, 
-its class predictions and its weights are used to fit a simpler model, such as a linear model (blue line), 
-that can be interpreted. The attributes of the simpler model, coefficients for the case of a linear model, 
-are then used to generate explanations.  
-(https://arteagac.github.io/blog/lime_image/img/lime_illustration.png)
-
-A detailed explanation of each step is shown below.
-
 """
 
 import numpy as np
@@ -49,7 +28,6 @@ import warnings
 
 # 19/8/23 DH:
 import time, sys
-import matplotlib.pyplot as plt
 # 27/8/23 DH:
 import pickle
 
@@ -59,10 +37,9 @@ from lime_utils import *
 class Lime(object):
 
   def __init__(self) -> None:
-    print("-------------------------------------")
-    #print("TensorFlow version:", tf.__version__)
-    print('Notebook running: keras ', keras.__version__)
-    print("-------------------------------------")
+    print("----------------------------------------------------------------")
+    print('Running: keras ', keras.__version__, "(which is a wrapper around",keras.backend.backend(),")" )
+    print("----------------------------------------------------------------")
 
     np.random.seed(222)
 
@@ -125,10 +102,7 @@ class Lime(object):
     # '[-5:]' ie take last 5 elements
     # '[::-1]' ie reverse order of elements using 'slice([start:stop:step])'
     self.top_pred_classes = self.preds[0].argsort()[-5:][::-1]
-    print("\ntop_pred_classes (from 'inceptionV3_model.predict()'):",self.top_pred_classes) #Index of top 5 classes
-
-  """The following function `perturb_image` perturbs the given image (`img`) based on a perturbation vector 
-  (`perturbation`) and predefined imgSegmentMask (`segments`)."""
+    print("\ntop_pred_classes (from 'inceptionV3_model.predict()'):",self.top_pred_classes)
 
   def segmentImage(self):
     # https://scikit-image.org/docs/stable/api/skimage.segmentation.html#skimage.segmentation.quickshift
@@ -138,17 +112,14 @@ class Lime(object):
     #
     # Returns: "Integer mask indicating segment labels."
 
-    #imgSegmentMask = skimage.segmentation.quickshift(self.img, kernel_size=4,max_dist=200, ratio=0.2)
+    #imgSegmentMask = skimage.segmentation.quickshift(self.img, kernel_size=4, max_dist=200, ratio=0.2)
 
-    self.imgSegmentMask = skimage.segmentation.quickshift(self.img, kernel_size=6,max_dist=200, ratio=0.2)
+    self.imgSegmentMask = skimage.segmentation.quickshift(self.img, kernel_size=6, max_dist=200, ratio=0.2)
     self.numSegments = np.unique(self.imgSegmentMask).shape[0]
-    # 71 segments
+    # 28 segments
     print("\nNumber of segments:",self.numSegments,"(from 'skimage.segmentation.quickshift()' return:",
-          self.imgSegmentMask.shape,")")
+          self.imgSegmentMask.shape,"for input img:",self.img.shape,")")
     print()
-
-    #skimage.io.imshow(skimage.segmentation.mark_boundaries(Xi/2+0.5, imgSegmentMask))
-    #plt.show()
 
   # --------------------------------- END: Prelims ---------------------------
   
@@ -159,9 +130,9 @@ class Lime(object):
     #### Create random perturbations
     In this example, 150 perturbations were used. However, for real life applications, a larger number of 
     perturbations will produce more reliable explanations. Random zeros and ones are generated and shaped as a 
-    matrix with perturbations as rows and imgSegmentMask as columns. An example of a perturbation (the first one) 
-    is show below. Here, `1` represent that a superpixel is on and `0` represents it is off. Notice that the 
-    length of the shown vector corresponds to the number of imgSegmentMask in the image.
+    matrix with perturbations as rows and imgSegmentMask as columns. An example of a perturbation 
+    (the first one) is show below. Here, `1` represent that a pixel is on and `0` represents it is off. 
+    Notice that the length of the shown vector corresponds to the number of imgSegmentMask in the image.
     """
 
     # 21/8/23 DH:
@@ -176,11 +147,18 @@ class Lime(object):
   # ----------------------------- Step 2/4 ---------------------------------
 
   # 29/8/23 DH: Also used in first segment of 'displayTopFeatures()'
+  """
+  The following function `perturb_image` perturbs the given image (`img`) based on a perturbation vector 
+  (`perturbation`) and predefined imgSegmentMask (`segments`).
+  """
   def perturb_image(self, img, perturbation, segments):
+    print("perturb_image() => img:",img.shape,", pertubation:",perturbation.shape,", segments:",segments.shape)
+
     active_pixels = np.where(perturbation == 1)[0]
     mask = np.zeros(segments.shape)
     for active in active_pixels:
       mask[segments == active] = 1
+
     perturbed_image = copy.deepcopy(img)
     perturbed_image = perturbed_image*mask[:,:,np.newaxis]
     return perturbed_image
@@ -248,7 +226,8 @@ class Lime(object):
     class_to_explain = self.top_pred_classes[0]
     # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html
     simpler_model = LinearRegression()
-    simpler_model.fit(X=self.perturbations, y=self.predictions[:,:,class_to_explain], sample_weight=self.weights)
+    simpler_model.fit(X=self.perturbations, y=self.predictions[:,:,class_to_explain], 
+                      sample_weight=self.weights)
     
     self.coeff = simpler_model.coef_[0]
 
@@ -281,16 +260,17 @@ distance for every generated perturbation.
 
 """ ============================================ STEP 4/4 ==================================================
 ### Step 4: Use `perturbations`, `predictions` and `weights` to fit an explainable (linear) model
-A weighed linear regression model is fitted using data from the previous steps (perturbations, predictions 
+A weighted linear regression model is fitted using data from the previous steps (perturbations, predictions 
 and weights). Given that the class that we want to explain is labrador, when fitting the linear model we take 
-from the predictions vector only the column corresponding to the top predicted class. Each coefficients in 
-the linear model corresponds to one superpixel in the segmented image. These coefficients represent how 
-important is each superpixel for the prediction of labrador.
+from the predictions vector only the column corresponding to the top predicted class. Each coefficient in 
+the linear model corresponds to one segment in the segmented image. These coefficients represent how 
+important is each segment for the prediction of labrador.
 """
 
 # 29/8/23 DH:
 if __name__ == '__main__':
   #time.sleep(5)
+  #sys.exit(0)
 
   limeImage = Lime()
 
