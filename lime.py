@@ -220,7 +220,7 @@ class Lime(object):
     """
 
     kernel_width = 0.25
-    self.weights = np.sqrt(np.exp(-(distances**2)/kernel_width**2)) #Kernel function
+    self.weights = np.sqrt( np.exp(-(distances**2)/kernel_width**2) ) #Kernel function
   
   # ----------------------------- Step 4/4 ---------------------------------
 
@@ -228,9 +228,15 @@ class Lime(object):
     class_to_explain = self.top_pred_classes[0]
     # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html
     simpler_model = LinearRegression()
-    simpler_model.fit(X=self.perturbations, y=self.predictions[:,:,class_to_explain], 
-                      sample_weight=self.weights)
-    
+
+    Xvals = self.perturbations
+    yVals = self.predictions[:,:,class_to_explain]
+    print("LinearRegression.fit(): perturbations:",Xvals.shape,", predictions:",yVals.shape)
+    simpler_model.fit(X=Xvals, y=yVals, sample_weight=self.weights)
+
+    self.simpler_model = simpler_model
+    self.Xvals = Xvals
+    self.yVals = yVals
     self.coeff = simpler_model.coef_[0]
 
     print("LinearRegression() coeffs from weights:",self.coeff.shape)
@@ -282,8 +288,7 @@ if __name__ == '__main__':
 
   # Step 1/4
   limeImage.createRandomPertubations()
-  limeImage.lime_utils.displayDistrib(limeImage.perturbations, limeImage.num_perturb, 
-                                      limeImage.numSegments, limeImage.probSuccess)
+  limeImage.lime_utils.displayDistrib(limeImage)
 
   # Step 2/4
   limeImage.getPredictions()
@@ -291,6 +296,7 @@ if __name__ == '__main__':
   limeImage.getDistanceWeights()
   # Step 4/4
   limeImage.getLinearRegressionCoefficients()
+  limeImage.lime_utils.displayRegressionLines(limeImage)
 
   # 30/8/23 DH: Interface to utils "wrapper" by sending a copy of the Lime object with necessary attribs
   #             ...nicely fractal...

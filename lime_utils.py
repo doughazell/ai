@@ -137,19 +137,21 @@ class LimeUtils(object):
     return self.digitLabelsDict
 
 
-  # 24/8/23 DH:
-  def displayDistrib(self, distribData, samples, segments, distribSuccess):
-    print("\nDisplaying:",distribData.shape)
+  # 24/8/23 DH: 
+  # 2/9/23 DH: limeImage.perturbations, limeImage.num_perturb, limeImage.numSegments, limeImage.probSuccess
+  #            (distribData)             (samples)              (segments)             (distribSuccess)
+  def displayDistrib(self, limeImage):
+    print("\nDisplaying:",limeImage.perturbations.shape)
     #print(distribData.shape[1])
 
-    tally = np.zeros(distribData.shape[1])
+    tally = np.zeros(limeImage.perturbations.shape[1])
     #print("Tally:",tally)
-    for distrib in distribData:
+    for distrib in limeImage.perturbations:
       tally += distrib
 
     #print("Tally (",type(tally),"):",tally)
-    print("Tally total:", np.sum(tally), "(for", round(distribSuccess * 100),
-          "% chance of segment mask inclusion from", samples * segments, "tests)")
+    print("Tally total:", np.sum(tally), "(for", round(limeImage.probSuccess * 100),
+          "% chance of segment mask inclusion from", limeImage.num_perturb * limeImage.numSegments, "tests)")
 
     # 24/8/23 DH: 'ply.hist' from 'real_bday_paradox.py' does not display anything...
     #             ...when use bin number rather than bin values...!!!
@@ -159,7 +161,8 @@ class LimeUtils(object):
     # https://matplotlib.org/3.6.2/api/_as_gen/matplotlib.pyplot.bar.html
     #plt.bar(np.arange(0,39), tally)
 
-    plt.title("np.random.binomial(trial=1,prob=0.5,for "+str(samples)+"*"+str(segments)+" events)")
+    plt.title("np.random.binomial(trial=1,prob=0.5,for " + str(limeImage.num_perturb) + "*"
+              + str(limeImage.numSegments) + " events)")
     plt.xlabel("$n$")
     plt.ylabel("Number of occurences")
 
@@ -284,4 +287,35 @@ class LimeUtils(object):
       plt.show()
 
       num_top_feature -= 1
+
+  # 2/9/23 DH:
+  def displayRegressionLines(self, limeImage):
+    # 2/9/23 DH: https://scikit-learn.org/stable/auto_examples/linear_model/plot_ols.html
+
+    # 2/9/23 DH: 'Xvals' is sample set from binomial distrib of segment mask centred on 50% all segments
+    y_pred = limeImage.simpler_model.predict(limeImage.Xvals)
+
+    # https://github.com/scikit-learn/scikit-learn/blob/7f9bad99d/sklearn/linear_model/_base.py#L650
+    #   "y :  ...Will be cast to X's dtype if necessary."
+    # /Users/doug/.pyenv/versions/3.9.15/lib/python3.9/site-packages/sklearn/linear_model/_base.py
+    
+    # 2/9/23 DH: "cannot reshape array of size 100 into shape (100,28)"
+    #yPredCast = np.reshape(y_pred, (y_pred.shape[0], Xvals[0].shape[0]) )
+
+    # 2/9/23 DH: 'resize()' was what I thought 'reshape()' did, last night at 1am...!
+    yPredCast = np.resize( y_pred, limeImage.Xvals.shape )
+
+    print("Xvals:", type(limeImage.Xvals), limeImage.Xvals.shape, ",yPredCast:", type(yPredCast), yPredCast.shape )
+
+    # 2/9/23 DH: Add the scatter values (in this case just 2, a pair for each prediction/distrib mask)
+    plt.scatter(limeImage.Xvals, yPredCast, color="black")
+    # 2/9/23 DH: Plot the linear regression line (ie just join up the pairs so 1 regression per sample)
+    plt.plot(limeImage.Xvals, yPredCast, color="blue", linewidth=1)
+
+    plt.title("Linear regression lines from " + str(limeImage.num_perturb) + " samples")
+    plt.xlabel("Binomial sample for 50% all segments")
+    plt.ylabel("Prediction correlation with all segments")
+
+    plt.show()
+
 
