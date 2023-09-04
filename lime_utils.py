@@ -254,6 +254,7 @@ class LimeUtils(object):
     last_features = -1
     self.createDigitLabels()
 
+    print("-------------------------------------")
     while num_top_feature > 0:
       # https://numpy.org/doc/stable/reference/generated/numpy.argsort.html
       # "It returns an array of indices ... in sorted order."
@@ -261,6 +262,7 @@ class LimeUtils(object):
 
       top_features = np.argsort(limeImage.coeff)[-num_top_feature:]
       top_feature = np.argsort(limeImage.coeff)[-num_top_feature]
+      
       print("\ntop_feature:",top_feature,"=",limeImage.coeff[top_feature])
 
       currentSegmentsMask = np.zeros(limeImage.numSegments)
@@ -273,7 +275,7 @@ class LimeUtils(object):
         lastSegmentMask[last_features] = True
 
         img2 = self.highlight_image(img, currentSegmentsMask, limeImage.imgSegmentMask, 
-                                               num_top_featureS, last_features)
+                                    num_top_featureS, last_features)
 
         last_features.append(top_features[0])
       else: # first time
@@ -303,18 +305,47 @@ class LimeUtils(object):
     #yPredCast = np.reshape(y_pred, (y_pred.shape[0], Xvals[0].shape[0]) )
 
     # 2/9/23 DH: 'resize()' was what I thought 'reshape()' did, last night at 1am...!
-    yPredCast = np.resize( y_pred, limeImage.Xvals.shape )
+    #            ...leads to "dirty memory" issue with index values being toggled...!
+    #yPredCast = np.resize( y_pred, limeImage.Xvals.shape )
+    #y_pred.resize( limeImage.Xvals.shape )
 
-    print("Xvals:", type(limeImage.Xvals), limeImage.Xvals.shape, ",yPredCast:", type(yPredCast), yPredCast.shape )
+    # 3/9/23 DH: 'np.ndarray()' alse lead to "dirty memory" issues
+    #y_predCasted = np.ndarray(limeImage.Xvals.shape)
+
+    y_predCasted = np.zeros(limeImage.Xvals.shape)
+    
+    for i in range(y_pred.shape[0]):
+      y_predCasted[i][0] = y_pred[i][0]
+
+    print("What does:\n",y_predCasted[0],"\nfrom:\n",limeImage.Xvals[0],"\nactually mean...???")
 
     # 2/9/23 DH: Add the scatter values (in this case just 2, a pair for each prediction/distrib mask)
-    plt.scatter(limeImage.Xvals, yPredCast, color="black")
+    plt.scatter(limeImage.Xvals, y_predCasted, color="black")
     # 2/9/23 DH: Plot the linear regression line (ie just join up the pairs so 1 regression per sample)
-    plt.plot(limeImage.Xvals, yPredCast, color="blue", linewidth=1)
+    plt.plot(limeImage.Xvals, y_predCasted, color="blue", linewidth=1)
 
-    plt.title("Linear regression lines from " + str(limeImage.num_perturb) + " samples")
+    #plt.title("Linear regression lines from " + str(limeImage.num_perturb) + " samples\n")
+    plt.title("What does: " + str(y_predCasted[0][0]) + "\nfrom " + str(limeImage.Xvals[0]) + "\nmean...?")
+
     plt.xlabel("Binomial sample for 50% all segments")
     plt.ylabel("Prediction correlation with all segments")
+
+    plt.show()
+
+  # 3/9/23 DH:
+  def displayCoefficients(self, limeImage):
+    # 2/9/23 DH: https://scikit-learn.org/stable/auto_examples/linear_model/plot_ols.html
+
+    Xvals = range(limeImage.coeff.shape[0])
+    yVals = limeImage.coeff
+
+    plt.scatter(Xvals, yVals, color="black")
+    
+    plt.axhline(y=0.1, color='blue', linestyle='-')
+
+    plt.title("Coefficients for " + str(limeImage.numSegments ) + " segments\n")
+    plt.xlabel("Segment number")
+    plt.ylabel("Coefficent to linear regression")
 
     plt.show()
 

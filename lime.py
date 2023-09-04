@@ -94,7 +94,7 @@ class Lime(object):
       return imagenet_utils.decode_predictions(preds, top=top)
     """
 
-    print(decode_predictions(self.preds)[0]) #Top 5 classes (as default)
+    print( decode_predictions(self.preds) ) #Top 5 classes (as default)
 
     """The indexes (positions) of the top 5 classes are saved in the variable `top_pred_classes`"""
 
@@ -103,6 +103,25 @@ class Lime(object):
     # '[::-1]' ie reverse order of elements using 'slice([start:stop:step])'
     self.top_pred_classes = self.preds[0].argsort()[-5:][::-1]
     print("\ntop_pred_classes (from 'inceptionV3_model.predict()'):",self.top_pred_classes)
+    print("top pred index (from 'inceptionV3_model.predict()'):",self.top_pred_classes[0])
+    
+    """
+    # 3/9/23 DH: Printout prediction class index with associated details:
+    
+    /Users/doug/.pyenv/versions/3.9.15/lib/python3.9/site-packages/keras/applications/imagenet_utils.py :
+      def decode_predictions(preds, top=5):
+        ...
+        for pred in preds:
+          #top_indices = pred.argsort()[-top:][::-1]
+          top_indices = pred.argsort()[-1:][::-1]
+
+          result = [tuple(CLASS_INDEX[str(i)]) + (pred[i],) for i in top_indices]
+          result.sort(key=lambda x: x[2], reverse=True)
+
+          print("decode_predictions(): index",top_indices,"=>",result)
+
+          results.append(result)   
+    """
 
   def segmentImage(self):
     # https://scikit-image.org/docs/stable/api/skimage.segmentation.html#skimage.segmentation.quickshift
@@ -114,6 +133,8 @@ class Lime(object):
 
     #imgSegmentMask = skimage.segmentation.quickshift(self.img, kernel_size=4, max_dist=200, ratio=0.2)
 
+    # 3/9/23 DH: 'kernel_size=6' is min number of segments (28) to correlate with human image detection
+    #            ['kernel_size=7' gives 18 segments and leads to unimportant segment choice]
     self.imgSegmentMask = skimage.segmentation.quickshift(self.img, kernel_size=6, max_dist=200, ratio=0.2)
     self.numSegments = np.unique(self.imgSegmentMask).shape[0]
     # 28 segments
@@ -226,12 +247,13 @@ class Lime(object):
 
   def getLinearRegressionCoefficients(self):
     class_to_explain = self.top_pred_classes[0]
-    # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html
-    simpler_model = LinearRegression()
-
+    
     Xvals = self.perturbations
     yVals = self.predictions[:,:,class_to_explain]
     print("LinearRegression.fit(): perturbations:",Xvals.shape,", predictions:",yVals.shape)
+
+    # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html
+    simpler_model = LinearRegression()
     simpler_model.fit(X=Xvals, y=yVals, sample_weight=self.weights)
 
     self.simpler_model = simpler_model
@@ -239,9 +261,12 @@ class Lime(object):
     self.yVals = yVals
     self.coeff = simpler_model.coef_[0]
 
-    print("LinearRegression() coeffs from weights:",self.coeff.shape)
+    print("LinearRegression() coeffs (from weights):",self.coeff.shape)
     sortedCoeffs = np.argsort(self.coeff)
-    print("eg...lowest:",self.coeff[sortedCoeffs[0]],", highest:",self.coeff[sortedCoeffs[-1]])
+    print(" eg...lowest:",self.coeff[sortedCoeffs[0]],", highest:",self.coeff[sortedCoeffs[-1]])
+    print(" (100 pertubation masks for 28 segments leads to a linear correlation line of importance of each",
+            "segment for the predicted top ID)")
+    print()
 
   # ----------------------------- END: Step 4/4 ---------------------------------
 
@@ -297,6 +322,9 @@ if __name__ == '__main__':
   # Step 4/4
   limeImage.getLinearRegressionCoefficients()
   limeImage.lime_utils.displayRegressionLines(limeImage)
+
+  # 3/9/23 DH:
+  limeImage.lime_utils.displayCoefficients(limeImage)
 
   # 30/8/23 DH: Interface to utils "wrapper" by sending a copy of the Lime object with necessary attribs
   #             ...nicely fractal...
