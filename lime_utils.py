@@ -156,6 +156,10 @@ class LimeUtils(object):
     # 24/8/23 DH: 'ply.hist' from 'real_bday_paradox.py' does not display anything...
     #             ...when use bin number rather than bin values...!!!
     #plt.hist(tally, bins = np.arange(0,39))
+
+    # 4/9/23 DH: Display all graphs simultaneously with 'plt.show(block=False)' (which needs to be cascaded)
+    plt.figure()
+
     plt.hist(tally, bins = np.arange(0,100))
 
     # https://matplotlib.org/3.6.2/api/_as_gen/matplotlib.pyplot.bar.html
@@ -166,7 +170,8 @@ class LimeUtils(object):
     plt.xlabel("$n$")
     plt.ylabel("Number of occurences")
 
-    plt.show()
+    plt.show(block=False)
+    #plt.show()
 
     #sys.exit(0)
 
@@ -284,19 +289,28 @@ class LimeUtils(object):
         img = limeImage.perturb_image(limeImage.img/2+0.5, currentSegmentsMask, limeImage.imgSegmentMask)
         img2 = img
 
-      img3 = skimage.segmentation.mark_boundaries(img2, limeImage.imgSegmentMask)
-      skimage.io.imshow( img3 )
-      plt.show()
+      # 4/9/23 DH: Only display the last image which has the segment order marked
+      if num_top_feature == 1:
+        img3 = skimage.segmentation.mark_boundaries(img2, limeImage.imgSegmentMask)
+        plt.figure()
+        skimage.io.imshow( img3 )  
+        plt.show()
 
       num_top_feature -= 1
 
   # 2/9/23 DH:
-  def displayRegressionLines(self, limeImage):
+  def displayRegressionLines(self, limeImage, model_output=False):
     # 2/9/23 DH: https://scikit-learn.org/stable/auto_examples/linear_model/plot_ols.html
 
     # 2/9/23 DH: 'Xvals' is sample set from binomial distrib of segment mask centred on 50% all segments
-    y_pred = limeImage.simpler_model.predict(limeImage.Xvals)
+    # 5/9/23 DH: Initially obtained predictions from linear regression (rather than from orig values)
+    if model_output == True:
+      y_pred = limeImage.simpler_model.predict(limeImage.Xvals)
+      yVals = y_pred
+    else:
+      yVals = limeImage.yVals
 
+    # -----------------------------------------------------------------------------------------------
     # https://github.com/scikit-learn/scikit-learn/blob/7f9bad99d/sklearn/linear_model/_base.py#L650
     #   "y :  ...Will be cast to X's dtype if necessary."
     # /Users/doug/.pyenv/versions/3.9.15/lib/python3.9/site-packages/sklearn/linear_model/_base.py
@@ -311,26 +325,35 @@ class LimeUtils(object):
 
     # 3/9/23 DH: 'np.ndarray()' alse lead to "dirty memory" issues
     #y_predCasted = np.ndarray(limeImage.Xvals.shape)
+    # -----------------------------------------------------------------------------------------------
 
-    y_predCasted = np.zeros(limeImage.Xvals.shape)
-    
-    for i in range(y_pred.shape[0]):
-      y_predCasted[i][0] = y_pred[i][0]
+    yValsCasted = np.zeros(limeImage.Xvals.shape)
+    for i in range(yVals.shape[0]):
+      yValsCasted[i][0] = yVals[i][0]
 
-    print("What does:\n",y_predCasted[0],"\nfrom:\n",limeImage.Xvals[0],"\nactually mean...???")
+    print("What does 'LinearRegression.predict()':\n",yValsCasted[0],"\nfrom:\n",limeImage.Xvals[0],
+          "\n mean...???")
+
+    plt.figure()
 
     # 2/9/23 DH: Add the scatter values (in this case just 2, a pair for each prediction/distrib mask)
-    plt.scatter(limeImage.Xvals, y_predCasted, color="black")
+    plt.scatter(limeImage.Xvals, yValsCasted, color="black")
     # 2/9/23 DH: Plot the linear regression line (ie just join up the pairs so 1 regression per sample)
-    plt.plot(limeImage.Xvals, y_predCasted, color="blue", linewidth=1)
+    plt.plot(limeImage.Xvals, yValsCasted, color="blue", linewidth=1)
 
     #plt.title("Linear regression lines from " + str(limeImage.num_perturb) + " samples\n")
-    plt.title("What does: " + str(y_predCasted[0][0]) + "\nfrom " + str(limeImage.Xvals[0]) + "\nmean...?")
+    plt.title("What does: " + str(yValsCasted[0][0]) + ", 0,...,0\nfrom " + str(limeImage.Xvals[0]) + "\nmean...?")
 
-    plt.xlabel("Binomial sample for 50% all segments")
+    #plt.xlabel("Binomial sample for 50% all segments")
+    
+    # 4/9/23 DH: Most plots will be 0-0 or 0-1 so make that obvious with an additional line
+    plt.axhline(y=0, color='red', linestyle='-')
+
+    plt.xlabel("0 or 1 for first segment of binomial sample for 50% all segments")
     plt.ylabel("Prediction correlation with all segments")
 
-    plt.show()
+    #plt.show()
+    plt.show(block=False)
 
   # 3/9/23 DH:
   def displayCoefficients(self, limeImage):
@@ -339,14 +362,16 @@ class LimeUtils(object):
     Xvals = range(limeImage.coeff.shape[0])
     yVals = limeImage.coeff
 
+    plt.figure()
     plt.scatter(Xvals, yVals, color="black")
     
-    plt.axhline(y=0.1, color='blue', linestyle='-')
+    plt.axhline(y=0.1, color='red', linestyle='-')
 
-    plt.title("Coefficients for " + str(limeImage.numSegments ) + " segments\n")
+    plt.title("Coefficients for " + str(limeImage.numSegments ) + 
+              " segments of prediction accuracy Linear Regression\n")
     plt.xlabel("Segment number")
     plt.ylabel("Coefficent to linear regression")
 
-    plt.show()
-
+    #plt.show()
+    plt.show(block=False)
 

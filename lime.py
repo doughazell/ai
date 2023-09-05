@@ -33,6 +33,7 @@ import pickle
 
 # 29/8/23 DH:
 from lime_utils import *
+import inspect
 
 class Lime(object):
 
@@ -161,7 +162,14 @@ class Lime(object):
     self.num_perturb = 100
     self.probSuccess = 0.5
 
+    # 4/9/23 DH: https://numpy.org/doc/stable/reference/random/generated/numpy.random.binomial.html
+    # "Samples are drawn from a binomial distribution with specified parameters, n trials and p probability 
+    #  of success" (therefore "n=1" means that the result will be 0 or 1 necessary for the mask)
+    #
+    # size: "Output shape. If the given shape is, e.g., (m, n, k), then m * n * k SAMPLES ARE DRAWN."
+    #
     self.perturbations = np.random.binomial(1, self.probSuccess, size=(self.num_perturb, self.numSegments))
+    
     print("Showing pertubation 0 (from",self.perturbations.shape,"pertubations 2-D array)")
     print(self.perturbations[0]) #Show example of perturbation
 
@@ -234,23 +242,40 @@ class Lime(object):
     """#### Use kernel function to compute weights
     The distances are then mapped to a value between zero and one (weight) using a kernel function. 
 
-    Here the x axis represents distances and the y axis the weights. Depeding on how we set the kernel width, 
+    Here the x axis represents distances and the y axis the weights. Depending on how we set the kernel width, 
     it defines how wide we want the "locality" around our instance to be. This kernel width can be set based on 
     expected distance values. For the case of cosine distances, we expect them to be somehow stable 
     (between 0 and 1); therefore, no fine tunning of the kernel width might be required.
     """
 
     kernel_width = 0.25
-    self.weights = np.sqrt( np.exp(-(distances**2)/kernel_width**2) ) #Kernel function
+
+    # 4/9/23 DH: sqrt (e ^(-d^2 / width^2))
+    #  Removing the 'sqrt()' made no difference to the Liner Regression coefficient order (ie segment order)
+    #self.weights = np.exp( -(distances**2) / kernel_width**2 )
+    
+    self.weights = np.sqrt( np.exp( -(distances**2) / kernel_width**2 ) )
+    
   
   # ----------------------------- Step 4/4 ---------------------------------
 
   def getLinearRegressionCoefficients(self):
     class_to_explain = self.top_pred_classes[0]
-    
+
+    print("-------------------------------------")
+    # inspect.stack()
+    print("Final step (4/4) in:",inspect.currentframe().f_code.co_name)
+    print("                     -------------------------------")
+    print(" to correlate InceptionV3 prediction of full image (class index",class_to_explain,")" )
+    print(" with masked image predictions, inceptionV3_model.predict()  (in Step 2/4, 'Lime.getPredictions()')")
+    print(" using weights obtained for mask distance from full image    (in Step 3/4, 'Lime.getDistanceWeights()')")
+    print()
+
     Xvals = self.perturbations
     yVals = self.predictions[:,:,class_to_explain]
-    print("LinearRegression.fit(): perturbations:",Xvals.shape,", predictions:",yVals.shape)
+    print("LinearRegression.fit(): mask perturbations:",Xvals.shape,", predictions:",yVals.shape)
+    print(" eg...Xvals[0]:", Xvals[0],", yVals[0]", yVals[0])
+    print()
 
     # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html
     simpler_model = LinearRegression()
@@ -322,6 +347,7 @@ if __name__ == '__main__':
   # Step 4/4
   limeImage.getLinearRegressionCoefficients()
   limeImage.lime_utils.displayRegressionLines(limeImage)
+  limeImage.lime_utils.displayRegressionLines(limeImage, model_output=True)
 
   # 3/9/23 DH:
   limeImage.lime_utils.displayCoefficients(limeImage)
