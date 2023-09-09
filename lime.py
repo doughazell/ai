@@ -38,9 +38,9 @@ import inspect
 class Lime(object):
 
   def __init__(self) -> None:
-    print("----------------------------------------------------------------")
-    print('Running: keras ', keras.__version__, "(which is a wrapper around",keras.backend.backend(),")" )
-    print("----------------------------------------------------------------")
+    print("--------------------------------------------------------------------------")
+    print('Running: keras ', keras.__version__, "(which is a wrapper around '",keras.backend.backend(),"' backend)" )
+    print("--------------------------------------------------------------------------")
 
     np.random.seed(222)
 
@@ -205,9 +205,25 @@ class Lime(object):
         # Returns:
         #  A list of lists of top class prediction tuples (class_name, class_description, score). 
         #  One list of tuples per sample in batch input. 
-        topPrediction = decode_predictions(preds=self.predictions[0].argsort()[-1:][::-1], top=1)[0][0]
 
-        print("Top prediction of first prediction:", topPrediction[1])
+        #topPrediction2DTuple = np.array( decode_predictions(preds=self.predictions[0] , top=1) )
+        topPredictions2DTuple = np.array( decode_predictions(preds=self.predictions[0]) )
+        print("topPredictions2DTuple:",topPredictions2DTuple.shape)
+
+        # Class prediction tuples: 0)class_name, 1)class_description, 2)score
+        firstPerturbationMaskIndex = 0
+        topPredictionIndex         = 0
+        descriptionIndex           = 1
+        class_description = topPredictions2DTuple[firstPerturbationMaskIndex][topPredictionIndex][descriptionIndex]
+
+        print(" Top prediction of first perturbation:", self.perturbations[0],"=",class_description)
+
+        class_to_explain = self.top_pred_classes[0]
+        yVal = self.predictions[0,:,class_to_explain]
+        print(" class_to_explain:",class_to_explain,", yVal:",yVal)
+        
+        print(" Elements of 'self.predictions[0][0]' around full image prediction:",
+              self.predictions[0][0][class_to_explain-2:class_to_explain+2])
         print()
       
     except FileNotFoundError as e:
@@ -218,8 +234,12 @@ class Lime(object):
         perturbed_img = self.perturb_image(self.img, pert, self.imgSegmentMask)
         pertNum += 1
         print("Pertubation",pertNum, "for 'inceptionV3_model.predict()'")
-        # Get a trained 'inceptionV3_model' model prediction for the current pertubation
+
+        # **************************************************************************************
+        # *** Get a trained 'inceptionV3_model' model prediction for the current pertubation ***
+        # **************************************************************************************
         pred = self.inceptionV3_model.predict(perturbed_img[np.newaxis,:,:,:])
+        
         self.predictions.append(pred)
 
       self.predictions = np.array(self.predictions)
@@ -261,7 +281,7 @@ class Lime(object):
 
   def getLinearRegressionCoefficients(self):
     class_to_explain = self.top_pred_classes[0]
-
+    
     print("-------------------------------------")
     # inspect.stack()
     print("Final step (4/4) in:",inspect.currentframe().f_code.co_name)
@@ -271,14 +291,48 @@ class Lime(object):
     print(" using weights obtained for mask distance from full image    (in Step 3/4, 'Lime.getDistanceWeights()')")
     print()
 
-    Xvals = self.perturbations
+    """
+    # 7/9/23 DH: Python slice: 'slice([start:stop:step])'
+    
+      Slicing with commas is a Numpy (not python) thing, it uses a tuple for indexing...and gets REGEXtastic...!
+        https://numpy.org/devdocs/user/basics.indexing.html
+    """
+    # 7/9/23 DH:
+    # 'self.predictions' is 3-D array (the mask and relative value for each of trained 1000 images) 
+    # so take the 2-D array that 'self.inceptionV3_model.predict()' returned for each of the perturbed images 
+    # ("foreign keyed" by segment mask) for the full image top class index
     yVals = self.predictions[:,:,class_to_explain]
-    print("LinearRegression.fit(): mask perturbations:",Xvals.shape,", predictions:",yVals.shape)
-    print(" eg...Xvals[0]:", Xvals[0],", yVals[0]", yVals[0])
+
+    # 5/9/23 DH: Testing whether complete mask to correlate LinearRegression makes a difference...it does...!
+    Xvals = self.perturbations
+    #Xvals = self.lime_utils.getMaskForLinearRegression(self.perturbations, yVals, index_start=0)
+
+    print("class_to_explain:",class_to_explain,", from all InceptionV3 trained classes:",self.predictions.shape)
+    print("LinearRegression.fit(): mask perturbations:",Xvals.shape,", prediction:",yVals.shape)
+    print(" eg...Xvals[0]:", Xvals[0],", yVals[0]:", yVals[0])
     print()
 
     # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html
-    simpler_model = LinearRegression()
+    simpler_model = LinearRegression(fit_intercept=True)
+
+    """
+    /Users/doug/.pyenv/versions/3.9.15/lib/python3.9/site-packages/sklearn/linear_model/_base.py :
+      def fit():
+        ...
+        X, y, X_offset, y_offset, X_scale = _preprocess_data(
+            X,
+            y,
+            fit_intercept=self.fit_intercept,
+            normalize=_normalize,
+            copy=self.copy_X,
+            sample_weight=sample_weight,
+        )
+    """
+
+    # 6/9/23 DH: https://en.wikipedia.org/wiki/Linear_regression#Simple_and_multiple_linear_regression
+    #simpler_model.fit(X=Xvals, y=yVals, sample_weight=self.weights, debug=True)
+    #print("fit() intercept_:",simpler_model.intercept_,", get_params():",simpler_model.get_params())
+
     simpler_model.fit(X=Xvals, y=yVals, sample_weight=self.weights)
 
     self.simpler_model = simpler_model
@@ -286,7 +340,8 @@ class Lime(object):
     self.yVals = yVals
     self.coeff = simpler_model.coef_[0]
 
-    print("LinearRegression() coeffs (from weights):",self.coeff.shape)
+    print()
+    print("Multiple LinearRegression() coeffs (from weights):",self.coeff.shape)
     sortedCoeffs = np.argsort(self.coeff)
     print(" eg...lowest:",self.coeff[sortedCoeffs[0]],", highest:",self.coeff[sortedCoeffs[-1]])
     print(" (100 pertubation masks for 28 segments leads to a linear correlation line of importance of each",
@@ -346,8 +401,12 @@ if __name__ == '__main__':
   limeImage.getDistanceWeights()
   # Step 4/4
   limeImage.getLinearRegressionCoefficients()
-  limeImage.lime_utils.displayRegressionLines(limeImage)
-  limeImage.lime_utils.displayRegressionLines(limeImage, model_output=True)
+
+  # 6/9/23 DH: Plotting regression lines from sequential predicted values is meaningless for a 
+  #            Multiple Linear Regression system (of prediction place of full prediction vs 28 bit segment mask)
+  #limeImage.lime_utils.displayRegressionLines(limeImage, plot_limit=4)
+  #limeImage.lime_utils.displayRegressionLines(limeImage)
+  #limeImage.lime_utils.displayRegressionLines(limeImage, model_output=True)
 
   # 3/9/23 DH:
   limeImage.lime_utils.displayCoefficients(limeImage)

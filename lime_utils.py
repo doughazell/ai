@@ -145,11 +145,15 @@ class LimeUtils(object):
     #print(distribData.shape[1])
 
     tally = np.zeros(limeImage.perturbations.shape[1])
-    #print("Tally:",tally)
+    
+    # 5/9/23 DH: Tally is a 28 element array starting for each index at 0, with each of 100 masks incrementing
+    #            the appropriate index so that the cumulative of 100 * 28 bits can be displayed as a 
+    #            binomial distribution centred at 0.5 * 100 (ie 50)
     for distrib in limeImage.perturbations:
       tally += distrib
-
-    #print("Tally (",type(tally),"):",tally)
+      
+    print("Final tally:\n",tally,",\nlast distrib:",distrib)
+    print()
     print("Tally total:", np.sum(tally), "(for", round(limeImage.probSuccess * 100),
           "% chance of segment mask inclusion from", limeImage.num_perturb * limeImage.numSegments, "tests)")
 
@@ -299,7 +303,7 @@ class LimeUtils(object):
       num_top_feature -= 1
 
   # 2/9/23 DH:
-  def displayRegressionLines(self, limeImage, model_output=False):
+  def displayRegressionLines(self, limeImage, model_output=False, plot_limit=False):
     # 2/9/23 DH: https://scikit-learn.org/stable/auto_examples/linear_model/plot_ols.html
 
     # 2/9/23 DH: 'Xvals' is sample set from binomial distrib of segment mask centred on 50% all segments
@@ -307,10 +311,14 @@ class LimeUtils(object):
     if model_output == True:
       y_pred = limeImage.simpler_model.predict(limeImage.Xvals)
       yVals = y_pred
+      print("\n=== Displaying sequential points from linear regression model ===")
     else:
       yVals = limeImage.yVals
+      print("\n=== Displaying sequential points from 'predictions' (created in Step 2/4 - 'getPredictions()') ===")
 
     # -----------------------------------------------------------------------------------------------
+    # - DIRTY MEMORY DEBUG -
+    #   ==================
     # https://github.com/scikit-learn/scikit-learn/blob/7f9bad99d/sklearn/linear_model/_base.py#L650
     #   "y :  ...Will be cast to X's dtype if necessary."
     # /Users/doug/.pyenv/versions/3.9.15/lib/python3.9/site-packages/sklearn/linear_model/_base.py
@@ -330,22 +338,26 @@ class LimeUtils(object):
     yValsCasted = np.zeros(limeImage.Xvals.shape)
     for i in range(yVals.shape[0]):
       yValsCasted[i][0] = yVals[i][0]
-
-    print("What does 'LinearRegression.predict()':\n",yValsCasted[0],"\nfrom:\n",limeImage.Xvals[0],
-          "\n mean...???")
+      if i < 5:
+        print(i,") X:",limeImage.Xvals[i][0],", y:",yValsCasted[i][0])
 
     plt.figure()
 
+    if plot_limit:
+      plotLimitPt = plot_limit
+    else:
+      plotLimitPt = yVals.shape[0]
+
     # 2/9/23 DH: Add the scatter values (in this case just 2, a pair for each prediction/distrib mask)
-    plt.scatter(limeImage.Xvals, yValsCasted, color="black")
+    plt.scatter(limeImage.Xvals[:plotLimitPt], yValsCasted[:plotLimitPt], color="black")
     # 2/9/23 DH: Plot the linear regression line (ie just join up the pairs so 1 regression per sample)
-    plt.plot(limeImage.Xvals, yValsCasted, color="blue", linewidth=1)
+    plt.plot(limeImage.Xvals[:plotLimitPt], yValsCasted[:plotLimitPt], color="blue", linewidth=1)
 
-    #plt.title("Linear regression lines from " + str(limeImage.num_perturb) + " samples\n")
-    plt.title("What does: " + str(yValsCasted[0][0]) + ", 0,...,0\nfrom " + str(limeImage.Xvals[0]) + "\nmean...?")
-
+    #plt.title("What does: " + str(yValsCasted[0][0]) + ", 0,...,0\nfrom " + str(limeImage.Xvals[0]) + "\nmean...?")
     #plt.xlabel("Binomial sample for 50% all segments")
     
+    plt.title("What does sequential predictions from a binomially distributed masked\n" +
+              "image, correlated with the 1st segment mask bit mean?")
     # 4/9/23 DH: Most plots will be 0-0 or 0-1 so make that obvious with an additional line
     plt.axhline(y=0, color='red', linestyle='-')
 
@@ -375,3 +387,15 @@ class LimeUtils(object):
     #plt.show()
     plt.show(block=False)
 
+  # 5/9/23 DH: Testing whether complete mask to correlate LinearRegression makes a difference
+  def getMaskForLinearRegression(self, xMask, yVals, index_start=0):
+
+    # 2-D array of mask to add selected index
+    Xvals = np.zeros(xMask.shape)
+
+    for i in range(yVals.shape[0]):
+
+      # 2-D array of mask to add selected index
+      Xvals[i][index_start:] = xMask[i][index_start:]
+
+    return Xvals
