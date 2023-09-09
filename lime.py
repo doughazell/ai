@@ -47,6 +47,11 @@ class Lime(object):
     # InceptionV3 initialization: use the pre-trained InceptionV3 model available in Keras.
     warnings.filterwarnings('ignore')
     self.inceptionV3_model = keras.applications.inception_v3.InceptionV3()
+
+    # 9/9/23 DH:
+    #keras.utils.plot_model(self.inceptionV3_model,"inception_v3-model.png",show_shapes=True)
+    self.inceptionV3_model.summary()
+
     self.lime_utils = LimeUtils()
 
   # --------------------------------- Prelims --------------------------------
@@ -298,9 +303,17 @@ class Lime(object):
         https://numpy.org/devdocs/user/basics.indexing.html
     """
     # 7/9/23 DH:
-    # 'self.predictions' is 3-D array (the mask and relative value for each of trained 1000 images) 
-    # so take the 2-D array that 'self.inceptionV3_model.predict()' returned for each of the perturbed images 
-    # ("foreign keyed" by segment mask) for the full image top class index
+    # 'self.predictions' is 3-D array (relative value for each of trained 1000 images at the same index 
+    # as the used mask in 'pertubations' array) so take the 2-D array that 'self.inceptionV3_model.predict()' 
+    # returned for each of the perturbed images for the full image top class index.
+    #
+    #   Index is "primary key" in 'perturbations' table
+    #   Index is "foreign key" of mask in 'predictions' table
+    #
+    # 'predictions[x,y,z]': 
+    #    x = Index that correlates with mask perturbation index
+    #    y = Numpy array returned by 'InceptionV3.predict()', Keras model 'predict()', for perturbed image
+    #    z = Class index (for 1000 known images by 'InceptionV3')
     yVals = self.predictions[:,:,class_to_explain]
 
     # 5/9/23 DH: Testing whether complete mask to correlate LinearRegression makes a difference...it does...!
