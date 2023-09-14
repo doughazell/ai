@@ -5,7 +5,10 @@ import numpy as np
 import copy
 import skimage.io
 import skimage.segmentation
-from lime import *
+
+# 12/9/23 DH: ImportError: cannot import name 'LimeUtils' from partially initialized module 'lime_utils' 
+#             (most likely due to a circular import)
+#from lime import Lime
 
 class LimeUtils(object):
 
@@ -206,22 +209,27 @@ class LimeUtils(object):
 
     return midPoint
   
+  # ------------------------------ Orig segment order display -------------------------------------
+  
   # 24/8/23 DH:
   def highlight_image(self, img, currentSegsMask, segments, num_top_features, last_features):
-    
+    # 13/9/23 DH: 'currentSegsMask' is 1-D array of segments ie (28,)
     active_pixels = np.where(currentSegsMask == 1)[0]
     
+    # 13/9/23 DH: segments/mask is full image pixels, ie (299,299) (with values in each segment being segment ID)
     mask = np.zeros(segments.shape)
     for active in active_pixels:
       mask[segments == active] = 1
 
     cnt = 0
+    self.createDigitLabels()
 
-    # 28/8/23 DH: 'prev_active_pixels' was just previous segment top feature in index order
+    # 13/9/23 DH: 'last_features' is just list of last segment indices
     for prev in last_features:
       # 'mask[segments == prev] = 0' makes segment black
       mask[segments == prev] = 0.5 # half transparent
 
+      # ------------------------ Add segment number ------------------
       # 26/8/23 DH: 
       midPoint = self.getSegmentMidpoint(prev, segments)
 
@@ -236,18 +244,21 @@ class LimeUtils(object):
           mask[midPoint[1]+x][midPoint[0]+y] = self.digitLabelsDict[num_top_features-cnt][x][y]
 
       cnt += 1
+      # --------------------- END: Add segment number ----------------
 
-    highlighted_image = copy.deepcopy(img)
+    # 13/9/23 DH: No longer needed to copy an image argument
+    #highlighted_image = copy.deepcopy(img)
     
     # 26/8/23 DH: [start:stop:step], 
     #             [:,:,np.newaxis], 'np.newaxis' = "add another layer" so make 'mask' 3D like 'highlighted_image'
-    highlighted_image = highlighted_image * mask[:,:,np.newaxis]
+    #highlighted_image = highlighted_image * mask[:,:,np.newaxis]
+    img = img * mask[:,:,np.newaxis]
     
-    return highlighted_image
+    return img
   
   # 30/8/23 DH: Encapsulated requirements in 'limeImage':
   #             coeff, numSegments, imgSegmentMask, img, perturb_image(), 
-  def displayTopFeatures(self, limeImage):
+  def displayTopFeatures(self, limeImage, last=True):
     """#### Compute top features (segments)
     Now we just need to sort the coefficients to figure out which of the segments have larger coefficients 
     (magnitude) for the prediction of labradors. The identifiers of these top features or segments are shown 
@@ -266,12 +277,12 @@ class LimeUtils(object):
     print("-------------------------------------")
     while num_top_feature > 0:
       # https://numpy.org/doc/stable/reference/generated/numpy.argsort.html
-      # "It returns an array of indices ... in sorted order."
+      # "It returns an array of indices ... in sorted order (ie highest last)."
       # "kind=None: Sorting algorithm. The default is ‘quicksort’."
 
       top_features = np.argsort(limeImage.coeff)[-num_top_feature:]
+
       top_feature = np.argsort(limeImage.coeff)[-num_top_feature]
-      
       print("\ntop_feature:",top_feature,"=",limeImage.coeff[top_feature])
 
       currentSegmentsMask = np.zeros(limeImage.numSegments)
@@ -283,24 +294,117 @@ class LimeUtils(object):
         print("last_feature: ",last_features)
         lastSegmentMask[last_features] = True
 
-        img2 = self.highlight_image(img, currentSegmentsMask, limeImage.imgSegmentMask, 
+        # 13/9/23 DH: 'limeImage.imgSegmentMask' is (299,299) image with pixel values being the segment index value
+        img2 = self.highlight_image(self.alteredImg, currentSegmentsMask, limeImage.imgSegmentMask, 
                                     num_top_featureS, last_features)
 
         last_features.append(top_features[0])
       else: # first time
         last_features = []
         last_features.append(top_features[0])
-        img = limeImage.perturb_image(limeImage.img/2+0.5, currentSegmentsMask, limeImage.imgSegmentMask)
-        img2 = img
+        self.alteredImg = limeImage.perturb_image(limeImage.img/2+0.5, currentSegmentsMask, limeImage.imgSegmentMask)
+        # 13/9/23 DH: Not needed since only displaying the last 'top_features' image
+        #img2 = img
 
       # 4/9/23 DH: Only display the last image which has the segment order marked
       if num_top_feature == 1:
         img3 = skimage.segmentation.mark_boundaries(img2, limeImage.imgSegmentMask)
         plt.figure()
-        skimage.io.imshow( img3 )  
-        plt.show()
+        skimage.io.imshow( img3 )
+
+        # 13/9/23 DH: Display img2 (ie without segmentation boundaries)
+        #skimage.io.imshow( img2 )
+
+        # 13/9/23 DH:
+        if last == False:
+          plt.show(block=False)
+        else:
+          plt.show()
 
       num_top_feature -= 1
+    # END: --- while num_top_feature > 0: ---
+
+    return img2
+  
+  # ------------------------------ REFACTORED segment order display -------------------------------
+  
+  # 13/9/23 DH: Refactored 'highlight_image()'
+  def remove_topfeatures_image(self, img, segments, last_features):
+    
+    mask = np.ones(segments.shape)
+
+    # 13/9/23 DH: 'last_features' is just list of last segment indices
+    for prev in last_features:
+      mask[segments == prev] = 0 # makes segment black
+      #mask[segments == prev] = 0.5 # half transparent
+
+    # 26/8/23 DH: [start:stop:step], 
+    #             [:,:,np.newaxis], 'np.newaxis' = "add another layer" so make 'mask' 3-D like 'highlighted_image'
+    img = img * mask[:,:,np.newaxis]
+    
+    return img
+
+  # 30/8/23 DH: Encapsulated requirements in 'limeImage':
+  #             coeff, numSegments, imgSegmentMask, img, perturb_image(), 
+
+  # 13/9/23 DH: Refactored 'displayTopFeatures()'
+  def getTopFeatures(self, limeImage):
+    # https://numpy.org/doc/stable/reference/generated/numpy.argsort.html
+    # "It returns an array of indices ... in sorted order (ie highest last)."
+    orderedCoeffs = np.argsort(limeImage.coeff)
+
+    num_top_feature = 4
+    top_features = orderedCoeffs[-num_top_feature:]
+
+    currentSegmentsMask = np.zeros(limeImage.numSegments)
+    currentSegmentsMask[top_features] = True
+    self.alteredImg = limeImage.perturb_image(limeImage.img/2+0.5, currentSegmentsMask, limeImage.imgSegmentMask)
+
+    last_features = []
+    while num_top_feature > 0:
+      top_feature = orderedCoeffs[-num_top_feature]
+      print("\ntop_feature:",top_feature,"=",limeImage.coeff[top_feature])
+      print("last_feature: ",last_features)
+
+      last_features.append(top_feature)
+
+      num_top_feature -= 1
+
+    lastSegmentMask = np.zeros(limeImage.numSegments)
+    lastSegmentMask[last_features] = True
+
+    # 13/9/23 DH: 'limeImage.imgSegmentMask' is (299,299) image with pixel values being the segment index value
+    origImg = limeImage.img/2+0.5
+    markedImg = self.remove_topfeatures_image(origImg, limeImage.imgSegmentMask, last_features)
+
+    return markedImg
+
+  # 13/9/23 DH:
+  def displayTopFeaturesRemoved(self, limeImage):
+    # Fig 1) Image of top segments blacked-out
+    segmentedImg = self.getTopFeatures(limeImage)
+    plt.figure()
+    skimage.io.imshow( segmentedImg )
+    plt.show(block=False)
+
+    # Fig 2) Full orig image (non preprocessed)
+    plt.figure()
+    skimage.io.imshow( limeImage.img/2+0.5 )  
+    plt.show(block=False)
+
+    # Fig 3) Segments shown by ID (0-27) colour
+    plt.figure()
+    skimage.io.imshow( limeImage.imgSegmentMask )
+    plt.show()
+
+    """
+    # Top features segments normal with all others black
+    plt.figure()
+    skimage.io.imshow( self.alteredImg )
+    plt.show(block=False)
+    """
+    return segmentedImg
+  # ------------------------------------ END: Refactor --------------------------------------------
 
   # 2/9/23 DH:
   def displayRegressionLines(self, limeImage, model_output=False, plot_limit=False):
