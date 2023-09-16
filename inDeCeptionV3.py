@@ -18,6 +18,9 @@ if __name__ == '__main__':
   limeImage.getCoefficientsFromMaskedPredictions()
   newImg = limeImage.lime_utils.displayTopFeaturesRemoved(limeImage)
 
+  # 15/9/23 DH:
+  limeImage.printPredictionSummary()
+
   print()
   print("----------------------------------------------------------------")
   print("...nailed it")

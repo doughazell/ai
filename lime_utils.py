@@ -327,7 +327,26 @@ class LimeUtils(object):
     return img2
   
   # ------------------------------ REFACTORED segment order display -------------------------------
-  
+  # 14/9/23 DH:
+  def remove_topfeatures_display(self, img, segments, last_features):
+    
+    mask = np.ones(segments.shape)
+
+    # 13/9/23 DH: 'last_features' is just list of last segment indices
+    for prev in last_features:
+      #mask[segments == prev] = 0 # makes segment black
+      mask[segments == prev] = 0.5 # half transparent
+
+    # 26/8/23 DH: [start:stop:step], 
+    #             [:,:,np.newaxis], 'np.newaxis' = "add another layer" so make 'mask' 3-D like 'highlighted_image'
+    img = img * mask[:,:,np.newaxis]
+
+    plt.figure()
+    skimage.io.imshow( img )
+    plt.show(block=False)
+    
+    return img
+
   # 13/9/23 DH: Refactored 'highlight_image()'
   def remove_topfeatures_image(self, img, segments, last_features):
     
@@ -375,17 +394,17 @@ class LimeUtils(object):
 
     # 13/9/23 DH: 'limeImage.imgSegmentMask' is (299,299) image with pixel values being the segment index value
     origImg = limeImage.img/2+0.5
-    markedImg = self.remove_topfeatures_image(origImg, limeImage.imgSegmentMask, last_features)
+    self.remove_topfeatures_display(origImg, limeImage.imgSegmentMask, last_features)
 
+    markedImg = self.remove_topfeatures_image(origImg, limeImage.imgSegmentMask, last_features)
     return markedImg
 
   # 13/9/23 DH:
   def displayTopFeaturesRemoved(self, limeImage):
-    # Fig 1) Image of top segments blacked-out
     segmentedImg = self.getTopFeatures(limeImage)
-    plt.figure()
-    skimage.io.imshow( segmentedImg )
-    plt.show(block=False)
+
+    # Fig 1) Image of top segments blacked-out
+    # --- PREVIOUSLY SHOW IMAGE HERE ---
 
     # Fig 2) Full orig image (non preprocessed)
     plt.figure()

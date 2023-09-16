@@ -86,6 +86,10 @@ class Lime(object):
 
     self.lime_utils = LimeUtils()
 
+    # 15/9/23 DH: 'self.predSummary' is a dictionary keyed by top prediction 'class_description' (ie index 1)
+    self.predSummary = {}
+    self.predSummary['all'] = []
+
   # --------------------------------- API --------------------------------
   # 13/9/23 DH:
   def getSegmentedPrediction(self, img=None):
@@ -103,6 +107,37 @@ class Lime(object):
     self.getDistanceWeights()
     # Step 4/4
     self.getLinearRegressionCoefficients()
+
+  # 15/9/23 DH:
+  def printPredictionSummary(self):
+    print()
+    print("Predictions summary")
+    print("-------------------")
+    print("(Run: 'open https://observablehq.com/@mbostock/imagenet-hierarchy')")
+    print()
+    for key in self.predSummary.keys():
+      if key == 'all':
+        continue
+
+      print(key,":")
+      preds = self.predSummary[key]
+      for pred in preds:
+        print(" ",pred)
+      print()
+    
+    # 15/9/23 DH: Need to cast to numpy array in order for search to work across data dimensionality...!!!
+    valArray = np.array(self.predSummary['all'])
+    
+    # 15/9/23 DH: Use last key value to find prediction value from first prediction
+    row, col, tupleIndex = np.where(valArray == key)
+
+    #row, col, tupleIndex = np.where(valArray == 'Egyptian_cat')
+
+    prevRow = row[0]
+    prevCol = col[0]
+    firstTopPred = list(self.predSummary.keys())[1]
+    print(firstTopPred, "entry", prevCol+1, ":", valArray[prevRow][prevCol])
+
   # --------------------------------- END: API ---------------------------
 
   # --------------------------------- Prelims --------------------------------
@@ -156,9 +191,21 @@ class Lime(object):
 
     # 11/9/23 DH: https://observablehq.com/@mbostock/imagenet-hierarchy
     decodedPreds = decode_predictions(self.preds, top=20) #Top 5 classes (as default)
+    topPredTuple = decodedPreds[0][0]
+    predKey = topPredTuple[1] # 'class_description'
+
+    # TFConfigRL::rlRunPart() := self.runPartNumbers[self.runPartNum] = {'partStartCnt': self.iCnt}
+
+    self.predSummary['all'].append(decodedPreds[0])
+    self.predSummary[predKey] = []
+
     i = 1
     for decodePred in decodedPreds[0]:
       print(i,")",decodePred) 
+      
+      if i < 4:
+        self.predSummary[predKey].append(decodePred)
+
       i += 1
 
     """The indexes (positions) of the top 5 classes are saved in the variable `top_pred_classes`"""
