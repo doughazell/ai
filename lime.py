@@ -72,13 +72,17 @@ class Lime(object):
     np.random.seed(222)
 
     # InceptionV3 initialization: use the pre-trained InceptionV3 model available in Keras.
+    # 8/12/23 DH: https://cloud.google.com/tpu/docs/inception-v3-advanced
+    #             (InceptionV3 is NOT a Transformer model)
     warnings.filterwarnings('ignore')
     self.inceptionV3_model = keras.applications.inception_v3.InceptionV3()
 
     # 9/9/23 DH:
     #keras.utils.plot_model(self.inceptionV3_model,"inception_v3-model.png",show_shapes=True)
 
-    # 10/9/23 DH: The python redirect...
+    # 10/9/23 DH: The python redirect...better than:
+    #             https://github.com/doughazell/star-space-embeddings/blob/master/star_space.py#L151
+    #             https://github.com/doughazell/star-space-embeddings/blob/master/star_space.py#L254
     with open('inceptionV3-model.summary', 'w') as sys.stdout:
       self.inceptionV3_model.summary()
     # ...reset 'sys.stdout'
@@ -259,8 +263,6 @@ class Lime(object):
     print("\nNumber of segments:",self.numSegments,"(from 'skimage.segmentation.quickshift()' return:",
           self.imgSegmentMask.shape,"for input img:",self.img.shape,")")
     print()
-
-  
 
   # --------------------------------- END: Prelims ---------------------------
   
@@ -460,6 +462,7 @@ class Lime(object):
     #simpler_model.fit(X=Xvals, y=yVals, sample_weight=self.weights, debug=True)
     #print("fit() intercept_:",simpler_model.intercept_,", get_params():",simpler_model.get_params())
 
+    # 1/10/23 DH: Segment mask vs probability of top prediction ('class_to_explain') for full image
     simpler_model.fit(X=Xvals, y=yVals, sample_weight=self.weights)
 
     self.simpler_model = simpler_model
@@ -477,9 +480,8 @@ class Lime(object):
 
   # ----------------------------- END: Step 4/4 ---------------------------------
 
-
-# 29/8/23 DH:
-if __name__ == '__main__':
+# 3/11/23 DH:
+def runLimeAnalysis():
   #time.sleep(5)
   #sys.exit(0)
 
@@ -512,3 +514,7 @@ if __name__ == '__main__':
   # 30/8/23 DH: Interface to utils "wrapper" by sending a copy of the Lime object with necessary attribs
   #             ...nicely fractal...
   limeImage.lime_utils.displayTopFeatures(limeImage)
+
+# 29/8/23 DH:
+if __name__ == '__main__':
+  runLimeAnalysis()

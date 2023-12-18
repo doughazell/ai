@@ -177,6 +177,16 @@ class LimeUtils(object):
     plt.xlabel("$n$")
     plt.ylabel("Number of occurences")
 
+    # 2/11/23 DH: IPC mechanism from '! python lime.py' back to Colab
+    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+    
+    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.show.html
+    # "If you want an image file as well as a user interface window, use pyplot.savefig before pyplot.show. 
+    # At the end of (a blocking) show() the figure is closed and thus unregistered from pyplot. 
+    # Calling pyplot.savefig afterwards would save a new and thus empty figure."
+    print("Saving image")
+    plt.savefig('my_plot.png')
+
     plt.show(block=False)
     #plt.show()
 
@@ -501,6 +511,7 @@ class LimeUtils(object):
     plt.scatter(Xvals, yVals, color="black")
     
     plt.axhline(y=0.1, color='red', linestyle='-')
+    plt.axhline(y=0, color='green', linestyle='-')
 
     plt.title("Coefficients for " + str(limeImage.numSegments ) + 
               " segments of prediction accuracy Linear Regression\n")

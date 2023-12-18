@@ -2,7 +2,8 @@
 
 from lime import Lime
 
-if __name__ == '__main__':
+# 3/11/23 DH: Prior to adding to Colab
+def runLimeSegmentation():
   print()
   print("Hello blackout segments...I'd rather be a distance than a weight")
   print("----------------------------------------------------------------")
@@ -24,3 +25,6 @@ if __name__ == '__main__':
   print()
   print("----------------------------------------------------------------")
   print("...nailed it")
+
+if __name__ == '__main__':
+  runLimeSegmentation()

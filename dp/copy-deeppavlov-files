@@ -1,0 +1,22 @@
+#! /bin/bash
+
+# ===============================================================
+# 17/12/23 DH: Backup changed deeppavlov files
+# ===============================================================
+echo
+echo "nice work, good job"
+echo
+
+PAVLOVDIR="/Users/doug/.pyenv/versions/3.9.15/lib/python3.9/site-packages/deeppavlov"
+DIR=`pwd`
+
+cd $PAVLOVDIR
+
+FILES=`grep -rl 'DH:' *`
+
+for FILE in ${FILES}
+do
+  echo "cp ${PAVLOVDIR}/${FILE} to ${DIR}"
+  cp ${PAVLOVDIR}/${FILE} ${DIR}
+done
+
