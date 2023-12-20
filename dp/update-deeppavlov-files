@@ -1,0 +1,35 @@
+#! /bin/bash
+
+# ===============================================================
+# 17/12/23 DH: Backup changed deeppavlov files
+# ===============================================================
+echo
+echo "nice work, good job"
+echo
+
+PAVLOVDIR="/Users/doug/.pyenv/versions/3.9.15/lib/python3.9/site-packages/deeppavlov"
+DIR=`pwd`
+
+FILES=`ls *.py`
+FILES+=' '
+FILES+=`ls *.json`
+
+cd $PAVLOVDIR
+pwd
+echo "-------------------------------------------------------------------------"
+
+for FILE in ${FILES}
+do
+  pavlovpath=`find . -name ${FILE}`
+  echo "cp ${DIR}/${FILE} to ${pavlovpath}"
+  cp ${DIR}/${FILE} ${pavlovpath}
+
+done
+
+# deeppavlov$ echo $dir
+# ./models/doc_retrieval/bpr.py
+#
+# deeppavlov$ echo $(dirname ${dir})
+# ./models/doc_retrieval
+
+
