@@ -102,6 +102,7 @@ class LogitRanker(Component):
             print("results_sort (", len(results_sort)," entries):")
             for res in results_sort[0:5]:
                 print("  ",res)
+                print()
             print("====================")
 
             best_answers = [x[0] for x in results_sort[:self.top_n]]
@@ -109,6 +110,7 @@ class LogitRanker(Component):
             best_answers_score = [x[2] for x in results_sort[:self.top_n]]
             best_answers_contexts = [x[3] for x in results_sort[:self.top_n]]
 
+            # 18/12/23 DH: Store to 'batch' (WHY ???)
             batch_best_answers.append(best_answers)
             batch_best_answers_place.append(best_answers_place)
             batch_best_answers_score.append(best_answers_score)
@@ -150,7 +152,8 @@ class LogitRanker(Component):
                 print("return_answer_sentence:",batch_best_answers, batch_best_answers_score, batch_best_answers_place, batch_best_answers_sentences)
                 return batch_best_answers, batch_best_answers_score, batch_best_answers_place, \
                        batch_best_answers_sentences
-            print("*** WIKI Return: ",batch_best_answers, batch_best_answers_score, batch_best_answers_place)
+            
+            print("*** Default Return: ",batch_best_answers, batch_best_answers_score, batch_best_answers_place)
             return batch_best_answers, batch_best_answers_score, batch_best_answers_place
 
         if self.return_answer_sentence:

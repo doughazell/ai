@@ -1,11 +1,12 @@
 {
-  "dataset_reader": {
+  "//": "20/12/23 DH: 'dataset_reader' and 'dataset_iterator' are 'red herrings'",
+  "//dataset_reader": {
     "class_name": "odqa_reader",
     "data_path": "{DOWNLOADS_PATH}/odqa/enwiki",
     "save_path": "{DOWNLOADS_PATH}/odqa/enwiki.db",
     "dataset_format": "wiki"
   },
-  "dataset_iterator": {
+  "//dataset_iterator": {
     "class_name": "sqlite_iterator",
     "shuffle": false,
     "load_path": "{DOWNLOADS_PATH}/odqa/enwiki_l100.db"
