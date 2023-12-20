@@ -85,7 +85,9 @@ class TfidfRanker(Component):
 
             # 17/12/23 DH:
             print("---")
-            print("Getting doc_ids...")
+            print("Getting 'doc_ids' in 'TfidfRanker'...")
+            # 20/12/23 DH: HashingTfIdfVectorizer::index2doc = get_index2doc()
+            #              => dict(zip(self.doc_index.values(), self.doc_index.keys()))
             doc_ids = [self.vectorizer.index2doc.get(i, int(i)) for i in o_sort]
             print("...got: ",len(doc_ids), " doc_ids: ")
             print(doc_ids)

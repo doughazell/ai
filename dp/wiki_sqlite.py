@@ -50,30 +50,22 @@ class WikiSQLiteVocab(SQLiteDataIterator, Component):
             a list of contents / list of lists of contents
         """
         all_contents = []
-
-        # 17/12/23 DH:
-        logger.info('*** wiki_sqlite ***')
         
         if not doc_ids:
-            print("no doc_ids")
+            print("*** no doc_ids so calling 'SQLiteDataIterator::get_doc_ids()' ***")
             logger.warning('No doc_ids are provided in WikiSqliteVocab, return all docs')
             doc_ids = [self.get_doc_ids()]
 
-        # 17/12/23 DH:
-        else:
-            print("doc_ids: ",len(doc_ids),"-", len(doc_ids[0]), ", ids = ")
-            print(doc_ids[0][0:100])
-            print()
-            print(doc_ids[0][101:200])
-
-
         for ids in doc_ids:
+            # 20/12/23 DH: Call 'SQLiteDataIterator::get_doc_content()' for all passed 'doc_ids' (from TfidfRanker)
             contents = [self.get_doc_content(doc_id) for doc_id in ids]
             if self.join_docs:
                 contents = ' '.join(contents)
             all_contents.append(contents)
 
-            print("all_contents len: ",len(all_contents))
-            #print("  ",all_contents)
+            # 17/12/23 DH:
+            print()
+            print("  WikiSQLiteVocab::ids: ",ids)
+            print()
         
         return all_contents

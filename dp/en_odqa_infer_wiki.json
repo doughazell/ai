@@ -55,7 +55,8 @@
         "batch_size": 64,
         "squad_model": {"config_path": "{CONFIGS_PATH}/squad/qa_nq_psgcls_bert.json"},
         "sort_noans": true,
-        "in": ["doc_text", "questions"],
+        "//in": ["doc_text", "questions"],
+        "in": ["doc_text", "questions", "tfidf_doc_ids"],
         "//out": ["answer", "answer_score", "answer_place"],
         "out": ["answer", "answer_score", "answer_place", "answer_sentence"]
       }

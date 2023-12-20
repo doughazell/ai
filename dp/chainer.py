@@ -226,22 +226,15 @@ class Chainer(Component):
             x = [mem[k] for k in in_params]
             if in_keys:
                 # 15/12/23 DH:
-                #print("_compute() in_keys: ", str(in_keys) )
-                print("_compute() in_keys" )
+                print("*** _compute() in_keys ***" )
                 res = component.__call__(**dict(zip(in_keys, x)))
             else:
-                #print("_compute(): ", str(x), type(component) )
-                print("_compute(): ", component)
-                """
-                print("  __dir__: ", component.__dir__())
-                if hasattr(component, 'pretrained_bert') :
-                    print("  name: ", component.pretrained_bert)
-                if hasattr(component, 'bert_config_file') :
-                    print("  config: ", component.bert_config_file)
-                """
+                print("Chainer::_compute(): ", component)
+                #print("  __dir__: ", component.__dir__())
+            
+                # 20/12/23 DH: 'LogitRanker' has a 'squad_model' attribute
                 if hasattr(component, 'squad_model') :
                     print("------------------")
-                    #print("  model: ", component.squad_model)
                     print("  model: ")
                     for comp in component.squad_model:
                         print("    ",comp)
@@ -249,10 +242,20 @@ class Chainer(Component):
                     
                 res = component.__call__(*x)
                 print("Return from ", type(component) )
+                # 20/12/23 DH:
+                #from deeppavlov.dataset_iterators.sqlite_iterator import SQLiteDataIterator
+                #if issubclass(component.__class__, SQLiteDataIterator) :
+
+                # 20/12/23 DH: 'TfidfRanker::vectorizer'
+                #if hasattr(component, 'vectorizer') :
+                #    ids = res[0][0]
+                #    print("  return val ids: ",ids)
+
             if len(out_params) == 1:
                 mem[out_params[0]] = res
             else:
                 mem.update(zip(out_params, res))
+        # END: "for ... component in pipe"
 
         res = [mem[k] for k in targets]
         if len(res) == 1:
