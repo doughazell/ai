@@ -2,7 +2,8 @@
   "chainer": {
     "in": ["question_raw"],
     "//out": ["answer", "answer_score", "answer_place"],
-    "out": ["answer", "answer_score", "answer_place", "answer_sentence"],
+    "//": "20/12/23 DH: The strings need to be the same as the final class output strings",
+    "out": ["answer", "answer_score", "answer_place", "answer_id", "answer_sentence"],
     "pipe": [
       {
         "config_path": "{CONFIGS_PATH}/doc_retrieval/en_ranker_tfidf_wiki.json",
@@ -55,10 +56,11 @@
         "batch_size": 64,
         "squad_model": {"config_path": "{CONFIGS_PATH}/squad/qa_nq_psgcls_bert.json"},
         "sort_noans": true,
+        "//": "20/12/23 DH: Add DB ID for selected text to output",
         "//in": ["doc_text", "questions"],
         "in": ["doc_text", "questions", "tfidf_doc_ids"],
         "//out": ["answer", "answer_score", "answer_place"],
-        "out": ["answer", "answer_score", "answer_place", "answer_sentence"]
+        "out": ["answer", "answer_score", "answer_place", "answer_id", "answer_sentence"]
       }
     ]
   },

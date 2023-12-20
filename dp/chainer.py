@@ -47,6 +47,9 @@ class Chainer(Component):
         in_y: names of additional inputs for pipeline training and evaluation modes
     """
 
+    # 20/12/23 DH:
+    cnt = 0
+
     def __init__(self, in_x: Union[str, list] = None, out_params: Union[str, list] = None,
                  in_y: Union[str, list] = None, *args, **kwargs) -> None:
         self.pipe: List[Tuple[Tuple[List[str], List[str]], List[str], Component]] = []
@@ -206,8 +209,22 @@ class Chainer(Component):
     def __call__(self, *args):
         return self._compute(*args, param_names=self.in_x, pipe=self.pipe, targets=self.out_params)
 
+    # 20/12/23 DH:
+    @staticmethod
+    def _cnt():
+        Chainer.cnt = Chainer.cnt + 1
+        return Chainer.cnt
+
     @staticmethod
     def _compute(*args, param_names, pipe, targets):
+        # 20/12/23 DH:
+        threadNum = Chainer._cnt()
+        print()
+        import os,threading
+        print("PID: ", os.getpid(), ", TID: ", threading.current_thread().ident)
+        print("=== ",threadNum,") Chainer::_compute() is the main scheduler ===")
+        #breakpoint()
+
         expected = set(targets)
         final_pipe = []
         for (in_keys, in_params), out_params, component in reversed(pipe):
@@ -235,7 +252,7 @@ class Chainer(Component):
                 # 20/12/23 DH: 'LogitRanker' has a 'squad_model' attribute
                 if hasattr(component, 'squad_model') :
                     print("------------------")
-                    print("  model: ")
+                    print("  squad_model: ")
                     for comp in component.squad_model:
                         print("    ",comp)
                     print("------------------")
@@ -260,6 +277,14 @@ class Chainer(Component):
         res = [mem[k] for k in targets]
         if len(res) == 1:
             res = res[0]
+
+        # 20/12/23 DH: 1,2,2,3,3,1
+        print()
+        print("--- ",threadNum,") Chainer::_compute() returning: ---")
+        print(res)
+        print("---------------------------------------------")
+        print()
+        
         return res
 
     def batched_call(self, *args: Reversible, batch_size: int = 16) -> Union[list, Tuple[list, ...]]:

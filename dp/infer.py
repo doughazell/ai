@@ -87,6 +87,7 @@ def interact_model(config: Union[str, Path, dict]) -> None:
             if args[-1][0] in {'exit', 'stop', 'quit', 'q'}:
                 return
 
+        print("interact_model() args: ",args)
         pred = model(*args)
         if len(model.out_params) > 1:
             pred = zip(*pred)

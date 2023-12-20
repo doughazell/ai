@@ -146,20 +146,26 @@ class LogitRanker(Component):
             batch_best_answers_doc_ids = [x[0] for x in batch_best_answers_doc_ids]
             batch_best_answers_sentences = [x[0] for x in batch_best_answers_sentences]
 
+        # 20/12/23 DH: https://docs.python.org/2.7/howto/doanddont.html#using-backslash-to-continue-statements
+        #              so I have replaced '\' with '()' on return statements
         if doc_ids_batch is None:
             print("doc_ids_batch is None")
             if self.return_answer_sentence:
-                print("return_answer_sentence:",batch_best_answers, batch_best_answers_score, batch_best_answers_place, batch_best_answers_sentences)
-                return batch_best_answers, batch_best_answers_score, batch_best_answers_place, \
-                       batch_best_answers_sentences
+                print("return_answer_sentence:",batch_best_answers, batch_best_answers_score,
+                      batch_best_answers_place, batch_best_answers_sentences)
+                return (batch_best_answers, batch_best_answers_score, batch_best_answers_place,
+                        batch_best_answers_sentences)
             
             print("*** Default Return: ",batch_best_answers, batch_best_answers_score, batch_best_answers_place)
             return batch_best_answers, batch_best_answers_score, batch_best_answers_place
 
         if self.return_answer_sentence:
-            print("return_answer_sentence")
-            return batch_best_answers, batch_best_answers_score, batch_best_answers_place, batch_best_answers_doc_ids, \
-                   batch_best_answers_sentences
+            print("return_answer_sentence: ",batch_best_answers, batch_best_answers_score,
+                  batch_best_answers_place, batch_best_answers_doc_ids, batch_best_answers_sentences)
+            return (batch_best_answers, batch_best_answers_score, batch_best_answers_place,
+                    batch_best_answers_doc_ids, batch_best_answers_sentences)
         
-        print("Default return: ",batch_best_answers, batch_best_answers_score, batch_best_answers_place, batch_best_answers_doc_ids)
-        return batch_best_answers, batch_best_answers_score, batch_best_answers_place, batch_best_answers_doc_ids
+        print("Default return: ",batch_best_answers, batch_best_answers_score, batch_best_answers_place,
+              batch_best_answers_doc_ids)
+        return (batch_best_answers, batch_best_answers_score, batch_best_answers_place,
+                batch_best_answers_doc_ids)
