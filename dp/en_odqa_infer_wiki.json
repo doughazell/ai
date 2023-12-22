@@ -56,6 +56,9 @@
         "batch_size": 64,
         "squad_model": {"config_path": "{CONFIGS_PATH}/squad/qa_nq_psgcls_bert.json"},
         "sort_noans": true,
+        "//": "22/12/23 DH:",
+        "top_n": 5,
+
         "//": "20/12/23 DH: Add DB ID for selected text to output",
         "//in": ["doc_text", "questions"],
         "in": ["doc_text", "questions", "tfidf_doc_ids"],

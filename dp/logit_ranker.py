@@ -105,7 +105,14 @@ class LogitRanker(Component):
                 print()
             print("====================")
 
-            best_answers = [x[0] for x in results_sort[:self.top_n]]
+            # 22/12/23 DH: Change 'best_answers' to longest ngram found in 'HashingTfIdfVectorizer' (by 'StreamSpacyTokenizer')
+            #best_answers = [x[0] for x in results_sort[:self.top_n]]
+
+            from deeppavlov.models.tokenizers.spacy_tokenizer import StreamSpacyTokenizer
+            #StreamSpacyTokenizer.lemmaList
+            ngram = StreamSpacyTokenizer._getLongestNGram()
+            best_answers = [ngram for x in results_sort[:self.top_n]]
+
             best_answers_place = [x[1] for x in results_sort[:self.top_n]]
             best_answers_score = [x[2] for x in results_sort[:self.top_n]]
             best_answers_contexts = [x[3] for x in results_sort[:self.top_n]]
@@ -153,6 +160,7 @@ class LogitRanker(Component):
             if self.return_answer_sentence:
                 print("return_answer_sentence:",batch_best_answers, batch_best_answers_score,
                       batch_best_answers_place, batch_best_answers_sentences)
+                
                 return (batch_best_answers, batch_best_answers_score, batch_best_answers_place,
                         batch_best_answers_sentences)
             
@@ -160,8 +168,13 @@ class LogitRanker(Component):
             return batch_best_answers, batch_best_answers_score, batch_best_answers_place
 
         if self.return_answer_sentence:
-            print("return_answer_sentence: ",batch_best_answers, batch_best_answers_score,
-                  batch_best_answers_place, batch_best_answers_doc_ids, batch_best_answers_sentences)
+            # 22/12/23 DH:
+            print("return_answer_sentence: len =",len(batch_best_answers[0]))
+            for i in range(len(batch_best_answers[0])):
+                print(i,") ",batch_best_answers[0][i],  " | ", batch_best_answers_score[0][i],  " | ",
+                      batch_best_answers_place[0][i],  " | ", batch_best_answers_doc_ids[0][i],  " | ", 
+                      batch_best_answers_sentences[0][i])
+            
             return (batch_best_answers, batch_best_answers_score, batch_best_answers_place,
                     batch_best_answers_doc_ids, batch_best_answers_sentences)
         
