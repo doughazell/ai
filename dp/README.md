@@ -1,7 +1,7 @@
 # DeepPavlov ODQA
 
 ### Introduction
-I originally found, https://blog.tensorflow.org/2019/09/deeppavlov-open-source-library-for-end.html, when looking to find a way into Natural Language Processing (NLP) since it appears a mechanism for Articial General Intelligence (AGI).  Google uses BERT (Bidirectional Encoder Representations from Transformers) for search query interpretation and open sourced it in Nov 2018, https://blog.research.google/2018/11/open-sourcing-bert-state-of-art-pre.html.
+I originally found, https://blog.tensorflow.org/2019/09/deeppavlov-open-source-library-for-end.html, when looking to find a way into Natural Language Processing (NLP) since it appears a mechanism for Artificial General Intelligence (AGI).  Google uses BERT (Bidirectional Encoder Representations from Transformers) for search query interpretation and open sourced it in Nov 2018, https://blog.research.google/2018/11/open-sourcing-bert-state-of-art-pre.html.
 
 DeepPavlov Open Domain Q&A (ODQA) uses:
 * PyTorch (rather than TensorFlow)
