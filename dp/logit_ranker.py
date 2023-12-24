@@ -108,9 +108,11 @@ class LogitRanker(Component):
             # 22/12/23 DH: Change 'best_answers' to longest ngram found in 'HashingTfIdfVectorizer' (by 'StreamSpacyTokenizer')
             #best_answers = [x[0] for x in results_sort[:self.top_n]]
 
+            # 23/12/23 DH: Probably better to access via member cascade (rather than Class method of Class member)
+            #              'TfidfRanker.vectorizer' -> 'HashingTfIdfVectorizer.tokenizer'
             from deeppavlov.models.tokenizers.spacy_tokenizer import StreamSpacyTokenizer
-            #StreamSpacyTokenizer.lemmaList
             ngram = StreamSpacyTokenizer._getLongestNGram()
+
             best_answers = [ngram for x in results_sort[:self.top_n]]
 
             best_answers_place = [x[1] for x in results_sort[:self.top_n]]

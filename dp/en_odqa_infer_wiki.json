@@ -10,28 +10,7 @@
         "in": ["question_raw"],
         "out": ["tfidf_doc_ids"]
       },
-      {
-        "//": "18/12/23 DH: --- REMOVED BPR ---",
-        "class_name": "bpr",
-        "load_path": "{MODELS_PATH}/bpr/eng",
-        "query_encoder_file": "query_encoder_en.pth.tar",
-        "bpr_index": "bpr_finetuned_nq_adv.idx",
-        "pretrained_model": "bert-base-uncased",
-
-        "//": "18/12/23 DH: Comments need to be keyed with '//' ",
-        "//": "  This is the number added by 'BPR' (default 'top_n: int = 100') to 'TfidfRanker' ",
-        "//": "  (and used by 'WikiSQLiteVocab::doc_ids') ",
-        "//top_n": 100,
-
-        "in": ["question_raw"],
-        "out": ["bpr_doc_ids"]
-      },
-      {
-        "//": "18/12/23 DH: --- REMOVED BPR ---",
-        "class_name": "concat_lists",
-        "in": ["tfidf_doc_ids", "bpr_doc_ids"],
-        "out": ["doc_ids"]
-      },
+      
       {
         "class_name": "wiki_sqlite_vocab",
         "//": "18/12/23 DH: --- REMOVED BPR ---",

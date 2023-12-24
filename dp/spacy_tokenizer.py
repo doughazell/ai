@@ -98,14 +98,10 @@ class StreamSpacyTokenizer(Component):
     # 22/12/23 DH:
     @staticmethod
     def _getLongestNGram():
-        #print("lemmaList[0]: ",StreamSpacyTokenizer.lemmaList[0])
-        
         # https://docs.python.org/3.5/library/functions.html#sorted 
         sortedNGram = sorted(StreamSpacyTokenizer.lemmaList[0], key=lambda s: len(s.split()), reverse=True)
-        #print("sortedNGram: ",sortedNGram)
-        return sortedNGram[0]
-
         
+        return sortedNGram[0]
 
     def __call__(self, batch: Union[List[str], List[List[str]]]) -> Union[List[List[str]], List[str]]:
         """Tokenize or detokenize strings, depends on the type structure of passed arguments.

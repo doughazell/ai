@@ -41,6 +41,11 @@ def build_model(config: Union[str, Path, dict], mode: str = 'infer',
     import_packages(config.get('metadata', {}).get('imports', []))
 
     model_config = config['chainer']
+
+    print("**************************************")
+    print("*** build_model() - model_config['in']:", model_config['in'])
+    print("**************************************")
+    
     model = Chainer(model_config['in'], model_config['out'], model_config.get('in_y'))
 
     for component_config in model_config['pipe']:
@@ -66,7 +71,7 @@ def build_model(config: Union[str, Path, dict], mode: str = 'infer',
 
     # 19/12/23 DH:
     print()
-    print("=== COMPLETED MODEL ===")
+    print("=== build_model() - COMPLETED MODEL ===")
     print("model: ")
     for elem in model:
         print("  ",elem)
