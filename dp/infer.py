@@ -84,21 +84,128 @@ def interact_model(config: Union[str, Path, dict]) -> None:
     """Start interaction with the model described in corresponding configuration file."""
     model = build_model(config)
 
+    # 29/12/23 DH: This needs to be defined outside 'while True' since it gets assigned on the return 
+    #              from the previous question
+    predDict = {}
+
     while True:
         args = []
         for in_x in model.in_x:
             args.append((input('{}::'.format(in_x)),))
-            # check for exit command
+            # check for exit command (in last arg of batch)
             if args[-1][0] in {'exit', 'stop', 'quit', 'q'}:
                 return
+            
+        if checkForSaving(args, predDict) is True:
+            # 28/12/23 DH: This 'continue' needs to be OUTSIDE THE FOR-LOOP of arg input above
+            continue
 
+        # 29/12/23 DH: Initiate the 'pipe' by calling 'Chainer.__call__()'
         print("interact_model() args: ",args)
         pred = model(*args)
-        if len(model.out_params) > 1:
-            pred = zip(*pred)
+
+        # 29/12/23 DH: Check + reset 'stop flag' (if it was set when Cache DB ids found)
+        if Chainer.stopFlag is True:
+            print()
+            print("interact_model() - Chainer 'stopFlag' was set so resetting...")
+            print()
+            Chainer.stopFlag = False
+
+            printCacheOutput()
+        else:
+            predDict = printPipeOutput(model, pred)
+
+# 29/12/23 DH:
+def checkForSaving(args, predDict) -> bool:
+    # 28/12/23 DH: Args is array of tuples
+    #              Args are designed to have batch questions so '-1' means last entry (with slice notation)
+    import re
+    
+    #LITERAL SEARCH (not "wildcard"): if args[0][0] in {'save', 's', 'save *', 's *'}:
+
+    # https://docs.python.org/3/howto/regex.html#performing-matches, "The r prefix, making the literal 
+    # a raw string literal, is needed in this example because [of] escape sequences in a normal “cooked” 
+    # string literal that are not recognized by Python"
+    if re.match(r"s\b", args[0][0]) or re.match(r"save\b", args[0][0]):
+        cmdArgs = (args[0][0]).split()
+
+        if len(cmdArgs) > 1:
+            try:
+                i = int(cmdArgs[1])
+                if i <= len(predDict['idList']):
+
+                    record = {
+                        'id': predDict['idList'][i-1],
+                        'title': predDict['answerList'][i-1],
+                        'text': predDict['sentenceList'][i-1]
+                    }
+                    print()
+                    print("SAVING: id: ", record['id'], ", title: ", record['title'], ", text: ", record['text'])
+                    print()
+
+                    from deeppavlov.dataset_iterators.sqlite_iterator import SQLiteDataIterator
+                    SQLiteDataIterator.save_record(record)
+            except ValueError:
+                pass
+            except UnboundLocalError:
+                pass
+
+            return True # ie continue with 'while True'
+
+    return False
+
+# 29/12/23 DH:
+def printCacheOutput():
+    print("Getting 'ngram' in 'printCacheOutput()' via 'StreamSpacyTokenizer._getLongestNGram()'")
+    from deeppavlov.models.tokenizers.spacy_tokenizer import StreamSpacyTokenizer
+
+    ngram = StreamSpacyTokenizer._getLongestNGram()
+
+    from deeppavlov.dataset_iterators.sqlite_iterator import SQLiteDataIterator
+    result = SQLiteDataIterator.getDetailsFromTitle(ngram)
+
+    print()
+    print(result)
+    print()
+
+    for (id, title, text) in result:
+        print("{}) {}".format(id, text))
+
+# 29/12/23 DH:
+def printPipeOutput(model: Chainer, pred: str) -> dict:
+    if len(model.out_params) > 1:
+        # 27/12/23 DH: https://docs.python.org/3/library/functions.html#zip, "returns an iterator of tuples"
+        # https://docs.python.org/3/glossary.html#term-iterator, "Attempting this with an iterator will just 
+        # return the same exhausted iterator object used in the previous iteration pass, making it appear like 
+        # an empty container."
+        
+        pred = zip(*pred)
+
+    #print('>>', *pred)
+    
+    # 27/12/23 DH: "out": ["answer", "answer_score", "answer_place", "answer_id", "answer_sentence"]
+    
+    predList = list(pred)
+    predDict = {}
+
+    if predList:
+        predDict['answerList'] = predList[0][0]
+        predDict['scoreList'] = predList[0][1]
+        predDict['placeList'] = predList[0][2]
+        predDict['idList'] = predList[0][3]
+        predDict['sentenceList'] = predList[0][4]
 
         print()
-        print('>>', *pred)
+        print("-------------- interact_model() ---------------")
+        
+        for i in range(len(predList[0])):
+            print(i+1,") ","id: ", predDict['idList'][i],", title: ", predDict['answerList'][i],
+                  ", text: ", predDict['sentenceList'][i])
+
+        print("-----------------------------------------------")
+        print()
+    
+    return predDict
 
 
 def predict_on_stream(config: Union[str, Path, dict],

@@ -76,6 +76,20 @@ class SQLiteDataIterator(DataFittingIterator):
         self.shuffle = shuffle
         self.random = Random(seed)
 
+        # -----------------------------------------------------------------------------------------------
+        # 25/12/23 DH: Get access to 'enwiki_cache.db'
+        # 'get_db_name()' returns the only table in the DB, so WE NEED A DIFF DB (not just another table)
+        # -----------------------------------------------------------------------------------------------
+        
+        try:
+            import os
+            cache_db=os.path.join(os.path.dirname(load_path), "enwiki_cache.db")
+            SQLiteDataIterator.cacheDB = sqlite3.connect(cache_db, check_same_thread=False)
+            print("Opened connection to cache file: ", cache_db)
+        except sqlite3.OperationalError as e:
+            e.args = e.args + ("Check that Cache DB path exists and is a valid DB file",)
+            raise e
+
     def get_doc_ids(self) -> List[Any]:
         """Get document ids.
 
@@ -177,3 +191,58 @@ class SQLiteDataIterator(DataFittingIterator):
         docs = [self.get_doc_content(doc_id) for doc_id in doc_ids]
         doc_nums = [self.doc2index[doc_id] for doc_id in doc_ids]
         return docs, zip(doc_ids, doc_nums)
+    
+    # --------------------------------------------------------------------------------
+    # 25/12/23 DH:
+    # --------------------------------------------------------------------------------
+
+    @staticmethod
+    def save_record(record: Any) -> None:
+        
+        cursor = SQLiteDataIterator.cacheDB.cursor()
+        cursor.execute(
+            # "SELECT text FROM {} WHERE id = ?".format(self.db_name),(doc_id,)
+
+            "INSERT INTO documents (id, title, text) VALUES (?,?,?)",
+            (record['id'], record['title'], record['text'])
+        )
+        SQLiteDataIterator.cacheDB.commit()
+        cursor.close()
+
+        return 
+    
+    # 29/12/23 DH:
+    @staticmethod
+    def getIDsFromTitle(title: Any) -> Optional[str]:
+        
+        cursor = SQLiteDataIterator.cacheDB.cursor()
+        cursor.execute(
+            # Without the ',' in the tuple then you get: 
+            # "sqlite3.ProgrammingError: Incorrect number of bindings supplied. The current statement 
+            #  uses 1, and there are 7 supplied."
+            "SELECT id FROM documents WHERE title = ?", (title,)
+        )
+        result = cursor.fetchall()
+        cursor.close()
+        #return result if result is None else result[0]
+        print("SQLiteDataIterator.getIDsFromTitle() returning: ", result)
+        return result
+
+    # 29/12/23 DH:
+    @staticmethod
+    def getDetailsFromTitle(title: Any) -> Optional[str]:
+        
+        cursor = SQLiteDataIterator.cacheDB.cursor()
+        cursor.execute(
+            # Without the ',' in the tuple then you get: 
+            # "sqlite3.ProgrammingError: Incorrect number of bindings supplied. The current statement 
+            #  uses 1, and there are 7 supplied."
+            "SELECT * FROM documents WHERE title = ?", (title,)
+        )
+        result = cursor.fetchall()
+        cursor.close()
+        #return result if result is None else result[0]
+        print("SQLiteDataIterator.getIDsFromTitle() returning: ", result)
+        return result
+
+

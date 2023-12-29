@@ -86,9 +86,15 @@ class LogitRanker(Component):
             for i in range(0, len(contexts), self.batch_size):
                 c_batch = contexts[i: i + self.batch_size]
                 q_batch = questions[i: i + self.batch_size]
+                
                 print("  calling squad_model with: ")
                 print("    c_batch: ",len(c_batch))
                 print("    q_batch: ",len(q_batch))
+                # 26/12/23 DH:
+                if i == 0:
+                    print()
+                    print("Context 1: ", c_batch[0])
+                    print("Question 1: ", q_batch[0])
                 
                 batch_predict = list(zip(*self.squad_model(c_batch, q_batch), c_batch))
                 results += batch_predict
@@ -97,24 +103,17 @@ class LogitRanker(Component):
             else:
                 results_sort = sorted(results, key=itemgetter(2), reverse=True)
 
-            # 17/12/23 DH:
-            print("====================")
-            print("results_sort (", len(results_sort)," entries):")
-            for res in results_sort[0:5]:
-                print("  ",res)
-                print()
-            print("====================")
-
             # 22/12/23 DH: Change 'best_answers' to longest ngram found in 'HashingTfIdfVectorizer' (by 'StreamSpacyTokenizer')
-            #best_answers = [x[0] for x in results_sort[:self.top_n]]
-
+            
             # 23/12/23 DH: Probably better to access via member cascade (rather than Class method of Class member)
             #              'TfidfRanker.vectorizer' -> 'HashingTfIdfVectorizer.tokenizer'
+            print("Getting 'ngram' in 'LogitRanker' via 'StreamSpacyTokenizer._getLongestNGram()'")
             from deeppavlov.models.tokenizers.spacy_tokenizer import StreamSpacyTokenizer
-            ngram = StreamSpacyTokenizer._getLongestNGram()
 
+            ngram = StreamSpacyTokenizer._getLongestNGram()
             best_answers = [ngram for x in results_sort[:self.top_n]]
 
+            #best_answers = [x[0] for x in results_sort[:self.top_n]]
             best_answers_place = [x[1] for x in results_sort[:self.top_n]]
             best_answers_score = [x[2] for x in results_sort[:self.top_n]]
             best_answers_contexts = [x[3] for x in results_sort[:self.top_n]]
@@ -124,28 +123,41 @@ class LogitRanker(Component):
             batch_best_answers_place.append(best_answers_place)
             batch_best_answers_score.append(best_answers_score)
             
+            # 27/12/23 DH: Changed order of 'doc_ids' & 'best_answers_sentences'
+
+            if doc_ids_batch is not None:
+                doc_ind = [results.index(x) for x in results_sort]
+                
+                # 27/12/23 DH: De-regex'ing :
+                """
+                #for i in doc_ind:
+                #    print( doc_ids_batch[0][i] )
+                
+                "hello world"
+
+                |2|4|1|3|0|_|2|4|1|3|0|
+               
+                 0 1 2 3 4 _ 0 1 2 3 4
+                |o|l|h|l|e|_|d|r|w|l|o|
+                """
+
+                batch_best_answers_doc_ids.append(
+                    [doc_ids_batch[quest_ind][i] for i in doc_ind] [:len(batch_best_answers[-1])]
+                )
+            
             best_answers_sentences = []
-            for answer, place, context in zip(best_answers, best_answers_place, best_answers_contexts):
+            for id, answer, place, context in zip(batch_best_answers_doc_ids[0], best_answers, best_answers_place, best_answers_contexts):
                 sentence = find_answer_sentence(place, context)
                 print()
                 print("  adding: ",sentence)
                 print("  from: ",context)
-                print("  index: ",place)
+                print("  text index: ",place)
+                print("  DB id: ",id)
                 print()
                 best_answers_sentences.append(sentence)
             batch_best_answers_sentences.append(best_answers_sentences)
 
-            if doc_ids_batch is not None:
-                doc_ind = [results.index(x) for x in results_sort]
-                batch_best_answers_doc_ids.append(
-                    [doc_ids_batch[quest_ind][i] for i in doc_ind][:len(batch_best_answers[-1])])
-
-        # 17/12/23 DH:
-        print("====================")
-        print("batch_best_answers:")
-        for ans in batch_best_answers:
-            print("  ",ans)
-        print("====================")
+        # END: --- for quest_ind, [contexts, questions] in enumerate(zip(contexts_batch, questions_batch)) ---
 
         if self.top_n == 1:
             print("top_n == 1")
@@ -170,12 +182,15 @@ class LogitRanker(Component):
             return batch_best_answers, batch_best_answers_score, batch_best_answers_place
 
         if self.return_answer_sentence:
+            
             # 22/12/23 DH:
+            """
             print("return_answer_sentence: len =",len(batch_best_answers[0]))
             for i in range(len(batch_best_answers[0])):
                 print(i,") ",batch_best_answers[0][i],  " | ", batch_best_answers_score[0][i],  " | ",
                       batch_best_answers_place[0][i],  " | ", batch_best_answers_doc_ids[0][i],  " | ", 
                       batch_best_answers_sentences[0][i])
+            """
             
             return (batch_best_answers, batch_best_answers_score, batch_best_answers_place,
                     batch_best_answers_doc_ids, batch_best_answers_sentences)

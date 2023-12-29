@@ -76,6 +76,8 @@ class StreamSpacyTokenizer(Component):
     """
     # 22/12/23 DH:  Accessor is not required (like used in '@staticmethod Chainer::_cnt()')
     lemmaList = []
+    # 25/12/23 DH: May need a refactor due to making 'self.model' also 'StreamSpacyTokenizer.model'
+    #modelCopy = None
 
     def __init__(self, disable: Optional[Iterable[str]] = None, filter_stopwords: bool = False,
                  batch_size: Optional[int] = None, ngram_range: Optional[List[int]] = None,
@@ -88,6 +90,9 @@ class StreamSpacyTokenizer(Component):
             ngram_range = [1, 1]
         
         self.model = _try_load_spacy_model(spacy_model, disable=disable)
+        # 25/12/23 DH:
+        #StreamSpacyTokenizer.modelCopy = self.model
+
         self.stopwords = self.model.Defaults.stop_words if filter_stopwords else set()
         self.batch_size = batch_size
         self.ngram_range = tuple(ngram_range)  # cast JSON array to tuple
@@ -101,7 +106,31 @@ class StreamSpacyTokenizer(Component):
         # https://docs.python.org/3.5/library/functions.html#sorted 
         sortedNGram = sorted(StreamSpacyTokenizer.lemmaList[0], key=lambda s: len(s.split()), reverse=True)
         
-        return sortedNGram[0]
+        """
+        spacyOutput = StreamSpacyTokenizer.modelCopy( str(sortedNGram) )
+        print("spacyOutput: ",spacyOutput.__class__)
+        print( dir(spacyOutput) )
+
+        for noun_chunk in spacyOutput.noun_chunks:
+            print(noun_chunk.text)
+
+        # 25/12/23 DH: Results in:
+        #   ValueError: [E029] `noun_chunks` requires the dependency parse, which requires a statistical model to be installed and loaded. 
+        #   For more info, see the documentation: https://spacy.io/usage/models
+        """
+
+        # 25/12/23 DH: If the longest 'ngram' is only 1 word then add all the 'ngrams'
+        if sortedNGram:
+            if len(sortedNGram[0].split() ) == 1:
+                # https://docs.python.org/3/library/stdtypes.html#str.join :
+                #   "Return a string which is the concatenation of the strings in iterable.
+                #    The separator between elements is the string providing this method."
+                retStr = ' '.join(sortedNGram)
+                print("Longest 'ngram' is only 1 therefore adding all 'ngrams': ", retStr)
+                return retStr
+            else:
+                print("Returning: ", sortedNGram[0])
+                return sortedNGram[0]
 
     def __call__(self, batch: Union[List[str], List[List[str]]]) -> Union[List[List[str]], List[str]]:
         """Tokenize or detokenize strings, depends on the type structure of passed arguments.

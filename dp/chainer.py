@@ -50,6 +50,9 @@ class Chainer(Component):
     # 20/12/23 DH:
     cnt = 0
 
+    # 28/12/23 DH:
+    stopFlag = False
+
     def __init__(self, in_x: Union[str, list] = None, out_params: Union[str, list] = None,
                  in_y: Union[str, list] = None, *args, **kwargs) -> None:
         self.pipe: List[Tuple[Tuple[List[str], List[str]], List[str], Component]] = []
@@ -246,7 +249,6 @@ class Chainer(Component):
                 print("*** _compute() in_keys ***" )
                 res = component.__call__(**dict(zip(in_keys, x)))
             else:
-                print("Chainer::_compute(): ", component)
                 #print("  __dir__: ", component.__dir__())
             
                 # 20/12/23 DH: 'LogitRanker' has a 'squad_model' attribute
@@ -256,17 +258,30 @@ class Chainer(Component):
                     for comp in component.squad_model:
                         print("    ",comp)
                     print("------------------")
-                    
-                res = component.__call__(*x)
-                print("Return from ", type(component) )
-                # 20/12/23 DH:
-                #from deeppavlov.dataset_iterators.sqlite_iterator import SQLiteDataIterator
-                #if issubclass(component.__class__, SQLiteDataIterator) :
 
-                # 20/12/23 DH: 'TfidfRanker::vectorizer'
+                # ------------------------------------------
+                # 28/12/23 DH: CHAIN COMPONENT HOOK
+                # ------------------------------------------  
+                if not Chainer.stopFlag:
+                    print("Chainer::_compute(): ", component)
+                    res = component.__call__(*x)
+                    print("Return from ", type(component) )
+                else:
+                    print("Chainer.stopFlag is set so returning")
+                    return []
+
+                # 28/12/23 DH:
+                from deeppavlov.models.doc_retrieval.tfidf_ranker import TfidfRanker
+                if issubclass(component.__class__, TfidfRanker):
+                    if not res:
+                        print("Returning from Pipe ", threadNum)
+                        Chainer.stopFlag = True
+                        return res
+                    else:
+                        print("TfidfRanker returned: ", res)
+
                 #if hasattr(component, 'vectorizer') :
                 #    ids = res[0][0]
-                #    print("  return val ids: ",ids)
 
             if len(out_params) == 1:
                 mem[out_params[0]] = res
@@ -277,13 +292,6 @@ class Chainer(Component):
         res = [mem[k] for k in targets]
         if len(res) == 1:
             res = res[0]
-
-        # 20/12/23 DH: 1,2,2,3,3,1
-        print()
-        print("--- ",threadNum,") Chainer::_compute() returning: ---")
-        print(res)
-        print("---------------------------------------------")
-        print()
         
         return res
 

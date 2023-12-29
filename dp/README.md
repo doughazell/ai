@@ -61,14 +61,14 @@ $ update-deeppavlov-files
     Chainer[TfidfRanker]
 
       <JSON: en_ranker_tfidf_wiki.json>
-        "in": ["docs"], ______________________
+        "in": ["docs"], _ _ _ _ _ _ _ _ _ _ _ _
                        /                      |
           TfidfRanker /                       |
                      /       OBFUSCATION      |
     WikiSQLiteVocab /          CUTOUT         |
     StringMultiplier                          |
     LogitRanker   / (just press perforations) |
-                 /____________________________|
+                 /_ _ _ _ _ _ _ _ _ _ _ _ _ _ |
       <JSON: qa_nq_psgcls_bert.json>
         "in": ["context_raw", "question_raw"],
 

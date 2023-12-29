@@ -63,7 +63,23 @@ class TfidfRanker(Component):
         """
 
         batch_doc_ids, batch_docs_scores = [], []
+        # 28/12/23 DH: Need to get SpaCy n-grams to search cache DB titles
         q_tfidfs = self.vectorizer(questions)
+
+        print("Getting 'ngram' in 'TfidfRanker' via 'StreamSpacyTokenizer._getLongestNGram()'")
+        from deeppavlov.models.tokenizers.spacy_tokenizer import StreamSpacyTokenizer
+
+        ngram = StreamSpacyTokenizer._getLongestNGram()
+
+        print()
+        print("TfidfRanker: Checking whether entry for '{}' in Cache DB and return from pipe if found".format(ngram))
+        
+        from deeppavlov.dataset_iterators.sqlite_iterator import SQLiteDataIterator
+        ids = SQLiteDataIterator.getIDsFromTitle(ngram)
+        
+        if ids:
+            # 29/12/23 DH: Return empty tuple to signal pipe stoppage
+            return ()
 
         for q_tfidf in q_tfidfs:
             scores = q_tfidf * self.vectorizer.tfidf_matrix
