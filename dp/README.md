@@ -78,4 +78,13 @@ $ update-deeppavlov-files
           SquadBertAnsPostprocessor
 ```
 
+### SQL Cache DB
+```
+$ cd .deeppavlov/downloads/odqa
+$ sqlite3 enwiki_cache.db
+
+$ sqlite3 enwiki_l100.db '.schema' > enwiki_schema.sql
+$ sqlite3 enwiki_cache.db < enwiki_schema.sql
+```
+
 
