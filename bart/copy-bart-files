@@ -1,0 +1,62 @@
+#! /bin/bash
+
+# ===============================================================
+# 14/1/24 DH: Backup changed BART files
+# ===============================================================
+echo
+echo "nice work, good job"
+echo
+
+# 14/1/24 DH: Acquired from 'https://github.com/Homebrew/brew/blob/master/bin/brew'
+# ---------------------------------------------------------------------------------
+quiet_cd() {
+  CDPATH='' cd -- "$@" &>/dev/null || return
+}
+
+symlink_target_directory() {
+  local target target_dirname
+  target="$(readlink "$1")"
+  target_dirname="$(dirname "${target}")"
+  local directory="$2"
+  quiet_cd "${directory}" && quiet_cd "${target_dirname}" && pwd -P
+}
+
+USR_LOCAL_BREW_FILE_DIRECTORY="$(symlink_target_directory "/usr/local/bin/brew" "/usr/local/bin")"
+USR_LOCAL_HOMEBREW_REPOSITORY="${USR_LOCAL_BREW_FILE_DIRECTORY%/*}"
+# ---------------------------------------------------------------------------------
+
+copy_commented_files() {
+  cd $1
+
+  FILES=`grep -rl 'DH:' *`
+
+  for FILE in ${FILES}
+  do
+    echo "  cp ${1}/${FILE} to ${2}"
+    cp ${1}/${FILE} ${2}
+  done
+}
+
+DIR=`pwd`
+
+PACKAGES="
+  /Users/doug/.pyenv/versions/3.9.15/lib/python3.9/site-packages/fairseq
+  /Users/doug/.pyenv/versions/3.9.15/lib/python3.9/site-packages/transformers
+"
+
+for PKG in ${PACKAGES}
+do
+  echo "Checking: $(basename ${PKG})"
+  copy_commented_files ${PKG} ${DIR}
+  echo
+done
+
+# --------------------------------------
+# deeppavlov$ dir=`find . -name bpr.py`
+# deeppavlov$ echo $dir
+# ./models/doc_retrieval/bpr.py
+#
+# deeppavlov$ echo $(dirname ${dir})
+# ./models/doc_retrieval
+
+
