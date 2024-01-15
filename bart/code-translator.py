@@ -42,30 +42,41 @@ class Text2TextGenerationPipeline(Pipeline):
 """
 # 14/1/24 DH: 'inputs' printed from 'pipeline.py' are 'BART-double-coded' values
 
+# --------------------------------------------------------------------------------------------------------------
+# 15/1/24 DH:
+def paragraphSummary(filename):
+  intStrList = []
+  with open(filename) as source :
+    for line in source.readlines():
+      # Remove newline character from each int printout line
+      lineStrip = line.rstrip()
+
+      for item in lineStrip.split(","):
+        # Remove whitespace
+        itemStrip = item.strip()
+        # Guard against empty string after last ',' on line
+        if itemStrip:
+          intStrList.append(itemStrip)
+
+  # 'input_ids' needs to be 2-D array (prob for obfuscation reasons...)
+  int2DList = [[int(item) for item in intStrList]]
+  input_ids = torch.tensor(int2DList)
+
+  print("\n",tokenizer.batch_decode(input_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0])
+  print()
+
+  summary_ids = model.generate(input_ids, num_beams=2, min_length=0, max_length=130)
+  print(tokenizer.batch_decode(summary_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0])
+
 model = BartForConditionalGeneration.from_pretrained("facebook/bart-large-cnn")
 tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
 
-intStrList = []
-with open("bart-double-codes.txt") as source :
-  for line in source.readlines():
-    # Remove newline character from each int printout line
-    lineStrip = line.rstrip()
+filename = "bart-double-codes1.txt"
+paragraphSummary(filename)
 
-    for item in lineStrip.split(","):
-      # Remove whitespace
-      itemStrip = item.strip()
-      if itemStrip:
-        intStrList.append(itemStrip)
-
-int2DList = [[int(item) for item in intStrList]]
-input_ids = torch.tensor(int2DList)
-
-print()
-print(tokenizer.batch_decode(input_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0])
-print()
-
-summary_ids = model.generate(input_ids, num_beams=2, min_length=0, max_length=130)
-print(tokenizer.batch_decode(summary_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0])
+filename = "bart-double-codes2.txt"
+paragraphSummary(filename)
+# --------------------------------------------------------------------------------------------------------------
 
 #MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING
 #autoSeq2Seq = AutoModelForSeq2SeqLM.from_pretrained("facebook/bart-large-cnn")
