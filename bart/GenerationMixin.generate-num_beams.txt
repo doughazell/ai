@@ -1,0 +1,89 @@
+INPUT PARAGRAPH:
+----------------
+"As of 31 December, the UK government has banned the breeding, selling or abandonment of the dogs in England. Additional measures will make it a criminal offence to own an XL bully without an exemption certificate in England and Wales from the start of February. The certificate involves paying a £92.40 application fee and dogs must also be kept on a lead and muzzled in public.  When the issue was raised at First Minister's Questions on Thursday, Mr Yousaf said the measures in England were not an outright ban on XL bullies as owners could still keep them under certain criteria.  He said: "What has become clear, I'm afraid in the last few weeks, is we have seen a flow of XL bully dogs coming to Scotland."
+
+OUTPUT TOKENS:
+--------------
+<1> [As of 31 December, the UK government has banned the breeding, selling or abandonment of the dogs] 
+    [.]
+<2> [Additional measures will make it a criminal offence to own an XL bully]
+<3> [without an exemption certificate]
+    [.]
+<4> [The certificate involves paying a £92.40 application fee and dogs must also be kept on a lead and muzzled in public.]
+
+
+
+1) summaryList = summarizer(ARTICLE, num_beams=1, max_length=130, min_length=10, do_sample=False)
+-------------------------------------------------------------------------------------------------
+"As of 31 December, the UK government has banned the breeding, selling or abandonment of the dogs. Additional measures will make it a criminal offence to own an XL bully without an exemption certificate. The certificate involves paying a £92.40 application fee and dogs must also be kept on a lead and muzzled in public."
+
+<1>"."<2><3>"."<4>
+
+2) summaryList = summarizer(ARTICLE, num_beams=2, max_length=130, min_length=10, do_sample=False)
+-------------------------------------------------------------------------------------------------
+"As of 31 December, the UK government has banned the breeding, selling or abandonment of the dogs in England. Additional measures will make it a criminal offence to own an XL bully without an exemption certificate in England and Wales."
+
+<1>"in England."<2><3>"in England and Wales."
+
+3) summaryList = summarizer(ARTICLE, num_beams=3, max_length=130, min_length=10, do_sample=False)
+-------------------------------------------------------------------------------------------------
+"As of 31 December, the UK government has banned the breeding, selling or abandonment of the dogs in England. Additional measures will make it a criminal offence to own an XL bully."
+
+<1>"in England."<2>"."
+
+4) summaryList = summarizer(ARTICLE, num_beams=4, max_length=130, min_length=10, do_sample=False)
+-------------------------------------------------------------------------------------------------
+"As of 31 December, the UK government has banned the breeding, selling or abandonment of the dogs. Additional measures will make it a criminal offence to own an XL bully without an exemption certificate."
+
+<1>"."<2><3>"."
+
+5) summaryList = summarizer(ARTICLE, num_beams=5, max_length=130, min_length=10, do_sample=False)
+-------------------------------------------------------------------------------------------------
+"As of 31 December, the UK government has banned the breeding, selling or abandonment of the dogs in England. Additional measures will make it a criminal offence to own an XL bully without an exemption certificate."
+
+<1>"in England."<2><3>"."
+
+6) summaryList = summarizer(ARTICLE, num_beams=6, max_length=130, min_length=10, do_sample=False)
+-------------------------------------------------------------------------------------------------
+"As of 31 December, the UK government has banned the breeding, selling or abandonment of the dogs. Additional measures will make it a criminal offence to own an XL bully without an exemption certificate."
+
+<1>"."<2><3>"."
+
+7) summaryList = summarizer(ARTICLE, num_beams=7, max_length=130, min_length=10, do_sample=False)
+-------------------------------------------------------------------------------------------------
+"As of 31 December, the UK government has banned the breeding, selling or abandonment of the dogs in England. Additional measures will make it a criminal offence to own an XL bully without an exemption certificate."
+
+<1>"in England."<2><3>"."
+
+8) summaryList = summarizer(ARTICLE, num_beams=8, max_length=130, min_length=10, do_sample=False)
+-------------------------------------------------------------------------------------------------
+"As of 31 December, the UK government has banned the breeding, selling or abandonment of the dogs. Additional measures will make it a criminal offence to own an XL bully without an exemption certificate."
+
+<1>"."<2><3>"."
+
+9) summaryList = summarizer(ARTICLE, num_beams=9, max_length=130, min_length=10, do_sample=False)
+-------------------------------------------------------------------------------------------------
+"As of 31 December, the UK government has banned the breeding, selling or abandonment of the dogs. Additional measures will make it a criminal offence to own an XL bully without an exemption certificate."
+
+<1>"."<2><3>"."
+
+10) summaryList = summarizer(ARTICLE, num_beams=10, max_length=130, min_length=10, do_sample=False)
+---------------------------------------------------------------------------------------------------
+"As of 31 December, the UK government has banned the breeding, selling or abandonment of the dogs in England. Additional measures will make it a criminal offence to own an XL bully without an exemption certificate."
+
+<1>"in England."<2><3>"."
+
+NUM_BEAMS:
+----------
+1)  <1>"."<2><3>"."<4>
+2)  <1>"in England."<2><3>"in England and Wales."
+3)  <1>"in England."<2>"."
+4)  <1>"."<2><3>"."           = <5> *  EVEN
+5)  <1>"in England."<2><3>"." = <6> ** ODD
+6)  <1>"."<2><3>"."           = <5> *  EVEN
+7)  <1>"in England."<2><3>"." = <6> ** ODD
+8)  <1>"."<2><3>"."           = <5> *  EVEN
+9)  <1>"."<2><3>"."           = <5> *  <--
+                                          |
+10) <1>"in England."<2><3>"." = <6> ** <--
+

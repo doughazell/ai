@@ -131,7 +131,7 @@ class Text2TextGenerationPipeline(Pipeline):
         # 13/1/24 DH: inputs = {'input_ids': tensor(), 'attention_mask': tensor()}
         print()
         print("Text2TextGenerationPipeline._parse_and_tokenize(): tokenizer: ", self.tokenizer.__class__) 
-        print("inputs_ids ( len ", len(inputs['input_ids'][0]), ") : ")
+        print("  inputs_ids ( len ", len(inputs['input_ids'][0]), ") : ")
         print("  ", inputs['input_ids'])
         print()
 
@@ -191,6 +191,10 @@ class Text2TextGenerationPipeline(Pipeline):
         generate_kwargs["min_length"] = generate_kwargs.get("min_length", self.model.config.min_length)
         generate_kwargs["max_length"] = generate_kwargs.get("max_length", self.model.config.max_length)
         self.check_inputs(input_length, generate_kwargs["min_length"], generate_kwargs["max_length"])
+        
+        # 16/1/24 DH:
+        print("Text2TextGenerationPipeline.model.generate: ", self.model.generate.__qualname__)
+        
         output_ids = self.model.generate(**model_inputs, **generate_kwargs)
         out_b = output_ids.shape[0]
         if self.framework == "pt":

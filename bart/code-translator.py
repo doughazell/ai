@@ -69,6 +69,10 @@ def paragraphSummary(filename):
   print(tokenizer.batch_decode(summary_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0])
 
 model = BartForConditionalGeneration.from_pretrained("facebook/bart-large-cnn")
+
+# 16/1/24 DH:
+import inspect
+print("model.generate: ", model.generate.__qualname__)
 tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
 
 filename = "bart-double-codes1.txt"
