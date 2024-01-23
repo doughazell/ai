@@ -1,3 +1,8 @@
+# ========================================================================================
+# 19/1/24 DH: Added to github via 'ai' repo but originally run from '/Users/doug/src/gpt'
+#             (This is where GPT-2 'models/124M' is situated)
+# ========================================================================================
+
 import gpt_2_simple as gpt2
 
 import os

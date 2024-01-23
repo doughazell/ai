@@ -7,10 +7,12 @@ print("--------------------------------")
 
 summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
 
-with open("xl-bully-ban-short.txt") as source :
+# 18/1/24 DH:
+#with open("xl-bully-ban-short.txt") as source :
+with open("new-vocab-test.txt") as source :
   ARTICLE = source.readlines()
 
-summaryList = summarizer(ARTICLE, max_length=130, min_length=10, do_sample=False)
+summaryList = summarizer(ARTICLE, max_length=130, min_length=0, do_sample=False)
 
 with open("pipeline-out.txt", "w") as fout:
   print()
