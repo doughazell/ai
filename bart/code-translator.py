@@ -58,6 +58,23 @@ def paragraphSummary(model, tokenizer, input_ids):
   print("                               ===========")
   print("  ", decodedString)
 
+# 24/1/24 DH:
+def paragraphTextB4summary(filename):
+  print()
+  print("--------------- Orig text before summary --------------")
+  print("                ++++++++++++++++++++++++")
+  
+  print("FILENAME: ", filename)
+  print()
+  with open(filename) as source :
+    for line in source.readlines():
+      # Remove newline character from each int printout line
+      lineStrip = line.rstrip()
+
+      print("LINE: '{}'".format(lineStrip))
+
+  print("-------------------------------------------------------")
+
 def removeBosEosTokens(idsTensor: torch.tensor) -> torch.tensor:
   # 22/1/24 DH: Taken from 'tokenization_roberta_fast.py::RobertaTokenizerFast(PreTrainedTokenizerFast)' :
   #               'bos' = 'beginning of sequence'
@@ -123,7 +140,10 @@ def paragraphText(model, tokenizer, filename, summaryWanted) -> dict :
       line = dict['text']
       input_ids = dict['input_ids']
 
+      # 24/1/24 DH: The number of the paragraph in the sequence
       num += 1
+      dict['num'] = num
+
       print("{}) Contents: '{}'".format(num, line))
       print("'input_ids':", input_ids)
       print()
@@ -137,9 +157,66 @@ def paragraphText(model, tokenizer, filename, summaryWanted) -> dict :
 
     return bartDictList
 
-# --------------------------------------------
-# 17/1/24 DH: Globals for 'paragraphSummary()'
-# --------------------------------------------
+# 23/1/24 DH:
+def calcTokenTotals(bartDictList: dict) -> dict:
+  totalsDict = {}
+  
+  print("")
+  for line in bartDictList:
+    print("{}) {}".format(line['num'], line['input_ids']))
+
+    # 'input_ids' eg: tensor([[50265,     4,  1437, 50266,  1437, 50267,     4,  1437, 50268]])
+    idsNumpy2D = np.array( line['input_ids'] )
+    for token in idsNumpy2D[0]:
+      if token in totalsDict:
+        totalsDict[token] += 1
+      else:
+        totalsDict[token] = 1
+      
+      # 23/1/24 DH: ffs...https://wiki.python.org/moin/Py3kStringFormatting
+      #print("  {0:<5} = {1}".format(token, totalsDict[token]))
+  
+  print()
+  print("Token histogram")
+  print("---------------")
+  # Keys are listed in the order in which they are allocated
+  tokenDict = {}
+  for token in totalsDict:
+    
+    keyFromVal = tokenizer.batch_decode([token], skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+    
+    # 24/1/24 DH: Entries are keyed by {'tokenizer.json' / 'added_tokens.json'} allocated token ID number and contain:
+    #               "number": the number of times a token is used
+    #               "key":    the text string that is allocated the token ID number
+    tokenDict[token] = {"number": totalsDict[token], "key": keyFromVal}
+    
+    #print("{0:<5} = {1}, '{2}'".format(token, totalsDict[token], keyFromVal))
+    # 24/1/24 DH: 'tokenDict' is a dict of dict's (NOT A 2-D ARRAY!)
+    print("{0:<5} = {1}, '{2}'".format(token, tokenDict[token]['number'], tokenDict[token]['key']))
+
+  # ------------------------- DEBUG ------------------------------
+  print()
+  print("Token map from 'tokenizer': ", tokenizer.__class__)
+  
+  cnt = 0
+  print("('tokenizer.vocab' order changes every time, but 'totalsDict' keys are in order of creation...WHY...???)")
+  for token in tokenizer.vocab:
+    cutoff = 3
+    if cnt < cutoff:
+      print("  '{}' : '{}'".format(token, tokenizer.vocab[token]))
+    if cnt == cutoff:
+      print()
+      print("    breaking out of 'tokenizer.vocab' key loop...")
+      print()
+      print("  (https://peps.python.org/pep-0234/#dictionary-iterators)")
+      break
+
+    cnt += 1
+  # --------------------------------------------------------------
+
+  return tokenDict
+
+# -----------------------------------------------------------------------------------------------------
 model = BartForConditionalGeneration.from_pretrained("facebook/bart-large-cnn")
 
 # 16/1/24 DH:
@@ -162,11 +239,17 @@ filename = "bart-new-vocab-codes.txt"
 input_ids = paragraphDecode(tokenizer, filename)
 print("========================================================================")
 
+
 """
 """
+
+filename = "xl-bully-ban-short2.txt"
+paragraphTextB4summary(filename)
+
 #filename = "new-vocab-test.txt"
 filename = "num_beams-BARTinput.txt"
 bartDictList = paragraphText(model, tokenizer, filename, summaryWanted=False)
+hist = calcTokenTotals(bartDictList)
 
 # --------------------------------------------------------------------------------------------------------------
 
