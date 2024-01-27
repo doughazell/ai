@@ -1,12 +1,9 @@
-# 14/1/24 DH:
-from transformers.utils import is_torch_available
-
-if is_torch_available():
-  from transformers.models.auto.modeling_auto import MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING, AutoModelForSeq2SeqLM
-
 from transformers import AutoTokenizer, BartForConditionalGeneration
 import torch
 import numpy as np
+
+# 25/1/24 DH:
+from code_translator_trainer import trainSeqClassModel, trainSeq2SeqLM
 
 # 14/1/24 DH:
 print("-----------------------------------------------------------------------------------------")
@@ -39,6 +36,7 @@ def paragraphDecode(tokenizer, filename) -> torch.tensor :
   input_ids = getTensorFromIntStrList(intStrList)
 
   print("Got 'input_ids' from '{}'".format(filename) )
+  print("  ", input_ids)
   print()
   decodedString = tokenizer.batch_decode(input_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
 
@@ -51,6 +49,7 @@ def paragraphDecode(tokenizer, filename) -> torch.tensor :
 
 def paragraphSummary(model, tokenizer, input_ids):
   summary_ids = model.generate(input_ids, num_beams=2, min_length=0, max_length=130)
+
   decodedString = tokenizer.batch_decode(summary_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
   
   print()
@@ -97,7 +96,7 @@ def removeBosEosTokens(idsTensor: torch.tensor) -> torch.tensor:
   
   return getTensorFromIntStrList(idsStrList)
 
-def tokenizeLine(line) -> dict:
+def tokenizeLine(tokenizer, line) -> dict:
 
   inputs = tokenizer(line, max_length=1024, return_tensors="pt")
 
@@ -126,12 +125,12 @@ def paragraphText(model, tokenizer, filename, summaryWanted) -> dict :
       for line in textLines:
         #print("LINE: '{}'".format(line))
 
-        bartDictList.append( tokenizeLine(line) )
+        bartDictList.append( tokenizeLine(tokenizer, line) )
 
     else:
       line = textLines[0]
 
-      bartDictList.append( tokenizeLine(line) )
+      bartDictList.append( tokenizeLine(tokenizer, line) )
 
     print()
     print("------------------------------------------------------")
@@ -149,7 +148,7 @@ def paragraphText(model, tokenizer, filename, summaryWanted) -> dict :
       print()
       if summaryWanted:
         paragraphSummary(model, tokenizer, input_ids)
-        print("#########################")
+        print("############################################")
         print()
     print("------------------------------------------------------")
 
@@ -158,7 +157,7 @@ def paragraphText(model, tokenizer, filename, summaryWanted) -> dict :
     return bartDictList
 
 # 23/1/24 DH:
-def calcTokenTotals(bartDictList: dict) -> dict:
+def calcTokenTotals(tokenizer, bartDictList: dict) -> dict:
   totalsDict = {}
   
   print("")
@@ -217,73 +216,49 @@ def calcTokenTotals(bartDictList: dict) -> dict:
   return tokenDict
 
 # -----------------------------------------------------------------------------------------------------
-model = BartForConditionalGeneration.from_pretrained("facebook/bart-large-cnn")
+# -----------------------------------------------------------------------------------------------------
 
-# 16/1/24 DH:
-import inspect
+# -------------------------------------------------------------------------------------------------------------
+# 20/1/24 DH: EXAMPLE FOUND IN: 'models/bart/modeling_bart.py:571'
+#   14/1/24 DH: "models/bart/modeling_bart.py: 1294: class BartForConditionalGeneration(BartPretrainedModel):"
+# -------------------------------------------------------------------------------------------------------------
+def runNewVocabTest(summaryWanted = False):
+  tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
 
-print()
-print("model.generate: ", model.generate.__qualname__)
-tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
+  model = BartForConditionalGeneration.from_pretrained("facebook/bart-large-cnn")
+  print()
+  print("model.generate: ", model.generate.__qualname__)
 
-"""
-filename = "bart-double-codes1.txt"
-filename = "bart-double-codes2.txt"
-"""
-
-"""
-"""
-filename = "bart-new-vocab-codes.txt"
-# 20/1/24 DH: 'orig' codes work with, or without, 'added_tokens.json'
-#filename = "bart-new-vocab-orig.txt"
-input_ids = paragraphDecode(tokenizer, filename)
-print("========================================================================")
-
-
-"""
-"""
-
-filename = "xl-bully-ban-short2.txt"
-paragraphTextB4summary(filename)
-
-#filename = "new-vocab-test.txt"
-filename = "num_beams-BARTinput.txt"
-bartDictList = paragraphText(model, tokenizer, filename, summaryWanted=False)
-hist = calcTokenTotals(bartDictList)
-
-# --------------------------------------------------------------------------------------------------------------
-
-""" 20/1/24 DH: Taken from 'models/bart/modeling_bart.py:571'
-ARTICLE_TO_SUMMARIZE = (
-  "PG&E stated it scheduled the blackouts in response to forecasts for high winds "
-  "amid dry conditions. The aim is to reduce the risk of wildfires. Nearly 800 thousand customers were "
-  "scheduled to be affected by the shutoffs which were expected to last through at least midday tomorrow."
-)
-inputs = tokenizer([ARTICLE_TO_SUMMARIZE], max_length=1024, return_tensors="pt")
-
-# Generate Summary
-summary_ids = model.generate(inputs["input_ids"], num_beams=2, min_length=0, max_length=20)
-tokenizer.batch_decode(summary_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
-"""
-
-#MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING
-#autoSeq2Seq = AutoModelForSeq2SeqLM.from_pretrained("facebook/bart-large-cnn")
-# 14/1/24 DH: "models/bart/modeling_bart.py:class BartForConditionalGeneration(BartPretrainedModel):"
-
-#print("AutoModelForSeq2SeqLM: ",AutoModelForSeq2SeqLM.from_pretrained("facebook/bart-large-cnn") )
-# OUTPUT: 
-"""
-BartForConditionalGeneration(
-  (model): BartModel(
-    (shared): Embedding(50264, 1024, padding_idx=1)
-    (encoder): BartEncoder(
-    )
-    (decoder): BartDecoder(
-    )
-  )
-  (lm_head): Linear(in_features=1024, out_features=50264, bias=False)
-)
-"""
+  """
+  """
+  print("========================================================================")
+  filename = "bart-new-vocab-codes.txt"
+  # 20/1/24 DH: 'orig' codes work with, or without, 'added_tokens.json'
+  #filename = "bart-new-vocab-orig.txt"
+  input_ids = paragraphDecode(tokenizer, filename)
+  print("========================================================================")
 
 
+  """
+  """
+  print()
+  print("------------------- SUMMARY TEST USING OLD CODES WITH NEW VOCAB -------------------")
+  if summaryWanted:
+    filename = "new-vocab-test.txt"
+    paragraphText(model, tokenizer, filename, summaryWanted=summaryWanted)
+  print("-----------------------------------------------------------------------------------")
 
+  filename = "xl-bully-ban-short2.txt"
+  paragraphTextB4summary(filename)
+
+  filename = "num_beams-BARTinput.txt"
+  bartDictList = paragraphText(model, tokenizer, filename, summaryWanted=summaryWanted)
+  hist = calcTokenTotals(tokenizer, bartDictList)
+  # -------------------------------------------------------------------------------------------------------------
+
+# 25/1/24 DH:
+if __name__ == '__main__':
+  #runNewVocabTest(summaryWanted = True)
+  
+  trainSeqClassModel()
+  #trainSeq2SeqLM()

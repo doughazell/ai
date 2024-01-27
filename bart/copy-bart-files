@@ -39,8 +39,12 @@ copy_commented_files() {
 
 DIR=`pwd`
 
+# 24/1/24 DH: Removing 'fairseq' from github collection since current directory more up-to-date...!
+echo "REMOVING FROM COLLECTION:"
+echo "  /Users/doug/.pyenv/versions/3.9.15/lib/python3.9/site-packages/fairseq"
+echo
+
 PACKAGES="
-  /Users/doug/.pyenv/versions/3.9.15/lib/python3.9/site-packages/fairseq
   /Users/doug/.pyenv/versions/3.9.15/lib/python3.9/site-packages/transformers
 "
 
@@ -48,6 +52,19 @@ for PKG in ${PACKAGES}
 do
   echo "Checking: $(basename ${PKG})"
   copy_commented_files ${PKG} ${DIR}
+  echo
+done
+
+EXTRAS="
+  /Users/doug/.cache/huggingface/hub/models--facebook--bart-large-cnn/snapshots/08436bb998cc59c90294f46c0ec716bf86556c71/added_tokens.json
+"
+
+cd ${DIR}
+
+for FILE in ${EXTRAS}
+do
+  echo "Copying: $(basename ${FILE})"
+  cp ${FILE} ${DIR}
   echo
 done
 

@@ -127,8 +127,11 @@ class Text2TextGenerationPipeline(Pipeline):
             raise ValueError(
                 f" `args[0]`: {args[0]} have the wrong format. The should be either of type `str` or type `list`"
             )
+        
         inputs = self.tokenizer(*args, padding=padding, truncation=truncation, return_tensors=self.framework)
         # 13/1/24 DH: inputs = {'input_ids': tensor(), 'attention_mask': tensor()}
+        print()
+        print("args: ", *args)
         print()
         print("Text2TextGenerationPipeline._parse_and_tokenize(): tokenizer: ", self.tokenizer.__class__) 
         print("  inputs_ids ( len ", len(inputs['input_ids'][0]), ") : ")
@@ -194,7 +197,7 @@ class Text2TextGenerationPipeline(Pipeline):
         
         # 16/1/24 DH:
         print("Text2TextGenerationPipeline.model.generate: ", self.model.generate.__qualname__)
-        
+
         output_ids = self.model.generate(**model_inputs, **generate_kwargs)
         out_b = output_ids.shape[0]
         if self.framework == "pt":
