@@ -5,6 +5,10 @@ import numpy as np
 # 25/1/24 DH:
 from code_translator_trainer import trainSeqClassModel, trainSeq2SeqLM
 
+# 27/1/24 DH:
+import os
+from pathlib import Path
+
 # 14/1/24 DH:
 print("-----------------------------------------------------------------------------------------")
 print("Using Transformers BartForConditionalGeneration.from_pretrained('facebook/bart-large-cnn')")
@@ -47,15 +51,37 @@ def paragraphDecode(tokenizer, filename) -> torch.tensor :
 
   return input_ids
 
-def paragraphSummary(model, tokenizer, input_ids):
-  summary_ids = model.generate(input_ids, num_beams=2, min_length=0, max_length=130)
-
-  decodedString = tokenizer.batch_decode(summary_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+# 27/1/24 DH: Since unable to retrain BART with new tokens then fallback to orig vocab if required
+def paragraphSummary(model, tokenizer, input_ids) -> bool:
   
-  print()
-  print("tokenizer.batch_decode() from 'summary_ids': ")
-  print("                               ===========")
-  print("  ", decodedString)
+  # 27/1/24 DH: Check for tokens greater than orig vocab max of '50264'
+  try:
+    summary_ids = model.generate(input_ids, num_beams=2, min_length=0, max_length=130)
+
+    decodedString = tokenizer.batch_decode(summary_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+    
+    print()
+    print("tokenizer.batch_decode() from 'summary_ids': ")
+    print("                               ===========")
+    print("  ", decodedString)
+
+    return True
+  except IndexError as error:
+    print("******")
+    print("ERROR: ",error)
+
+    noexistDir = "/Users/doug/.cache/huggingface/hub/models--facebook--bart-large-cnn/.no_exist/08436bb998cc59c90294f46c0ec716bf86556c71"
+    add_tokens_flag_filename = "added_tokens.json"
+    flagPath = os.path.join(noexistDir, add_tokens_flag_filename)
+
+    # 27/1/24 DH: File checking code taken from 'transformers/utils/hub.py'
+    if not os.path.isfile(flagPath):
+      print("New vocab added, so creating '.no_exist' for '{}'".format(add_tokens_flag_filename))
+      print("  prior to recreating AutoTokenizer with orig vocab (to retokenize text)")
+      Path(flagPath).touch()
+    print("******")
+    
+    return False
 
 # 24/1/24 DH:
 def paragraphTextB4summary(filename):
@@ -109,6 +135,45 @@ def tokenizeLine(tokenizer, line) -> dict:
 
   return lineDict
 
+# 27/1/24 DH:
+def retokenizeParagraph(bartDictList, tokenizer) -> dict:
+  newDictList = []
+
+  for dict in bartDictList:
+    line = dict['text']
+    newDictList.append( tokenizeLine(tokenizer, line) )
+
+  return newDictList
+
+# 27/1/24 DH:
+def doSummaries(bartDictList, model, tokenizer, summaryWanted):
+  print()
+  print("------------------------------------------------------")
+  
+  num = 0
+  for dict in bartDictList:
+    line = dict['text']
+    input_ids = dict['input_ids']
+
+    # 24/1/24 DH: The number of the paragraph in the sequence
+    num += 1
+    dict['num'] = num
+
+    print("{}) Contents: '{}'".format(num, line))
+    print("'input_ids':", input_ids)
+    print()
+    if summaryWanted:
+      # 27/1/24 DH: If 'paragraphSummary()' returns a vocab error then we need to retokenize 'bartDictList[dict]['input_ids']'
+      if not paragraphSummary(model, tokenizer, input_ids):
+        tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
+        bartDictList = retokenizeParagraph(bartDictList, tokenizer)
+        return doSummaries(bartDictList, model, tokenizer, summaryWanted)
+      print("############################################")
+      print()
+
+  print("------------------------------------------------------")
+  return bartDictList
+
 # 20/1/24 DH:
 def paragraphText(model, tokenizer, filename, summaryWanted) -> dict :
   bartDictList = []
@@ -121,7 +186,6 @@ def paragraphText(model, tokenizer, filename, summaryWanted) -> dict :
 
     if len(textLines) > 1:
       print("text len: ", len(textLines))
-      print()
       for line in textLines:
         #print("LINE: '{}'".format(line))
 
@@ -132,27 +196,7 @@ def paragraphText(model, tokenizer, filename, summaryWanted) -> dict :
 
       bartDictList.append( tokenizeLine(tokenizer, line) )
 
-    print()
-    print("------------------------------------------------------")
-    num = 0
-    for dict in bartDictList:
-      line = dict['text']
-      input_ids = dict['input_ids']
-
-      # 24/1/24 DH: The number of the paragraph in the sequence
-      num += 1
-      dict['num'] = num
-
-      print("{}) Contents: '{}'".format(num, line))
-      print("'input_ids':", input_ids)
-      print()
-      if summaryWanted:
-        paragraphSummary(model, tokenizer, input_ids)
-        print("############################################")
-        print()
-    print("------------------------------------------------------")
-
-    # Prev return: 'input["input_ids"]' (which has 'torch.tensor' type)
+    bartDictList = doSummaries(bartDictList, model, tokenizer, summaryWanted)
 
     return bartDictList
 
@@ -258,7 +302,10 @@ def runNewVocabTest(summaryWanted = False):
 
 # 25/1/24 DH:
 if __name__ == '__main__':
-  #runNewVocabTest(summaryWanted = True)
+  runNewVocabTest(summaryWanted = False)
   
-  trainSeqClassModel()
-  #trainSeq2SeqLM()
+  model = "facebook/bart-large-cnn"
+  #model = "bert-base-cased"
+
+  #trainSeqClassModel(model)
+  #trainSeq2SeqLM(model)

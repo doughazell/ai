@@ -45,15 +45,21 @@ def printPubMedDataset(tokenized_datasets, train_dataset):
   #print("small_eval_dataset: ", small_eval_dataset.data)
   print()
 
-def trainSeqClassModel():
+def trainSeqClassModel(modelName):
   training_args = TrainingArguments(output_dir="test_trainer_SeqClass", evaluation_strategy="epoch")
-  tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
-  model2Train = AutoModelForSequenceClassification.from_pretrained("bert-base-cased", num_labels=5)
+  
+  print()
+  print("=========")
+  print("Creating: '{}'".format(modelName))
+  print("=========")
+  tokenizer = AutoTokenizer.from_pretrained(modelName)
+  model2Train = AutoModelForSequenceClassification.from_pretrained(modelName, num_labels=5)
 
   metric = evaluate.load("accuracy")
 
   def compute_metrics(eval_pred):
     logits, labels = eval_pred
+    breakpoint()
     predictions = np.argmax(logits, axis=-1)
     return metric.compute(predictions=predictions, references=labels)
 
@@ -68,6 +74,14 @@ def trainSeqClassModel():
 
   def tokenize_function(examples):
     return tokenizer(examples["text"], padding="max_length", truncation=True)
+
+  print()
+  print("Mapping: ")
+  print("  '{}'".format(dataset))
+  tokenized_datasets = dataset.map(tokenize_function, batched=True)
+  print()
+  print("to:")
+  print("  '{}'".format(tokenized_datasets))
 
   tokenized_datasets = dataset.map(tokenize_function, batched=True)
   small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(1))
@@ -106,10 +120,15 @@ def trainSeqClassModel():
 # transformers/models/bart/modeling_bart.py(1413)forward()
 # transformers/trainer.py(2779)compute_loss()
 ###############################################################################################################
-def trainSeq2SeqLM():
+def trainSeq2SeqLM(modelName):
   training_args = TrainingArguments(output_dir="test_trainer_Seq2Seq", evaluation_strategy="epoch")
-  tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
-  model2Train = AutoModelForSeq2SeqLM.from_pretrained("facebook/bart-large-cnn")
+
+  print()
+  print("=========")
+  print("Creating: '{}'".format(modelName))
+  print("=========")
+  tokenizer = AutoTokenizer.from_pretrained(modelName)
+  model2Train = AutoModelForSeq2SeqLM.from_pretrained(modelName)
 
   datasetName = "ccdv/pubmed-summarization"
   print()
