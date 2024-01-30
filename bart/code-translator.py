@@ -3,7 +3,9 @@ import torch
 import numpy as np
 
 # 25/1/24 DH:
-from code_translator_trainer import trainSeqClassModel, trainSeq2SeqLM
+from code_translator_trainer import trainSeq2SeqLM
+# 30/1/24 DH:
+from code_translator_data import Seq2SeqModelData
 
 # 27/1/24 DH:
 import os
@@ -302,10 +304,15 @@ def runNewVocabTest(summaryWanted = False):
 
 # 25/1/24 DH:
 if __name__ == '__main__':
-  runNewVocabTest(summaryWanted = False)
+  #runNewVocabTest(summaryWanted = False)
   
   model = "facebook/bart-large-cnn"
   #model = "bert-base-cased"
 
   #trainSeqClassModel(model)
-  #trainSeq2SeqLM(model)
+  seq2seqModelData = trainSeq2SeqLM(model)
+  print()
+  print("Trained model name: ", seq2seqModelData.model_name_or_path)
+  print()
+  #print("Calling: 'seq2seq_trainer.train()'...")
+  #seq2seqModelData.seq2seq_trainer.train()
