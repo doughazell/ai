@@ -1,0 +1,6 @@
+{
+  "output_dir": "/tmp/tst-summarization",
+  "overwrite_output_dir": "True",
+  "do_train": "True",
+  "model_name_or_path": "facebook/bart-large-cnn"
+}
