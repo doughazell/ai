@@ -25,6 +25,9 @@ from transformers import (
 from code_translator_data import Seq2SeqModelData
 from code_translator_trainer_arguments import DataTrainingArguments, ModelArguments, summarization_name_mapping
 
+# 30/1/24 DH: Reverse the dict: 'log_levels' (See 'Seq2SeqTrainingArguments.to_dict()' for "k,v" checking)
+log_levels_rev = {v: k for k, v in transformers.utils.logging.log_levels.items()}
+
 logger = logging.getLogger(__name__)
 
 def trainSeq2SeqLM(modelName) -> Seq2SeqModelData:
@@ -53,6 +56,9 @@ def trainSeq2SeqLM(modelName) -> Seq2SeqModelData:
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
+    # 30/1/24 DH:
+    model_args.model_name_or_path = modelName
+
     # Setup logging
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -66,12 +72,15 @@ def trainSeq2SeqLM(modelName) -> Seq2SeqModelData:
 
     log_level = training_args.get_process_log_level()
     logger.setLevel(log_level)
+
     datasets.utils.logging.set_verbosity(log_level)
     transformers.utils.logging.set_verbosity(log_level)
     transformers.utils.logging.enable_default_handler()
     transformers.utils.logging.enable_explicit_format()
 
-    logger.info(f"Training/evaluation parameters {training_args}")
+    print()
+    print("  1/6) REMOVED: 'logger.info(f\"Training/evaluation parameters {training_args}\")' ")
+    print()
 
     if data_args.source_prefix is None and model_args.model_name_or_path in [
         "t5-small",
@@ -135,6 +144,9 @@ def trainSeq2SeqLM(modelName) -> Seq2SeqModelData:
     
     # Preprocessing the datasets.
     # We need to tokenize inputs and targets.
+    #
+    # GET: 'column_names', 'text_column', 'summary_column'
+    #
     if training_args.do_train:
         if "train" not in raw_datasets:
             raise ValueError("--do_train requires a train dataset")
@@ -168,11 +180,23 @@ def trainSeq2SeqLM(modelName) -> Seq2SeqModelData:
     print("3/6) Loading Model + Tokenizer")
     print()
 
+    # 30/1/24 DH: Prevent 'info' logging for this section
+    transformers.utils.logging.set_verbosity_error()
+    logRet = transformers.utils.logging.get_verbosity()
+    logRetName = log_levels_rev[logRet]
+
+    print()
+    print(f"  3/6) ALTERED LOGGING TO: '{logRetName}'")
+    print()
+    
     # Load pretrained model and tokenizer
     #
     # Distributed training:
     # The .from_pretrained methods guarantee that only one local process can concurrently
     # download model & vocab.
+    print()
+    print("  3/6) AutoConfig.from_pretrained()")
+    print()
     config = AutoConfig.from_pretrained(
         model_args.config_name if model_args.config_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
@@ -180,6 +204,9 @@ def trainSeq2SeqLM(modelName) -> Seq2SeqModelData:
         token=model_args.token,
         trust_remote_code=model_args.trust_remote_code,
     )
+    print()
+    print("  3/6) AutoTokenizer.from_pretrained()")
+    print()
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
@@ -188,6 +215,9 @@ def trainSeq2SeqLM(modelName) -> Seq2SeqModelData:
         token=model_args.token,
         trust_remote_code=model_args.trust_remote_code,
     )
+    print()
+    print("  3/6) AutoModelForSeq2SeqLM.from_pretrained()")
+    print()
     model = AutoModelForSeq2SeqLM.from_pretrained(
         model_args.model_name_or_path,
         from_tf=bool(".ckpt" in model_args.model_name_or_path),
@@ -198,8 +228,17 @@ def trainSeq2SeqLM(modelName) -> Seq2SeqModelData:
         trust_remote_code=model_args.trust_remote_code,
     )
 
+    # 30/1/24 DH: Reset logging back to 'info'
+    transformers.utils.logging.set_verbosity_info()
+    logRet = transformers.utils.logging.get_verbosity()
+    logRetName = log_levels_rev[logRet]
+    
     print()
-    print("3/6) Resizing embeddings")
+    print(f"  3/6) ALTERED LOGGING TO: '{logRetName}'")
+    print()
+    
+    print()
+    print("  3/6) Resizing embeddings")
     print()
 
     # We resize the embeddings only when necessary to avoid index errors. If you are creating a model from scratch
@@ -285,7 +324,7 @@ def trainSeq2SeqLM(modelName) -> Seq2SeqModelData:
 
         with training_args.main_process_first(desc="train dataset map pre-processing"):
             print()
-            print("4/6) Running tokenizer on train dataset")
+            print("  4/6) Running tokenizer on train dataset")
             print()
             train_dataset = train_dataset.map(
                 preprocess_function,
@@ -313,7 +352,8 @@ def trainSeq2SeqLM(modelName) -> Seq2SeqModelData:
         preds, labels = eval_preds
         if isinstance(preds, tuple):
             preds = preds[0]
-        # Replace -100s used for padding as we can't decode them
+        
+        #Replace -100s used for padding as we can't decode them"
         preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
         decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
         labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
@@ -367,6 +407,10 @@ def trainSeq2SeqLM(modelName) -> Seq2SeqModelData:
         compute_metrics=compute_metrics if training_args.predict_with_generate else None,
     )
 
+    print()
+    print(f"  5/6) {trainer.__class__}::compute_metrics() = {trainer.compute_metrics}")
+    print()
+
     if training_args.do_train:
         checkpoint = None
         if training_args.resume_from_checkpoint is not None:
@@ -404,7 +448,7 @@ def trainSeq2SeqLM(modelName) -> Seq2SeqModelData:
     ################################################################################
 
     print()
-    print("6/6) Return object via API")
+    print("6/6) Return objects via API")
     print()
 
     # 30/1/24 DH:
@@ -420,9 +464,18 @@ def trainSeq2SeqLM(modelName) -> Seq2SeqModelData:
     seq2seqModelData.data_collator_for_seq2seq       = data_collator
     seq2seqModelData.seq2seq_trainer                 = trainer
 
-    seq2seqModelData.model_arguments = model_args
-    seq2seqModelData.data_training_arguments = training_args
+    seq2seqModelData.model_arguments            = model_args
+    seq2seqModelData.data_training_arguments    = training_args
     seq2seqModelData.seq2seq_training_arguments = data_args
+
+    # 31/1/24 DH: Reset log level outside the Trainer API
+    transformers.utils.logging.set_verbosity( transformers.utils.logging._default_log_level )
+    logRet = transformers.utils.logging.get_verbosity()
+    logRetName = log_levels_rev[logRet]
+    
+    print()
+    print(f"  6/6) RESET LOGGING TO: '{logRetName}'")
+    print()
     
     return seq2seqModelData
 

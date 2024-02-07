@@ -53,7 +53,7 @@ def paragraphDecode(tokenizer, filename) -> torch.tensor :
 
   return input_ids
 
-# 27/1/24 DH: Since unable to retrain BART with new tokens then fallback to orig vocab if required
+# 27/1/24 DH: Since PREV unable to retrain BART with new tokens then fallback to orig vocab if required
 def paragraphSummary(model, tokenizer, input_ids) -> bool:
   
   # 27/1/24 DH: Check for tokens greater than orig vocab max of '50264'
@@ -78,7 +78,7 @@ def paragraphSummary(model, tokenizer, input_ids) -> bool:
 
     # 27/1/24 DH: File checking code taken from 'transformers/utils/hub.py'
     if not os.path.isfile(flagPath):
-      print("New vocab added, so creating '.no_exist' for '{}'".format(add_tokens_flag_filename))
+      print(f"New vocab added, so creating '.no_exist' for '{add_tokens_flag_filename}'")
       print("  prior to recreating AutoTokenizer with orig vocab (to retokenize text)")
       Path(flagPath).touch()
     print("******")
@@ -268,10 +268,18 @@ def calcTokenTotals(tokenizer, bartDictList: dict) -> dict:
 # 20/1/24 DH: EXAMPLE FOUND IN: 'models/bart/modeling_bart.py:571'
 #   14/1/24 DH: "models/bart/modeling_bart.py: 1294: class BartForConditionalGeneration(BartPretrainedModel):"
 # -------------------------------------------------------------------------------------------------------------
-def runNewVocabTest(summaryWanted = False):
-  tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
+def runNewVocabTest(seq2seqModelData :Seq2SeqModelData, summaryWanted = False):
 
-  model = BartForConditionalGeneration.from_pretrained("facebook/bart-large-cnn")
+  if seq2seqModelData and seq2seqModelData.bart_for_conditional_generation :
+    model = seq2seqModelData.bart_for_conditional_generation
+  else:
+    model = BartForConditionalGeneration.from_pretrained("facebook/bart-large-cnn")
+
+  if seq2seqModelData and seq2seqModelData.bart_tokenizer_fast :
+    tokenizer = seq2seqModelData.bart_tokenizer_fast
+  else:
+    tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
+
   print()
   print("model.generate: ", model.generate.__qualname__)
 
@@ -292,6 +300,9 @@ def runNewVocabTest(summaryWanted = False):
   if summaryWanted:
     filename = "new-vocab-test.txt"
     paragraphText(model, tokenizer, filename, summaryWanted=summaryWanted)
+    print()
+    filename = "xl-bully-ban-short2.txt"
+    paragraphText(model, tokenizer, filename, summaryWanted=summaryWanted)
   print("-----------------------------------------------------------------------------------")
 
   filename = "xl-bully-ban-short2.txt"
@@ -304,7 +315,6 @@ def runNewVocabTest(summaryWanted = False):
 
 # 25/1/24 DH:
 if __name__ == '__main__':
-  #runNewVocabTest(summaryWanted = False)
   
   model = "facebook/bart-large-cnn"
   #model = "bert-base-cased"
@@ -314,5 +324,5 @@ if __name__ == '__main__':
   print()
   print("Trained model name: ", seq2seqModelData.model_name_or_path)
   print()
-  #print("Calling: 'seq2seq_trainer.train()'...")
-  #seq2seqModelData.seq2seq_trainer.train()
+
+  runNewVocabTest(seq2seqModelData, summaryWanted = True)

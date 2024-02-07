@@ -42,9 +42,9 @@ sess = gpt2.start_tf_sess()
 
 # 1/1/24 DH: finetune() an empty model with dynamic data
 saver = gpt2.finetune(sess,
-											file_name,
-											model_name=model_name,
-											steps=1)   # steps is max number of training steps added to checkpoint (initially '1000')
+	file_name,
+	model_name=model_name,
+	steps=1)   # steps is max number of training steps added to checkpoint (initially '1000')
 
 #exit("Yea fuck off...")
 
@@ -52,4 +52,4 @@ saver = gpt2.finetune(sess,
 print("Calling 'gpt2.generate()' with: ",sess)
 
 gpt2.generate(sess,
-							length=24) # 2/1/24 DH: Number of tokens to output
+	length=24) # 2/1/24 DH: Number of tokens to output

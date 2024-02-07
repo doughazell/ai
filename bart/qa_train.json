@@ -1,0 +1,19 @@
+{
+  "model_name_or_path": "t5-small",
+  "dataset_name": "squad_v2",
+
+  "context_column": "context",
+  "question_column": "question",
+  "answer_column": "answers",
+  "max_seq_length": 384,
+  "doc_stride": 128,
+  
+  "do_train": "True",
+  
+  "num_train_epochs": 130,
+  "output_dir": "previous_output_dir",
+  
+  "save_strategy": "epoch",
+  "save_steps": 10,
+  "save_total_limit": 2
+}
