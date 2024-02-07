@@ -660,9 +660,59 @@ def main():
       train_dataset = train_dataset.select(range(max_train_samples))
 
   # ---------------------------------------------------------------------------------------
-  
+  if training_args.do_eval:
+    if "validation" not in raw_datasets:
+      raise ValueError("--do_eval requires a validation dataset")
+    
+    eval_examples = raw_datasets["validation"]
+
+    if data_args.max_eval_samples is not None:
+      # We will select sample from whole data
+      max_eval_samples = min(len(eval_examples), data_args.max_eval_samples)
+      eval_examples = eval_examples.select(range(max_eval_samples))
+
+    # Validation Feature Creation
+    with training_args.main_process_first(desc="validation dataset map pre-processing"):
+      eval_dataset = eval_examples.map(
+        preprocess_validation_function,
+        batched=True,
+        num_proc=data_args.preprocessing_num_workers,
+        remove_columns=column_names,
+        load_from_cache_file=not data_args.overwrite_cache,
+        desc="Running tokenizer on validation dataset",
+      )
+
+    if data_args.max_eval_samples is not None:
+      # During Feature creation dataset samples might increase, we will select required samples again
+      max_eval_samples = min(len(eval_dataset), data_args.max_eval_samples)
+      eval_dataset = eval_dataset.select(range(max_eval_samples))
+
   # ---------------------------------------------------------------------------------------
-  
+  if training_args.do_predict:
+    if "test" not in raw_datasets:
+        raise ValueError("--do_predict requires a test dataset")
+    
+    predict_examples = raw_datasets["test"]
+
+    if data_args.max_predict_samples is not None:
+        # We will select sample from whole data
+        predict_examples = predict_examples.select(range(data_args.max_predict_samples))
+
+    # Predict Feature Creation
+    with training_args.main_process_first(desc="prediction dataset map pre-processing"):
+      predict_dataset = predict_examples.map(
+        preprocess_validation_function,
+        batched=True,
+        num_proc=data_args.preprocessing_num_workers,
+        remove_columns=column_names,
+        load_from_cache_file=not data_args.overwrite_cache,
+        desc="Running tokenizer on prediction dataset",
+      )
+
+    if data_args.max_predict_samples is not None:
+      # During Feature creation dataset samples might increase, we will select required samples again
+      max_predict_samples = min(len(predict_dataset), data_args.max_predict_samples)
+      predict_dataset = predict_dataset.select(range(max_predict_samples))
 
   ##################################################################
   # Data collator
@@ -722,6 +772,115 @@ def main():
   # 7/2/24 DH: Assign the global 'trainer' so that it can be accessed via 'signal_handler()'
   global trainer
   
+  trainer = QuestionAnsweringSeq2SeqTrainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset if training_args.do_train else None,
+    eval_dataset=eval_dataset if training_args.do_eval else None,
+    eval_examples=eval_examples if training_args.do_eval else None,
+    tokenizer=tokenizer,
+    data_collator=data_collator,
+    compute_metrics=compute_metrics if training_args.predict_with_generate else None,
+    post_process_function=post_processing_function,
+  )
+
+  # Training
+  if training_args.do_train:
+    checkpoint = None
+    if training_args.resume_from_checkpoint is not None:
+      checkpoint = training_args.resume_from_checkpoint
+    elif last_checkpoint is not None:
+      checkpoint = last_checkpoint
+      #######################################################
+      # 5/2/24 DH: *** The meat of training + saving here ***
+      #######################################################
+      print()
+      print("  ---------------------------------------------------")
+      print("  |   Press Ctrl-C to initiate saving a checkpoint  |")
+      print("  |                     then                        |")
+      print("  |            Ctrl-C again to finish               |")
+      print("  ---------------------------------------------------")
+      print()
+      print("  'transformers.utils.logging.set_verbosity_debug()'")
+      transformers.utils.logging.set_verbosity_debug()
+
+      # =================================================================================================================
+      # 6/2/24 DH: Somewhere this saves EVEN CHECKPOINTS when ("save_strategy": "epoch") is defined in cmd line arg json
+      # 
+      # 7/2/24 DH: Added to 'transformers.trainer.Trainer._save_checkpoint()' :
+      #
+      #    if self.state.global_step % self.args.save_steps != 0:
+      #      return self.args.distributed_state.wait_for_everyone()
+      # =================================================================================================================
+      print()
+      print(f"Calling 'trainer.train()' with 'save_steps': {training_args.save_steps}")
+      print()
+      train_result = trainer.train(resume_from_checkpoint=checkpoint)
+
+      # 6/2/24 DH: This just saves 'previous_output_dir/model.safetensors' etc BUT NO CHECKPOINT FOR LATER TRG RESTART...
+      print()
+      print("  Calling 'trainer.save_model()'")
+      print()
+      trainer.save_model()  # Saves the tokenizer too for easy upload
+      
+      transformers.utils.logging.set_verbosity_error()
+      print("  'transformers.utils.logging.set_verbosity_error()'")
+      print("  --------------------------------------------------")
+      print()
+
+      metrics = train_result.metrics
+      max_train_samples = (
+        data_args.max_train_samples if data_args.max_train_samples is not None else len(train_dataset)
+      )
+      metrics["train_samples"] = min(max_train_samples, len(train_dataset))
+
+      trainer.log_metrics("train", metrics)
+      trainer.save_metrics("train", metrics)
+      trainer.save_state()
+
+  # Evaluation
+  results = {}
+  max_length = (
+    training_args.generation_max_length
+    if training_args.generation_max_length is not None
+    else data_args.val_max_answer_length
+  )
+  num_beams = data_args.num_beams if data_args.num_beams is not None else training_args.generation_num_beams
+  if training_args.do_eval:
+    logger.info("*** Evaluate ***")
+    metrics = trainer.evaluate(max_length=max_length, num_beams=num_beams, metric_key_prefix="eval")
+
+    max_eval_samples = data_args.max_eval_samples if data_args.max_eval_samples is not None else len(eval_dataset)
+    metrics["eval_samples"] = min(max_eval_samples, len(eval_dataset))
+
+    trainer.log_metrics("eval", metrics)
+    trainer.save_metrics("eval", metrics)
+
+  # Prediction
+  if training_args.do_predict:
+    logger.info("*** Predict ***")
+    results = trainer.predict(predict_dataset, predict_examples)
+    metrics = results.metrics
+
+    max_predict_samples = (
+      data_args.max_predict_samples if data_args.max_predict_samples is not None else len(predict_dataset)
+    )
+    metrics["predict_samples"] = min(max_predict_samples, len(predict_dataset))
+
+    trainer.log_metrics("predict", metrics)
+    trainer.save_metrics("predict", metrics)
+
+  if training_args.push_to_hub:
+    kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "question-answering"}
+    if data_args.dataset_name is not None:
+      kwargs["dataset_tags"] = data_args.dataset_name
+      if data_args.dataset_config_name is not None:
+        kwargs["dataset_args"] = data_args.dataset_config_name
+        kwargs["dataset"] = f"{data_args.dataset_name} {data_args.dataset_config_name}"
+      else:
+        kwargs["dataset"] = data_args.dataset_name
+
+    #trainer.push_to_hub(**kwargs)
 
   ##############################################################################
   # 3/2/24 DH: Now run the trained model for Q&A
@@ -762,7 +921,7 @@ def main():
   #  able to make "no answer" predictions. The t5 tokenizer does not automatically add this special token which is why it is added manually."
 
   model_name = "sjrhuschlee/flan-t5-base-squad2"
-  #model_name = "previous_output_dir"
+  #model_name = "previous_output_dir/checkpoint-4"
 
   #model = AutoModelForQuestionAnswering.from_pretrained(model_name)
   #tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -827,6 +986,63 @@ def main():
   answer = tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))
   print("ANSWER: ", answer)
 
+# 7/2/24 DH:
+import signal, time, subprocess
+from transformers import Trainer
+
+# 7/2/24 DH: Could have been done initially via: 'transformers/trainer_utils.py::get_last_checkpoint(folder)'
+def getHighestCheckpoint():
+  """
+  checkpointListCmd = f"ls {training_args.output_dir}"
+  outputBytes = subprocess.check_output(checkpointListCmd, shell=True)
+  outputStr = outputBytes.decode()
+  outputSplit = outputStr.split('\n')
+  
+  checkpointNum = 0
+  for item in outputSplit:
+    if "checkpoint" in item:
+      checkpointSplit = item.split('-')
+
+      # 7/2/24 DH: Guard against using 'tmp-checkpoint-n'
+      if len(checkpointSplit) == 2:
+        ptNumStr = checkpointSplit[1]
+        ptNum = int(ptNumStr)
+        if ptNum > checkpointNum:
+          checkpointNum = ptNum
+  """
+
+  lastCheckpointPath = get_last_checkpoint(training_args.output_dir)
+  lastCheckpoint = os.path.basename(lastCheckpointPath)
+  checkpointSplit = lastCheckpoint.split('-')
+  checkpointNum = int(checkpointSplit[1])
+  
+  return checkpointNum
+
+def signal_handler(sig, frame):
+  print('\nYou pressed Ctrl+C so saving checkpoint')
+
+  global gStoppingFlag
+  global gCheckpointNum
+
+  if not gStoppingFlag:
+    gStoppingFlag = True
+  
+    gCheckpointNum = getHighestCheckpoint()
+    print("Highest checkpoint: ", gCheckpointNum)
+
+    print("SETTING: 'Trainer.save_steps = 2' + 'Trainer.should_save = True'")
+    Trainer.save_steps = 2
+    Trainer.should_save = True
+  
+  # 2nd time Ctrl-C clicked
+  else:
+    checkpointNum = getHighestCheckpoint()
+    if checkpointNum == gCheckpointNum:
+      print()
+      print(f"  {checkpointNum} is same as {gCheckpointNum}")
+      print()
+    else:
+      sys.exit(0)
 
 def _mp_fn(index):
   # For xla_spawn (TPUs)
@@ -834,4 +1050,5 @@ def _mp_fn(index):
 
 
 if __name__ == "__main__":
+  signal.signal(signal.SIGINT, signal_handler)
   main()
