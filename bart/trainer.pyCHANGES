@@ -1,0 +1,66 @@
+# 9/2/24 DH:
+
+class Trainer:
+    # 7/2/24 DH: Change checkpoint saving rate from outside the Torch hooked callbacks
+    save_steps = 500 # default value in 'training_args.py'
+    should_save = False
+
+    # LINE: 333
+    def __init__(
+        ...
+    ):
+
+    # LINE: 1564
+    def _inner_training_loop(
+        self, batch_size=None, args=None, resume_from_checkpoint=None, trial=None, ignore_keys_for_eval=None
+    ):
+        ...
+        # -------------------------------------------
+        # 9/2/24 DH: ------ MAIN TRAINING LOOP ------
+        # -------------------------------------------
+        for epoch in range(epochs_trained, num_train_epochs):
+          ...
+            for step, inputs in enumerate(epoch_iterator):
+                ...
+                with self.accelerator.accumulate(model):
+                    tr_loss_step = self.training_step(model, inputs)
+                    
+                    # --------------------------------------------------------------------------------------
+                    # 9/2/24 DH:
+                    #print(f"Returned: {tr_loss_step} from 'training_step()', inputs: {inputs.__class__}")
+                    #print(f"{list(inputs.keys())}, {inputs}")
+                    if self.state.logging_steps != self.args.logging_steps:
+                      print(f"state.logging_steps: {self.state.logging_steps} being assigned to args.logging_steps: {self.args.logging_steps}")
+                      print("  (this will be saved in the checkpoint)")
+                      self.state.logging_steps = self.args.logging_steps
+
+                    if self.state.global_step % self.args.logging_steps == 0:
+                      # 9/2/24 DH: Use Python logging rather than 'transformers.utils.logging'
+                      import logging
+                      sigLogger = logging.getLogger("trainer_signaller")
+                      sigLogger.info(f"STEP: {self.state.global_step}, args.logging_steps: {self.args.logging_steps}")
+                    # --------------------------------------------------------------------------------------
+
+
+    # LINE: 2298
+    def _maybe_log_save_evaluate(self, tr_loss, model, trial, epoch, ignore_keys_for_eval):
+        ...
+        # 7/2/24 DH: Saving checkpoint from shell process program Ctrl-C handler
+        if self.control.should_save or Trainer.should_save:
+            self._save_checkpoint(model, trial, metrics=metrics)
+            self.control = self.callback_handler.on_save(self.args, self.state, self.control)
+
+
+    # LINE: 2389
+    def _save_checkpoint(self, model, trial, metrics=None):
+        
+        # -----------------------------------------------------------------------------------------------------------------
+        # 7/2/24 DH: 'save_steps' didn't seem to work so added this in here (needs to be a even number for Torch callback)
+        # -----------------------------------------------------------------------------------------------------------------
+        if self.state.global_step % Trainer.save_steps != 0:
+          return self.args.distributed_state.wait_for_everyone()
+        
+        print()
+        print()
+        print(f"  Saving checkpoint at {self.state.global_step} after {self.args.save_steps} steps")
+        print()

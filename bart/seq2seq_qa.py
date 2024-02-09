@@ -337,24 +337,8 @@ def main():
   ###############################################################################
   # Detecting last checkpoint.
   ###############################################################################
-  last_checkpoint = None
-  if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
-    
-    last_checkpoint = get_last_checkpoint(training_args.output_dir)
 
-    if last_checkpoint is None and len(os.listdir(training_args.output_dir)) > 0:
-      raise ValueError(
-        f"Output directory ({training_args.output_dir}) already exists and is not empty. "
-        "Use --overwrite_output_dir to overcome."
-      )
-    elif last_checkpoint is not None and training_args.resume_from_checkpoint is None:
-      logger.info(
-        f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, change "
-        "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
-      )
 
-  # Set seed before initializing model.
-  set_seed(training_args.seed)
 
   ####################################################################################################################
   # Get the datasets: you can either provide your own CSV/JSON/TXT training and evaluation files (see below)
@@ -367,6 +351,10 @@ def main():
   # In distributed training, the load_dataset function guarantee that only one local process can concurrently
   # download the dataset.
   ####################################################################################################################
+  print()
+  print(f"Loading dataset: {data_args.dataset_name}")
+  print()
+  
   if data_args.dataset_name is not None:
     # Downloading and loading a dataset from the hub.
     raw_datasets = load_dataset(
@@ -428,6 +416,8 @@ def main():
     trust_remote_code=model_args.trust_remote_code,
   )
   print()
+  print("Config return from AutoConfig: ", config.__class__)
+  print("Tokenizer return from AutoTokenizer: ", tokenizer.__class__)
   print("Model returned from 'AutoModelForSeq2SeqLM': ", model.__class__)
   print()
 
@@ -586,49 +576,6 @@ def main():
 
   # [4/4]
   # Validation preprocessing
-  def preprocess_validation_function(examples):
-    print()
-    print()
-    print("*** VALIDATION DATASET ***")
-
-    inputs, targets = preprocess_squad_batch(examples, question_column, context_column, answer_column)
-
-    model_inputs = tokenizer(
-      inputs,
-      max_length=max_seq_length,
-      padding=padding,
-      truncation=True,
-      return_overflowing_tokens=True,
-      return_offsets_mapping=True,
-    )
-    # Tokenize targets with the `text_target` keyword argument
-    labels = tokenizer(text_target=targets, max_length=max_answer_length, padding=padding, truncation=True)
-
-    # If we are padding here, replace all tokenizer.pad_token_id in the labels by -100 when we want to ignore
-    # padding in the loss.
-    if padding == "max_length" and data_args.ignore_pad_token_for_loss:
-      labels["input_ids"] = [
-        [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in labels["input_ids"]
-      ]
-
-    # Since one example might give us several features if it has a long context, we need a map from a feature to
-    # its corresponding example. This key gives us just that.
-    sample_mapping = model_inputs.pop("overflow_to_sample_mapping")
-
-    # For evaluation, we will need to convert our predictions to substrings of the context, so we keep the
-    # corresponding example_id and we will store the offset mappings.
-    model_inputs["example_id"] = []
-    # Augment the overflowing tokens to the labels
-    labels_out = []
-
-    for i in range(len(model_inputs["input_ids"])):
-      # One example can give several spans, this is the index of the example containing this span of text.
-      sample_index = sample_mapping[i]
-      model_inputs["example_id"].append(examples["id"][sample_index])
-      labels_out.append(labels["input_ids"][sample_index])
-
-    model_inputs["labels"] = labels_out
-    return model_inputs
 
   ################################################################
   # 4/2/24 DH: Map training data
@@ -667,60 +614,13 @@ def main():
   ##################################################################
   # Data collator
   ##################################################################
-  label_pad_token_id = -100 if data_args.ignore_pad_token_for_loss else tokenizer.pad_token_id
-  data_collator = DataCollatorForSeq2Seq(
-    tokenizer,
-    model=model,
-    label_pad_token_id=label_pad_token_id,
-    pad_to_multiple_of=8 if training_args.fp16 else None,
-  )
+  
 
-  metric = evaluate.load(
-    "squad_v2" if data_args.version_2_with_negative else "squad", cache_dir=model_args.cache_dir
-  )
-
-  def compute_metrics(p: EvalPrediction):
-    return metric.compute(predictions=p.predictions, references=p.label_ids)
-
-  # Post-processing:
-  def post_processing_function(
-    examples: datasets.Dataset, features: datasets.Dataset, outputs: EvalLoopOutput, stage="eval"
-    ):
-      # Decode the predicted tokens.
-      preds = outputs.predictions
-      if isinstance(preds, tuple):
-        preds = preds[0]
-      # Replace -100s used for padding as we can't decode them
-      preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
-      decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
-
-      # Build a map example to its corresponding features.
-      example_id_to_index = {k: i for i, k in enumerate(examples["id"])}
-      feature_per_example = {example_id_to_index[feature["example_id"]]: i for i, feature in enumerate(features)}
-      predictions = {}
-      # Let's loop over all the examples!
-      for example_index, example in enumerate(examples):
-        # This is the index of the feature associated to the current example.
-        feature_index = feature_per_example[example_index]
-        predictions[example["id"]] = decoded_preds[feature_index]
-
-      # Format the result to the format the metric expects.
-      if data_args.version_2_with_negative:
-        formatted_predictions = [
-          {"id": k, "prediction_text": v, "no_answer_probability": 0.0} for k, v in predictions.items()
-        ]
-      else:
-        formatted_predictions = [{"id": k, "prediction_text": v} for k, v in predictions.items()]
-
-      references = [{"id": ex["id"], "answers": ex[answer_column]} for ex in examples]
-      return EvalPrediction(predictions=formatted_predictions, label_ids=references)
 
   ##################################################################
   # Initialize our Trainer
   ##################################################################
   
-  # 7/2/24 DH: Assign the global 'trainer' so that it can be accessed via 'signal_handler()'
-  global trainer
   
 
   ##############################################################################
@@ -763,6 +663,7 @@ def main():
 
   model_name = "sjrhuschlee/flan-t5-base-squad2"
   #model_name = "previous_output_dir"
+  #model_name = "previous_output_dir/checkpoint-12010"
 
   #model = AutoModelForQuestionAnswering.from_pretrained(model_name)
   #tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -776,21 +677,41 @@ def main():
   print()
   
   #question = f"{tokenizer.cls_token}Why did Putin invade Ukraine?"
-  tokenizer.cls_token = '<cls>'
-  question = f"{tokenizer.cls_token}{raw_data['question']}"
+
+  #tokenizer.cls_token = '<cls>'
+  #question = f"{tokenizer.cls_token}{raw_data['question']}"
+  question = raw_data['question']
   context = raw_data['context']
+  answer = raw_data['answers']['text'][0]
   #context = context.replace('as a child, and rose to fame in the late 1990s ', '')
 
   print()
   print("QUESTION: ", question)
   print("CONTEXT: ", context)
+  print("ANSWER: ", answer)
 
+  """
+  
+  questionEncoding = tokenizer(question, return_tensors="pt")
+  contextEncoding = tokenizer(context, return_tensors="pt")
+  print("question encoding: ", questionEncoding['input_ids'])
+  print("-------")
+  print("context encoding: ", contextEncoding['input_ids'])
+  """
+  
+  # 'transformers/tokenization_utils_base.py(2731)__call__()'
   encoding = tokenizer(question, context, return_tensors="pt")
 
+  """
+  
+  print("Just passing 'encoding['input_ids'] to model(): ")
+  print(encoding['input_ids'])
+  """
+  
   # T5ForConditionalGeneration results in: "ValueError: You have to specify either decoder_input_ids or decoder_inputs_embeds"
   output = model(
     encoding["input_ids"],
-    attention_mask=encoding["attention_mask"]
+    #attention_mask=encoding["attention_mask"]
   )
 
   all_tokens = tokenizer.convert_ids_to_tokens(encoding["input_ids"][0].tolist())
@@ -802,7 +723,7 @@ def main():
   # 6/2/24 DH: "RuntimeError: Can't call numpy() on Tensor that requires grad. Use tensor.detach().numpy() instead."
   #             FROM: start_logits_dump = np.array(output['start_logits'])
   start_logits_dump = output['start_logits'].detach().numpy()
-  # 6/2/24 DH: [-5:][::-1] = Take an array from end-5, then take an array with reverse order
+  # 6/2/24 DH: [-5:][::-1] MEANS...take an array from end-5, then take an array with reverse order
   start_logits_dump = np.sort(start_logits_dump[0])[-10:][::-1]
   start_logits_dump = [np.round(value, 3) for value in start_logits_dump]
 
@@ -821,8 +742,14 @@ def main():
   print()
   print(f"all_tokens: {len(all_tokens)}, {all_tokens.__class__}")
   print(tokenizer.decode(tokenizer.convert_tokens_to_ids(all_tokens)))
-  print(f"answer_tokens: {len(answer_tokens)}, '{answer_tokens}', '{tokenizer.convert_tokens_to_ids(answer_tokens)}', \
-'{tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))}' ")
+  print()
+  print(f"answer_tokens: {len(answer_tokens)}")
+  print(f"  '{answer_tokens}'")
+  print("")
+  print(f"  answer_tokens ids: '{tokenizer.convert_tokens_to_ids(answer_tokens)}'")
+  print("  ------------------")
+  print(f"  tokenizer.decode() ids: '{tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))}'")
+  print()
 
   answer = tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))
   print("ANSWER: ", answer)

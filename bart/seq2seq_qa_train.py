@@ -280,6 +280,32 @@ question_answering_column_name_mapping = {
 training_args = None
 gStoppingFlag = False
 gCheckpointNum = 0
+# 8/2/24 DH: Get access to 'trainer.save_model()' from 'signal_handler()'
+trainer = None
+
+# 9/2/24 DH:
+def createLoggers(training_args):
+  # 8/2/24 DH: https://docs.python.org/3/howto/logging.html
+  #            https://docs.python.org/3/library/logging.html
+  #sigLogger = logging.getLogger(__name__)
+  sigLogger = logging.getLogger("trainer_log")
+  sigLogger.setLevel(logging.DEBUG)
+  fileName = "seq2seq_qa_trainer"
+  logPath = training_args.output_dir
+  fileHandler = logging.FileHandler(f"{logPath}/{fileName}.log")
+  logFormatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+  fileHandler.setFormatter(logFormatter)
+  # Need to remove default console handler setup above with 'logging.basicConfig(..., handlers=[logging.StreamHandler(sys.stdout)] )
+  sigLogger.addHandler(fileHandler)
+
+  sigLogger = logging.getLogger("trainer_signaller")
+  sigLogger.setLevel(logging.DEBUG)
+  fileName = "seq2seq_qa_INtrainer"
+  logPath = training_args.output_dir
+  fileHandler = logging.FileHandler(f"{logPath}/{fileName}.log", mode="w")
+  logFormatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+  fileHandler.setFormatter(logFormatter)
+  sigLogger.addHandler(fileHandler)
 
 def main():
   # See all possible arguments in src/transformers/training_args.py
@@ -316,15 +342,20 @@ def main():
   if training_args.should_log:
     # The default of training_args.log_level is passive, so we set log level at info here to have that default.
     transformers.utils.logging.set_verbosity_info()
-
+    
   log_level = training_args.get_process_log_level()
   logger.setLevel(log_level)
+
   datasets.utils.logging.set_verbosity(log_level)
+  
   transformers.utils.logging.set_verbosity(log_level)
   transformers.utils.logging.enable_default_handler()
   transformers.utils.logging.enable_explicit_format()
+  # 9/2/24 DH:
+  #transformers.utils.logging.add_handler(logging.FileHandler(f"{training_args.output_dir}/seq2seq_qa_INtrainer.log", mode="w"))
+  createLoggers(training_args)
 
-  # 2/2/24 DH:
+  # 2/2/24 DH: Affects console output if done below 'logging.basicConfig()' (prob due to defaults taken by 'datasets.utils.logging'...)
   transformers.utils.logging.set_verbosity_error()
 
   # Log on each process the small summary:
@@ -769,9 +800,9 @@ def main():
   # Initialize our Trainer
   ##################################################################
   
-  # 7/2/24 DH: Assign the global 'trainer' so that it can be accessed via 'signal_handler()'
+  # 8/2/24 DH:
   global trainer
-  
+
   trainer = QuestionAnsweringSeq2SeqTrainer(
     model=model,
     args=training_args,
@@ -812,8 +843,14 @@ def main():
       #    if self.state.global_step % self.args.save_steps != 0:
       #      return self.args.distributed_state.wait_for_everyone()
       # =================================================================================================================
+      
+      # 9/2/24 DH: 'transformers.trainer_callback.py::class TrainerState', 
+      #   "A class containing the [`Trainer`] inner state that will be saved along the model and optimizer when checkpointing"
+
+      # NOT PROPAGATED to: 'checkpoint-NNN/trainer_state.json::"logging_steps": 500,'
+      trainer.state.logging_steps = training_args.logging_steps
       print()
-      print(f"Calling 'trainer.train()' with 'save_steps': {training_args.save_steps}")
+      print(f"Calling 'trainer.train()' with 'save_steps': {training_args.save_steps}, 'logging_steps': {trainer.state.logging_steps}")
       print()
       train_result = trainer.train(resume_from_checkpoint=checkpoint)
 
@@ -990,7 +1027,7 @@ def main():
 import signal, time, subprocess
 from transformers import Trainer
 
-# 7/2/24 DH: Could have been done initially via: 'transformers/trainer_utils.py::get_last_checkpoint(folder)'
+# 7/2/24 DH: Altered to use: 'transformers/trainer_utils.py::get_last_checkpoint(folder)'
 def getHighestCheckpoint():
   """
   checkpointListCmd = f"ls {training_args.output_dir}"
@@ -1033,7 +1070,7 @@ def signal_handler(sig, frame):
     print("SETTING: 'Trainer.save_steps = 2' + 'Trainer.should_save = True'")
     Trainer.save_steps = 2
     Trainer.should_save = True
-  
+    
   # 2nd time Ctrl-C clicked
   else:
     checkpointNum = getHighestCheckpoint()
@@ -1042,13 +1079,21 @@ def signal_handler(sig, frame):
       print(f"  {checkpointNum} is same as {gCheckpointNum}")
       print()
     else:
+      # 8/2/24 DH:
+      global trainer
+      trainer.save_model()
+      trainer.save_state()
+
+      sigLogger = logging.getLogger("trainer_log")
+      sigLogger.info(f"Saving checkpoint: {checkpointNum}")  
+
       sys.exit(0)
 
 def _mp_fn(index):
   # For xla_spawn (TPUs)
   main()
 
-
 if __name__ == "__main__":
   signal.signal(signal.SIGINT, signal_handler)
+
   main()
