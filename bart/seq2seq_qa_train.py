@@ -302,10 +302,13 @@ def createLoggers(training_args):
   sigLogger.setLevel(logging.DEBUG)
   fileName = "seq2seq_qa_INtrainer"
   logPath = training_args.output_dir
+
   fileHandler = logging.FileHandler(f"{logPath}/{fileName}.log", mode="w")
   logFormatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
   fileHandler.setFormatter(logFormatter)
   sigLogger.addHandler(fileHandler)
+  sigLogger.info(f"PID: {os.getpid()}") 
+  
 
 def main():
   # See all possible arguments in src/transformers/training_args.py

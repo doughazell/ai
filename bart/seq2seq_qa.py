@@ -663,7 +663,7 @@ def main():
 
   model_name = "sjrhuschlee/flan-t5-base-squad2"
   #model_name = "previous_output_dir"
-  #model_name = "previous_output_dir/checkpoint-12010"
+  #model_name = "previous_output_dir/checkpoint-23792"
 
   #model = AutoModelForQuestionAnswering.from_pretrained(model_name)
   #tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -678,13 +678,19 @@ def main():
   
   #question = f"{tokenizer.cls_token}Why did Putin invade Ukraine?"
 
+  """
   #tokenizer.cls_token = '<cls>'
   #question = f"{tokenizer.cls_token}{raw_data['question']}"
   question = raw_data['question']
   context = raw_data['context']
   answer = raw_data['answers']['text'][0]
   #context = context.replace('as a child, and rose to fame in the late 1990s ', '')
-
+  """
+  question = "When did Beyonce become famous?"
+  context = "Beyonce started singing as a child but became famous in the 1990s"
+  #context = "Beyonce became famous in 1990s and then went onto selling many records"
+  answer = ""
+  
   print()
   print("QUESTION: ", question)
   print("CONTEXT: ", context)
