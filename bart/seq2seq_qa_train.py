@@ -825,58 +825,59 @@ def main():
       checkpoint = training_args.resume_from_checkpoint
     elif last_checkpoint is not None:
       checkpoint = last_checkpoint
-      #######################################################
-      # 5/2/24 DH: *** The meat of training + saving here ***
-      #######################################################
-      print()
-      print("  ---------------------------------------------------")
-      print("  |   Press Ctrl-C to initiate saving a checkpoint  |")
-      print("  |                     then                        |")
-      print("  |            Ctrl-C again to finish               |")
-      print("  ---------------------------------------------------")
-      print()
-      print("  'transformers.utils.logging.set_verbosity_debug()'")
-      transformers.utils.logging.set_verbosity_debug()
 
-      # =================================================================================================================
-      # 6/2/24 DH: Somewhere this saves EVEN CHECKPOINTS when ("save_strategy": "epoch") is defined in cmd line arg json
-      # 
-      # 7/2/24 DH: Added to 'transformers.trainer.Trainer._save_checkpoint()' :
-      #
-      #    if self.state.global_step % self.args.save_steps != 0:
-      #      return self.args.distributed_state.wait_for_everyone()
-      # =================================================================================================================
-      
-      # 9/2/24 DH: 'transformers.trainer_callback.py::class TrainerState', 
-      #   "A class containing the [`Trainer`] inner state that will be saved along the model and optimizer when checkpointing"
+    #######################################################
+    # 5/2/24 DH: *** The meat of training + saving here ***
+    #######################################################
+    print()
+    print("  ---------------------------------------------------")
+    print("  |   Press Ctrl-C to initiate saving a checkpoint  |")
+    print("  |                     then                        |")
+    print("  |            Ctrl-C again to finish               |")
+    print("  ---------------------------------------------------")
+    print()
+    print("  'transformers.utils.logging.set_verbosity_debug()'")
+    transformers.utils.logging.set_verbosity_debug()
 
-      # NOT PROPAGATED to: 'checkpoint-NNN/trainer_state.json::"logging_steps": 500,'
-      trainer.state.logging_steps = training_args.logging_steps
-      print()
-      print(f"Calling 'trainer.train()' with 'save_steps': {training_args.save_steps}, 'logging_steps': {trainer.state.logging_steps}")
-      print()
-      train_result = trainer.train(resume_from_checkpoint=checkpoint)
+    # =================================================================================================================
+    # 6/2/24 DH: Somewhere this saves EVEN CHECKPOINTS when ("save_strategy": "epoch") is defined in cmd line arg json
+    # 
+    # 7/2/24 DH: Added to 'transformers.trainer.Trainer._save_checkpoint()' :
+    #
+    #    if self.state.global_step % self.args.save_steps != 0:
+    #      return self.args.distributed_state.wait_for_everyone()
+    # =================================================================================================================
+    
+    # 9/2/24 DH: 'transformers.trainer_callback.py::class TrainerState', 
+    #   "A class containing the [`Trainer`] inner state that will be saved along the model and optimizer when checkpointing"
 
-      # 6/2/24 DH: This just saves 'previous_output_dir/model.safetensors' etc BUT NO CHECKPOINT FOR LATER TRG RESTART...
-      print()
-      print("  Calling 'trainer.save_model()'")
-      print()
-      trainer.save_model()  # Saves the tokenizer too for easy upload
-      
-      transformers.utils.logging.set_verbosity_error()
-      print("  'transformers.utils.logging.set_verbosity_error()'")
-      print("  --------------------------------------------------")
-      print()
+    # NOT PROPAGATED to: 'checkpoint-NNN/trainer_state.json::"logging_steps": 500,'
+    trainer.state.logging_steps = training_args.logging_steps
+    print()
+    print(f"Calling 'trainer.train()' with 'save_steps': {training_args.save_steps}, 'logging_steps': {trainer.state.logging_steps}")
+    print()
+    train_result = trainer.train(resume_from_checkpoint=checkpoint)
 
-      metrics = train_result.metrics
-      max_train_samples = (
-        data_args.max_train_samples if data_args.max_train_samples is not None else len(train_dataset)
-      )
-      metrics["train_samples"] = min(max_train_samples, len(train_dataset))
+    # 6/2/24 DH: This just saves 'previous_output_dir/model.safetensors' etc BUT NO CHECKPOINT FOR LATER TRG RESTART...
+    print()
+    print("  Calling 'trainer.save_model()'")
+    print()
+    trainer.save_model()  # Saves the tokenizer too for easy upload
+    
+    transformers.utils.logging.set_verbosity_error()
+    print("  'transformers.utils.logging.set_verbosity_error()'")
+    print("  --------------------------------------------------")
+    print()
 
-      trainer.log_metrics("train", metrics)
-      trainer.save_metrics("train", metrics)
-      trainer.save_state()
+    metrics = train_result.metrics
+    max_train_samples = (
+      data_args.max_train_samples if data_args.max_train_samples is not None else len(train_dataset)
+    )
+    metrics["train_samples"] = min(max_train_samples, len(train_dataset))
+
+    trainer.log_metrics("train", metrics)
+    trainer.save_metrics("train", metrics)
+    trainer.save_state()
 
   # Evaluation
   results = {}
@@ -925,9 +926,6 @@ def main():
   ##############################################################################
   # 3/2/24 DH: Now run the trained model for Q&A
   ##############################################################################
-  print()
-  print("train_dataset:")
-  print(train_dataset)
 
   #train_dataset = train_dataset.select(range(max_train_samples))
   raw_data = raw_datasets["train"][0]
@@ -1060,6 +1058,14 @@ def getHighestCheckpoint():
 
 def signal_handler(sig, frame):
   print('\nYou pressed Ctrl+C so saving checkpoint')
+
+  # ----------------------------------------------------------------------
+  # 'site-packages.dataset.arrow_dataset.py::Dataset :
+  #   def features(self) -> Features:
+  #     features = super().features
+  #
+  # 'super()' is the EQUIVALENT OF declaring 'global' for O-O inheritance
+  # ----------------------------------------------------------------------
 
   global gStoppingFlag
   global gCheckpointNum

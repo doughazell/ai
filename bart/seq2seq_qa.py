@@ -663,7 +663,7 @@ def main():
 
   model_name = "sjrhuschlee/flan-t5-base-squad2"
   #model_name = "previous_output_dir"
-  #model_name = "previous_output_dir/checkpoint-23792"
+  #model_name = "previous_output_dir/checkpoint-34094"
 
   #model = AutoModelForQuestionAnswering.from_pretrained(model_name)
   #tokenizer = AutoTokenizer.from_pretrained(model_name)
