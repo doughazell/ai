@@ -377,7 +377,8 @@ def main():
     raw_datasets = load_dataset(
       extension,
       data_files=data_files,
-      field="data",
+      # 13/2/24 DH:
+      #field="data",
       cache_dir=model_args.cache_dir,
       token=model_args.token,
     )
@@ -661,9 +662,9 @@ def main():
   # "The <cls> token must be manually added to the beginning of the question for this model to work properly. It uses the <cls> token to be
   #  able to make "no answer" predictions. The t5 tokenizer does not automatically add this special token which is why it is added manually."
 
-  model_name = "sjrhuschlee/flan-t5-base-squad2"
-  #model_name = "previous_output_dir"
-  #model_name = "previous_output_dir/checkpoint-34094"
+  #model_name = "sjrhuschlee/flan-t5-base-squad2"
+  model_name = "previous_output_dir"
+  #model_name = "previous_output_dir/checkpoint-38868"
 
   #model = AutoModelForQuestionAnswering.from_pretrained(model_name)
   #tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -691,6 +692,7 @@ def main():
   #context = "Beyonce became famous in 1990s and then went onto selling many records"
   answer = ""
   
+
   print()
   print("QUESTION: ", question)
   print("CONTEXT: ", context)

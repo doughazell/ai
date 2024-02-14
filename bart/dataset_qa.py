@@ -24,6 +24,8 @@ import sys
 import warnings
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
+# 12/2/24 DH:
+import json
 
 import datasets
 import evaluate
@@ -276,73 +278,159 @@ question_answering_column_name_mapping = {
   "squad_v2": ("question", "context", "answer"),
 }
 
-# 7/2/24 DH: Access 'training_args' assigned in 'main()' from 'signal_handler()'
-training_args = None
-gStoppingFlag = False
-gCheckpointNum = 0
-# 8/2/24 DH: Get access to 'trainer.save_model()' from 'signal_handler()'
-trainer = None
+# 12/2/24 DH:
+# ------------------------------------------------------------------------------------------------
 
-# 9/2/24 DH:
-def createLoggers(training_args):
-  # 8/2/24 DH: https://docs.python.org/3/howto/logging.html
-  #            https://docs.python.org/3/library/logging.html
-  #sigLogger = logging.getLogger(__name__)
-  sigLogger = logging.getLogger("trainer_log")
-  sigLogger.setLevel(logging.DEBUG)
-  fileName = "seq2seq_qa_trainer"
-  logPath = training_args.output_dir
-  fileHandler = logging.FileHandler(f"{logPath}/{fileName}.log")
-  logFormatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
-  fileHandler.setFormatter(logFormatter)
-  # Need to remove default console handler setup above with 'logging.basicConfig(..., handlers=[logging.StreamHandler(sys.stdout)] )
-  sigLogger.addHandler(fileHandler)
-
-  sigLogger = logging.getLogger("trainer_signaller")
-  sigLogger.setLevel(logging.DEBUG)
-  fileName = "seq2seq_qa_INtrainer"
-  logPath = training_args.output_dir
-
-  fileHandler = logging.FileHandler(f"{logPath}/{fileName}.log", mode="w")
-  logFormatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
-  fileHandler.setFormatter(logFormatter)
-  sigLogger.addHandler(fileHandler)
-  sigLogger.info(f"PID: {os.getpid()}") 
-
-# 14/2/24 DH: If the data came from 'json' rather than 'arrow' then there will be an extra 'list' layer 
-#             (due to 'datasets' arrow formatting)
-def stripListArrowLayer(_datasets):
-  toplevelDict = _datasets.column_names
+################################################
+# 13/2/24 DH: This prob needs to done via map()
+#
+# https://www.linkedin.com/pulse/demystifying-pythons-magic-methods-oscar-alfonso-tello-brise%C3%B1o/
+################################################
+def prune2DLists(raw_datasets):
+  toplevelDict = raw_datasets.column_names
   print()
   print(f"Top level raw_datasets: {toplevelDict.__class__}, KEYS: {list(toplevelDict.keys())}")
 
   for key in toplevelDict:
     print()
     print("------")
-    print(f"{key}: {_datasets[key]}")
-    column_names = _datasets[key].column_names
-    data = _datasets[key]
+    print(f"{key}: {raw_datasets[key]}")
+    column_names = raw_datasets[key].column_names
+    data = raw_datasets[key]
 
     for column in column_names:
-      print(f"{column}")
+
       try:
-        if isinstance(data[column][0], list):
-          # TypeError: 'Dataset' object does not support item assignment (prob due to Arrow internal mapping)
-          data[column] = data[column][0]
-      except TypeError as e:
-        print(f"  {e}, when: data['{column}'] = data['{column}'][0]")
+        colData = data[column][0]
+        cnt = 1
 
+        # 14/2/24 DH: If it is len 1 then it is still nested EXCEPT "1st time JSON" where it is a LIST of 1 LIST...__len__()
+        #             (rather than str, or dict for answers)
+        #   States: 1) Arrow data, 2) 1st time JSON, 3) subsequent JSON
+        while len(colData) == 1:
+          colData = colData[0]
+          cnt += 1
+
+        if cnt > 1 or isinstance(colData, list):
+          colData = colData[0]
+
+        print(f"{column}: {data[column].__class__}, loops to data: {cnt}, colData type: {colData.__class__}, {colData}")
+        print()
+      except KeyError as e:
+        print(e)
+        print(colData)
+
+      
+
+
+  print()
+  return raw_datasets
+
+def displayLoadedDataset(raw_datasets, selectNum = 10):
+  print(raw_datasets)
   
-  return _datasets
+  isJSON = False
 
-def stripListLayer(_question, _context):
-  if isinstance(_question, list):
-    _question = _question[0]
+  # 13/2/24 DH:
+  if not raw_datasets['train'].num_rows > selectNum:
+    raw_datasets = prune2DLists(raw_datasets)
+    dataMemoryMappedTable = raw_datasets['train']
+    isJSON = True
+    
+  else:
+    # -----------------------------------------------------------------
+    # 13/2/34 DH: SQuAD dataset
+    # -----------------------------------------------------------------
+
+    print(f"SQuAD dataset selecting {selectNum} samples")
+    selected_datasets = raw_datasets['train'].select(range(selectNum))
+    dataMemoryMappedTable = selected_datasets.data
+
+  column_names = dataMemoryMappedTable.column_names
+  print(f"COLUMNS: {column_names}")
+  print()
   
-  if isinstance(_context, list):
-    _context = _context[0]
+  for column in column_names:
+    print(f"{column} from {column_names}")
+    if isJSON:
+      data = dataMemoryMappedTable[column][0]
+    else:
+      data = dataMemoryMappedTable[column]
+    
+    if column == "question":
+      continue
+  
+    elif column == "answers":
+      print(f"{column} (len: {len(data)}) {data.__class__}")
 
-  return (_question, _context)
+      for i in range(len(data)):
+        # 12/2/24 DH: Need to cast to str to prevent 
+        #    "TypeError: unsupported format string passed to pyarrow.lib.StringScalar.__format__" in f"" width field
+        text = str(data[i]['text'][0])
+        textStr = "'" + text + "'"
+        
+        # 12/2/24 DH: Notice double cast to get an int that can be used for array indexing
+        ans_start = int( str(data[i]['answer_start'][0]) )
+        ans_end = ans_start+len(text)
+        
+        if isJSON:
+          question = str(dataMemoryMappedTable['question'][0][i])
+          context = str(dataMemoryMappedTable['context'][0][i])
+        else:
+          question = str(dataMemoryMappedTable['question'][i])
+          context = str(dataMemoryMappedTable['context'][i])
+        
+        print(f"  Q: {question}")
+        print(f"  A: Text: {textStr:30} Answer start: {ans_start:<10} Context {i} (from {ans_start} to {ans_end}): {context[ans_start : ans_end]}")
+        print()
+
+    else:
+      # 12/2/24 DH: 'data' is <class 'pyarrow.lib.ChunkedArray'>
+      print(f"{column} (len: {len(data)}) {data.__class__}")
+      print(f"  {data[0]}")
+      print(f"  ...")
+
+    print()
+    print(f"...ok, so where has {column_names[1:]} gone then...???")
+
+    # 13/2/24 DH: The JSON-based 'raw_datasets' will have had a 2-D List pruning above
+    return raw_datasets
+
+
+# 12/2/24 DH:
+def saveDatasetToJSON(raw_datasets, selectNum = 10):
+  print()
+  print("saveDatasetToJSON()")
+  print("-------------------")
+
+  isJSON = False
+
+  # 13/2/24 DH:
+  if not raw_datasets['train'].num_rows > selectNum:
+    selected_datasets = raw_datasets['train']
+    isJSON = True
+  else:
+    selected_datasets = raw_datasets['train'].select(range(10))
+    print(f"selected_datasets: {selected_datasets.__class__}, {selected_datasets.shape}")
+
+  #dataDict = dataMemoryMappedTable.to_pydict()
+  dataDict = selected_datasets.to_dict()
+
+  #jsonDumpStr = json.dumps(dataDict)
+  
+  # 13/2/24 DH: All in 1 line
+  #with open('data.json', 'w') as f:
+  #  json.dump(dataDict, f)
+  
+  # 13/2/24 DH: Spread over multiple lines with indentations
+  with open('data.json', 'w', encoding='utf-8') as f:
+    json.dump(dataDict, f, ensure_ascii=False, indent=2)
+# ------------------------------------------------------------------------------------------------
+
+# 7/2/24 DH: Access 'training_args' assigned in 'main()' from 'signal_handler()'
+training_args = None
+gStoppingFlag = False
+gCheckpointNum = 0
 
 def main():
   # See all possible arguments in src/transformers/training_args.py
@@ -379,20 +467,15 @@ def main():
   if training_args.should_log:
     # The default of training_args.log_level is passive, so we set log level at info here to have that default.
     transformers.utils.logging.set_verbosity_info()
-    
+
   log_level = training_args.get_process_log_level()
   logger.setLevel(log_level)
-
   datasets.utils.logging.set_verbosity(log_level)
-  
   transformers.utils.logging.set_verbosity(log_level)
   transformers.utils.logging.enable_default_handler()
   transformers.utils.logging.enable_explicit_format()
-  # 9/2/24 DH:
-  #transformers.utils.logging.add_handler(logging.FileHandler(f"{training_args.output_dir}/seq2seq_qa_INtrainer.log", mode="w"))
-  createLoggers(training_args)
 
-  # 2/2/24 DH: Affects console output if done below 'logging.basicConfig()' (prob due to defaults taken by 'datasets.utils.logging'...)
+  # 2/2/24 DH:
   transformers.utils.logging.set_verbosity_error()
 
   # Log on each process the small summary:
@@ -405,24 +488,8 @@ def main():
   ###############################################################################
   # Detecting last checkpoint.
   ###############################################################################
-  last_checkpoint = None
-  if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
-    
-    last_checkpoint = get_last_checkpoint(training_args.output_dir)
 
-    if last_checkpoint is None and len(os.listdir(training_args.output_dir)) > 0:
-      raise ValueError(
-        f"Output directory ({training_args.output_dir}) already exists and is not empty. "
-        "Use --overwrite_output_dir to overcome."
-      )
-    elif last_checkpoint is not None and training_args.resume_from_checkpoint is None:
-      logger.info(
-        f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, change "
-        "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
-      )
 
-  # Set seed before initializing model.
-  set_seed(training_args.seed)
 
   ####################################################################################################################
   # Get the datasets: you can either provide your own CSV/JSON/TXT training and evaluation files (see below)
@@ -435,6 +502,10 @@ def main():
   # In distributed training, the load_dataset function guarantee that only one local process can concurrently
   # download the dataset.
   ####################################################################################################################
+  print()
+  print(f"Loading dataset: {data_args.dataset_name}")
+  print()
+  
   if data_args.dataset_name is not None:
     # Downloading and loading a dataset from the hub.
     raw_datasets = load_dataset(
@@ -448,33 +519,27 @@ def main():
     if data_args.train_file is not None:
       data_files["train"] = data_args.train_file
       extension = data_args.train_file.split(".")[-1]
-    if data_args.validation_file is not None:
-      data_files["validation"] = data_args.validation_file
-      extension = data_args.validation_file.split(".")[-1]
-    if data_args.test_file is not None:
-      data_files["test"] = data_args.test_file
-      extension = data_args.test_file.split(".")[-1]
-    raw_datasets = load_dataset(
-      extension,
-      data_files=data_files,
-      # 13/2/24 DH:
-      #field="data",
-      cache_dir=model_args.cache_dir,
-      token=model_args.token,
-    )
-    #------------------------------------------------------------------------------
-    # 13/2/24 DH: Now need to remove a layer of list embedding from JSON format   #
-    # HUGGINGFACE ARROW DATASET: (Pdb) questions                                  #
-    #   ['When did Beyonce start becoming popular?', ... ]                        # (it's all got to be squared-away)
-    # JSON DATASET: (Pdb) questions                                               #
-    #   [['When did Beyonce start becoming popular?', ... ]]                      #
-    #------------------------------------------------------------------------------
 
-    # 14/2/24 DH: Currently causes, "'Dataset' object does not support item assignment" when attempt to chg top level
-    #raw_datasets = stripListArrowLayer(raw_datasets)
-
+      raw_datasets = load_dataset(
+        extension,
+        data_files=data_files,
+        # 13/2/24 DH: 'field' is a '**config_kwargs' (additional keyword arguments):
+        #             Keyword arguments to be passed to the `BuilderConfig` and used in the [`DatasetBuilder`].
+        #field="data",
+        cache_dir=model_args.cache_dir,
+        token=model_args.token,
+      )
   # See more about loading any type of standard or custom dataset (from files, python dict, pandas DataFrame, etc) at
   # https://huggingface.co/docs/datasets/loading_datasets.
+  
+  """
+  "train_file": "data.json",
+  """
+
+  raw_datasets = displayLoadedDataset(raw_datasets)
+  #print("Not currently calling: saveDatasetToJSON()")
+  saveDatasetToJSON(raw_datasets)
+  sys.exit("Yup, starting to take shape...")
 
   ######################################################################################
   # Load pretrained model and tokenizer
@@ -508,6 +573,8 @@ def main():
     trust_remote_code=model_args.trust_remote_code,
   )
   print()
+  print("Config return from AutoConfig: ", config.__class__)
+  print("Tokenizer return from AutoTokenizer: ", tokenizer.__class__)
   print("Model returned from 'AutoModelForSeq2SeqLM': ", model.__class__)
   print()
 
@@ -529,12 +596,8 @@ def main():
   # --------------
   if training_args.do_train:
     column_names = raw_datasets["train"].column_names
-  elif training_args.do_eval:
-    column_names = raw_datasets["validation"].column_names
-  elif training_args.do_predict:
-    column_names = raw_datasets["test"].column_names
   else:
-    logger.info("There is nothing to do. Please pass `do_train`, `do_eval` and/or `do_predict`.")
+    logger.info("There is nothing to do. Please pass `do_train`.")
     return
 
   # Get the column names for input/target.
@@ -629,21 +692,6 @@ def main():
     contexts = examples[context_column]
     answers = examples[answer_column]
 
-    if isinstance(questions[0], list):
-      questions = questions[0]
-
-    if isinstance(contexts[0], list):
-      contexts = contexts[0]
-
-    if isinstance(answers[0], list):
-      answers = answers[0]
-
-    print(f"  examples: {examples.__class__}")
-    print(f"  questions: {questions.__class__}, {questions[0].__class__}")
-    print(f"  contexts: {contexts.__class__}, {contexts[0].__class__}")
-    print(f"  answers: {answers.__class__}, {answers[0].__class__}")
-    print()
-
     def generate_input(_question, _context):
       return " ".join(["question:", _question.lstrip(), "context:", _context.lstrip()])
 
@@ -657,16 +705,11 @@ def main():
 
     return inputs, targets
 
-  # [3/4] Called from: 'train_dataset.map()'
+  # [3/4]
   def preprocess_function(examples):
     print()
     print()
     print("*** TRAINING DATASET ***")
-
-    print()
-    print( "###")
-    print(f"### preprocess_function() INPUT => examples: {examples.__class__}")
-    print( "###")
 
     inputs, targets = preprocess_squad_batch(examples, question_column, context_column, answer_column)
 
@@ -682,59 +725,10 @@ def main():
       ]
 
     model_inputs["labels"] = labels["input_ids"]
-
-    print( "###")
-    print(f"### preprocess_function() OUTPUT => model_inputs: {model_inputs.__class__}")
-    print( "###")
-    print()
-    # 'model_inputs' is the tiered tokenizer() return
     return model_inputs
 
-  # [4/4] Called from: 'eval_examples.map()', 'predict_examples.map()'
+  # [4/4]
   # Validation preprocessing
-  def preprocess_validation_function(examples):
-    print()
-    print()
-    print("*** VALIDATION DATASET ***")
-
-    inputs, targets = preprocess_squad_batch(examples, question_column, context_column, answer_column)
-
-    model_inputs = tokenizer(
-      inputs,
-      max_length=max_seq_length,
-      padding=padding,
-      truncation=True,
-      return_overflowing_tokens=True,
-      return_offsets_mapping=True,
-    )
-    # Tokenize targets with the `text_target` keyword argument
-    labels = tokenizer(text_target=targets, max_length=max_answer_length, padding=padding, truncation=True)
-
-    # If we are padding here, replace all tokenizer.pad_token_id in the labels by -100 when we want to ignore
-    # padding in the loss.
-    if padding == "max_length" and data_args.ignore_pad_token_for_loss:
-      labels["input_ids"] = [
-        [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in labels["input_ids"]
-      ]
-
-    # Since one example might give us several features if it has a long context, we need a map from a feature to
-    # its corresponding example. This key gives us just that.
-    sample_mapping = model_inputs.pop("overflow_to_sample_mapping")
-
-    # For evaluation, we will need to convert our predictions to substrings of the context, so we keep the
-    # corresponding example_id and we will store the offset mappings.
-    model_inputs["example_id"] = []
-    # Augment the overflowing tokens to the labels
-    labels_out = []
-
-    for i in range(len(model_inputs["input_ids"])):
-      # One example can give several spans, this is the index of the example containing this span of text.
-      sample_index = sample_mapping[i]
-      model_inputs["example_id"].append(examples["id"][sample_index])
-      labels_out.append(labels["input_ids"][sample_index])
-
-    model_inputs["labels"] = labels_out
-    return model_inputs
 
   ################################################################
   # 4/2/24 DH: Map training data
@@ -766,238 +760,28 @@ def main():
       train_dataset = train_dataset.select(range(max_train_samples))
 
   # ---------------------------------------------------------------------------------------
-  if training_args.do_eval:
-    if "validation" not in raw_datasets:
-      raise ValueError("--do_eval requires a validation dataset")
-    
-    eval_examples = raw_datasets["validation"]
-
-    if data_args.max_eval_samples is not None:
-      # We will select sample from whole data
-      max_eval_samples = min(len(eval_examples), data_args.max_eval_samples)
-      eval_examples = eval_examples.select(range(max_eval_samples))
-
-    # Validation Feature Creation
-    with training_args.main_process_first(desc="validation dataset map pre-processing"):
-      eval_dataset = eval_examples.map(
-        preprocess_validation_function,
-        batched=True,
-        num_proc=data_args.preprocessing_num_workers,
-        remove_columns=column_names,
-        load_from_cache_file=not data_args.overwrite_cache,
-        desc="Running tokenizer on validation dataset",
-      )
-
-    if data_args.max_eval_samples is not None:
-      # During Feature creation dataset samples might increase, we will select required samples again
-      max_eval_samples = min(len(eval_dataset), data_args.max_eval_samples)
-      eval_dataset = eval_dataset.select(range(max_eval_samples))
-
+  
   # ---------------------------------------------------------------------------------------
-  if training_args.do_predict:
-    if "test" not in raw_datasets:
-        raise ValueError("--do_predict requires a test dataset")
-    
-    predict_examples = raw_datasets["test"]
-
-    if data_args.max_predict_samples is not None:
-        # We will select sample from whole data
-        predict_examples = predict_examples.select(range(data_args.max_predict_samples))
-
-    # Predict Feature Creation
-    with training_args.main_process_first(desc="prediction dataset map pre-processing"):
-      predict_dataset = predict_examples.map(
-        preprocess_validation_function,
-        batched=True,
-        num_proc=data_args.preprocessing_num_workers,
-        remove_columns=column_names,
-        load_from_cache_file=not data_args.overwrite_cache,
-        desc="Running tokenizer on prediction dataset",
-      )
-
-    if data_args.max_predict_samples is not None:
-      # During Feature creation dataset samples might increase, we will select required samples again
-      max_predict_samples = min(len(predict_dataset), data_args.max_predict_samples)
-      predict_dataset = predict_dataset.select(range(max_predict_samples))
+  
 
   ##################################################################
   # Data collator
   ##################################################################
-  label_pad_token_id = -100 if data_args.ignore_pad_token_for_loss else tokenizer.pad_token_id
-  data_collator = DataCollatorForSeq2Seq(
-    tokenizer,
-    model=model,
-    label_pad_token_id=label_pad_token_id,
-    pad_to_multiple_of=8 if training_args.fp16 else None,
-  )
+  
 
-  metric = evaluate.load(
-    "squad_v2" if data_args.version_2_with_negative else "squad", cache_dir=model_args.cache_dir
-  )
-
-  def compute_metrics(p: EvalPrediction):
-    return metric.compute(predictions=p.predictions, references=p.label_ids)
-
-  # Post-processing:
-  def post_processing_function(
-    examples: datasets.Dataset, features: datasets.Dataset, outputs: EvalLoopOutput, stage="eval"
-    ):
-      # Decode the predicted tokens.
-      preds = outputs.predictions
-      if isinstance(preds, tuple):
-        preds = preds[0]
-      # Replace -100s used for padding as we can't decode them
-      preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
-      decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
-
-      # Build a map example to its corresponding features.
-      example_id_to_index = {k: i for i, k in enumerate(examples["id"])}
-      feature_per_example = {example_id_to_index[feature["example_id"]]: i for i, feature in enumerate(features)}
-      predictions = {}
-      # Let's loop over all the examples!
-      for example_index, example in enumerate(examples):
-        # This is the index of the feature associated to the current example.
-        feature_index = feature_per_example[example_index]
-        predictions[example["id"]] = decoded_preds[feature_index]
-
-      # Format the result to the format the metric expects.
-      if data_args.version_2_with_negative:
-        formatted_predictions = [
-          {"id": k, "prediction_text": v, "no_answer_probability": 0.0} for k, v in predictions.items()
-        ]
-      else:
-        formatted_predictions = [{"id": k, "prediction_text": v} for k, v in predictions.items()]
-
-      references = [{"id": ex["id"], "answers": ex[answer_column]} for ex in examples]
-      return EvalPrediction(predictions=formatted_predictions, label_ids=references)
 
   ##################################################################
   # Initialize our Trainer
   ##################################################################
   
-  # 8/2/24 DH:
-  global trainer
-
-  trainer = QuestionAnsweringSeq2SeqTrainer(
-    model=model,
-    args=training_args,
-    train_dataset=train_dataset if training_args.do_train else None,
-    eval_dataset=eval_dataset if training_args.do_eval else None,
-    eval_examples=eval_examples if training_args.do_eval else None,
-    tokenizer=tokenizer,
-    data_collator=data_collator,
-    compute_metrics=compute_metrics if training_args.predict_with_generate else None,
-    post_process_function=post_processing_function,
-  )
-
-  # Training
-  if training_args.do_train:
-    checkpoint = None
-    if training_args.resume_from_checkpoint is not None:
-      checkpoint = training_args.resume_from_checkpoint
-    elif last_checkpoint is not None:
-      checkpoint = last_checkpoint
-
-    #######################################################
-    # 5/2/24 DH: *** The meat of training + saving here ***
-    #######################################################
-    print()
-    print("  ---------------------------------------------------")
-    print("  |   Press Ctrl-C to initiate saving a checkpoint  |")
-    print("  |                     then                        |")
-    print("  |            Ctrl-C again to finish               |")
-    print("  ---------------------------------------------------")
-    print()
-    print("  'transformers.utils.logging.set_verbosity_debug()'")
-    transformers.utils.logging.set_verbosity_debug()
-
-    # =================================================================================================================
-    # 6/2/24 DH: Somewhere this saves EVEN CHECKPOINTS when ("save_strategy": "epoch") is defined in cmd line arg json
-    # 
-    # 7/2/24 DH: Added to 'transformers.trainer.Trainer._save_checkpoint()' :
-    #
-    #    if self.state.global_step % self.args.save_steps != 0:
-    #      return self.args.distributed_state.wait_for_everyone()
-    # =================================================================================================================
-    
-    # 9/2/24 DH: 'transformers.trainer_callback.py::class TrainerState', 
-    #   "A class containing the [`Trainer`] inner state that will be saved along the model and optimizer when checkpointing"
-
-    # NOT PROPAGATED to: 'checkpoint-NNN/trainer_state.json::"logging_steps": 500,'
-    trainer.state.logging_steps = training_args.logging_steps
-    print()
-    print(f"Calling 'trainer.train()' with 'save_steps': {training_args.save_steps}, 'logging_steps': {trainer.state.logging_steps}")
-    print()
-    train_result = trainer.train(resume_from_checkpoint=checkpoint)
-
-    # 6/2/24 DH: This just saves 'previous_output_dir/model.safetensors' etc BUT NO CHECKPOINT FOR LATER TRG RESTART...
-    print()
-    print("  Calling 'trainer.save_model()'")
-    print()
-    trainer.save_model()  # Saves the tokenizer too for easy upload
-    
-    transformers.utils.logging.set_verbosity_error()
-    print("  'transformers.utils.logging.set_verbosity_error()'")
-    print("  --------------------------------------------------")
-    print()
-
-    metrics = train_result.metrics
-    max_train_samples = (
-      data_args.max_train_samples if data_args.max_train_samples is not None else len(train_dataset)
-    )
-    metrics["train_samples"] = min(max_train_samples, len(train_dataset))
-
-    trainer.log_metrics("train", metrics)
-    trainer.save_metrics("train", metrics)
-    trainer.save_state()
-
-  # Evaluation
-  results = {}
-  max_length = (
-    training_args.generation_max_length
-    if training_args.generation_max_length is not None
-    else data_args.val_max_answer_length
-  )
-  num_beams = data_args.num_beams if data_args.num_beams is not None else training_args.generation_num_beams
-  if training_args.do_eval:
-    logger.info("*** Evaluate ***")
-    metrics = trainer.evaluate(max_length=max_length, num_beams=num_beams, metric_key_prefix="eval")
-
-    max_eval_samples = data_args.max_eval_samples if data_args.max_eval_samples is not None else len(eval_dataset)
-    metrics["eval_samples"] = min(max_eval_samples, len(eval_dataset))
-
-    trainer.log_metrics("eval", metrics)
-    trainer.save_metrics("eval", metrics)
-
-  # Prediction
-  if training_args.do_predict:
-    logger.info("*** Predict ***")
-    results = trainer.predict(predict_dataset, predict_examples)
-    metrics = results.metrics
-
-    max_predict_samples = (
-      data_args.max_predict_samples if data_args.max_predict_samples is not None else len(predict_dataset)
-    )
-    metrics["predict_samples"] = min(max_predict_samples, len(predict_dataset))
-
-    trainer.log_metrics("predict", metrics)
-    trainer.save_metrics("predict", metrics)
-
-  if training_args.push_to_hub:
-    kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "question-answering"}
-    if data_args.dataset_name is not None:
-      kwargs["dataset_tags"] = data_args.dataset_name
-      if data_args.dataset_config_name is not None:
-        kwargs["dataset_args"] = data_args.dataset_config_name
-        kwargs["dataset"] = f"{data_args.dataset_name} {data_args.dataset_config_name}"
-      else:
-        kwargs["dataset"] = data_args.dataset_name
-
-    #trainer.push_to_hub(**kwargs)
+  
 
   ##############################################################################
   # 3/2/24 DH: Now run the trained model for Q&A
   ##############################################################################
+  print()
+  print("train_dataset:")
+  print(train_dataset)
 
   #train_dataset = train_dataset.select(range(max_train_samples))
   raw_data = raw_datasets["train"][0]
@@ -1013,8 +797,7 @@ def main():
   print(f"raw_data: {raw_data.__class__}, {raw_data.keys()}")
   print()
   for key in raw_data:
-    print(f"{key}) {raw_data[key][0]}")
-    print("  ...")
+    print(f"{key}) {raw_data[key]}")
     print("---")
 
   #print("Returning before 'HACK ZONE'...")
@@ -1032,7 +815,8 @@ def main():
   #  able to make "no answer" predictions. The t5 tokenizer does not automatically add this special token which is why it is added manually."
 
   model_name = "sjrhuschlee/flan-t5-base-squad2"
-  #model_name = "previous_output_dir/checkpoint-4"
+  #model_name = "previous_output_dir"
+  #model_name = "previous_output_dir/checkpoint-28782"
 
   #model = AutoModelForQuestionAnswering.from_pretrained(model_name)
   #tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -1046,25 +830,47 @@ def main():
   print()
   
   #question = f"{tokenizer.cls_token}Why did Putin invade Ukraine?"
-  tokenizer.cls_token = '<cls>'
-  
+
+  """
+  #tokenizer.cls_token = '<cls>'
+  #question = f"{tokenizer.cls_token}{raw_data['question']}"
   question = raw_data['question']
   context = raw_data['context']
+  answer = raw_data['answers']['text'][0]
   #context = context.replace('as a child, and rose to fame in the late 1990s ', '')
-
-  # 14/2/24 DH:
-  (question, context) = stripListLayer(question, context)
-
+  """
+  question = "When did Beyonce become famous?"
+  context = "Beyonce started singing as a child but became famous in the 1990s"
+  #context = "Beyonce became famous in 1990s and then went onto selling many records"
+  answer = ""
+  
   print()
-  print(f"QUESTION: {question.__class__}, {question}")
-  print(f"CONTEXT: {context.__class__}, {context}")
+  print("QUESTION: ", question)
+  print("CONTEXT: ", context)
+  print("ANSWER: ", answer)
 
+  """
+  
+  questionEncoding = tokenizer(question, return_tensors="pt")
+  contextEncoding = tokenizer(context, return_tensors="pt")
+  print("question encoding: ", questionEncoding['input_ids'])
+  print("-------")
+  print("context encoding: ", contextEncoding['input_ids'])
+  """
+  
+  # 'transformers/tokenization_utils_base.py(2731)__call__()'
   encoding = tokenizer(question, context, return_tensors="pt")
 
+  """
+  
+  print("Just passing 'encoding['input_ids'] to model(): ")
+  print(encoding['input_ids'])
+  """
+  
   # T5ForConditionalGeneration results in: "ValueError: You have to specify either decoder_input_ids or decoder_inputs_embeds"
   output = model(
     encoding["input_ids"],
-    attention_mask=encoding["attention_mask"]
+    #attention_mask=encoding["attention_mask"]
   )
 
   all_tokens = tokenizer.convert_ids_to_tokens(encoding["input_ids"][0].tolist())
@@ -1076,7 +882,7 @@ def main():
   # 6/2/24 DH: "RuntimeError: Can't call numpy() on Tensor that requires grad. Use tensor.detach().numpy() instead."
   #             FROM: start_logits_dump = np.array(output['start_logits'])
   start_logits_dump = output['start_logits'].detach().numpy()
-  # 6/2/24 DH: [-5:][::-1] = Take an array from end-5, then take an array with reverse order
+  # 6/2/24 DH: [-5:][::-1] MEANS...take an array from end-5, then take an array with reverse order
   start_logits_dump = np.sort(start_logits_dump[0])[-10:][::-1]
   start_logits_dump = [np.round(value, 3) for value in start_logits_dump]
 
@@ -1095,96 +901,23 @@ def main():
   print()
   print(f"all_tokens: {len(all_tokens)}, {all_tokens.__class__}")
   print(tokenizer.decode(tokenizer.convert_tokens_to_ids(all_tokens)))
-  print(f"answer_tokens: {len(answer_tokens)}, '{answer_tokens}', '{tokenizer.convert_tokens_to_ids(answer_tokens)}', \
-'{tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))}' ")
+  print()
+  print(f"answer_tokens: {len(answer_tokens)}")
+  print(f"  '{answer_tokens}'")
+  print("")
+  print(f"  answer_tokens ids: '{tokenizer.convert_tokens_to_ids(answer_tokens)}'")
+  print("  ------------------")
+  print(f"  tokenizer.decode() ids: '{tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))}'")
+  print()
 
   answer = tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))
   print("ANSWER: ", answer)
 
-# 7/2/24 DH:
-import signal, time, subprocess
-from transformers import Trainer
-
-# 7/2/24 DH: Altered to use: 'transformers/trainer_utils.py::get_last_checkpoint(folder)'
-def getHighestCheckpoint():
-  """
-  checkpointListCmd = f"ls {training_args.output_dir}"
-  outputBytes = subprocess.check_output(checkpointListCmd, shell=True)
-  outputStr = outputBytes.decode()
-  outputSplit = outputStr.split('\n')
-  
-  checkpointNum = 0
-  for item in outputSplit:
-    if "checkpoint" in item:
-      checkpointSplit = item.split('-')
-
-      # 7/2/24 DH: Guard against using 'tmp-checkpoint-n'
-      if len(checkpointSplit) == 2:
-        ptNumStr = checkpointSplit[1]
-        ptNum = int(ptNumStr)
-        if ptNum > checkpointNum:
-          checkpointNum = ptNum
-  """
-
-  lastCheckpointPath = get_last_checkpoint(training_args.output_dir)
-
-  # 13/2/24 DH: Accomodate when there is no checkpoint already (knock-3-times-and-ask-for-Alan...)
-  checkpointNum = 0
-  if lastCheckpointPath:
-    lastCheckpoint = os.path.basename(lastCheckpointPath)
-    checkpointSplit = lastCheckpoint.split('-')
-    checkpointNum = int(checkpointSplit[1])
-  
-  return checkpointNum
-
-def signal_handler(sig, frame):
-  print('\nYou pressed Ctrl+C so saving checkpoint')
-
-  # ----------------------------------------------------------------------
-  # 'site-packages.dataset.arrow_dataset.py::Dataset :
-  #   def features(self) -> Features:
-  #     features = super().features
-  #
-  # 'super()' is the EQUIVALENT OF declaring 'global' for O-O inheritance
-  # ----------------------------------------------------------------------
-
-  global gStoppingFlag
-  global gCheckpointNum
-
-  if not gStoppingFlag:
-    gStoppingFlag = True
-  
-    gCheckpointNum = getHighestCheckpoint()
-    print("Highest checkpoint: ", gCheckpointNum)
-
-    print("SETTING: 'Trainer.save_steps = 2' + 'Trainer.should_save = True'")
-    Trainer.save_steps = 2
-    Trainer.should_save = True
-    
-  # 2nd time Ctrl-C clicked
-  else:
-    checkpointNum = getHighestCheckpoint()
-    # 13/2/24 DH: Accomodate when there is no checkpoint already (knock-3-times-and-ask-for-Alan...)
-    if checkpointNum == gCheckpointNum and not checkpointNum != 0:
-      print()
-      print(f"  {checkpointNum} is same as {gCheckpointNum}")
-      print()
-    else:
-      # 8/2/24 DH:
-      global trainer
-      trainer.save_model()
-      trainer.save_state()
-
-      sigLogger = logging.getLogger("trainer_log")
-      sigLogger.info(f"Saving checkpoint: {checkpointNum}")  
-
-      sys.exit(0)
 
 def _mp_fn(index):
   # For xla_spawn (TPUs)
   main()
 
-if __name__ == "__main__":
-  signal.signal(signal.SIGINT, signal_handler)
 
+if __name__ == "__main__":
   main()
