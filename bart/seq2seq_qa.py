@@ -276,6 +276,18 @@ question_answering_column_name_mapping = {
   "squad_v2": ("question", "context", "answer"),
 }
 
+def stripListLayer(_question, _context, _answer):
+  if isinstance(_question, list):
+    _question = _question[0]
+  
+  if isinstance(_context, list):
+    _context = _context[0]
+  
+  if isinstance(_answer, list):
+    _answer = _answer[0]
+
+  return (_question, _context, _answer)
+
 # 7/2/24 DH: Access 'training_args' assigned in 'main()' from 'signal_handler()'
 training_args = None
 gStoppingFlag = False
@@ -528,7 +540,7 @@ def main():
     print("----------------------------------------------")
     print()
 
-  # [2/4]
+  # [2/4] [COPIED FROM 'seq2seq_qa_train.py']
   def preprocess_squad_batch(
     examples,
     question_column: str,
@@ -539,6 +551,21 @@ def main():
     questions = examples[question_column]
     contexts = examples[context_column]
     answers = examples[answer_column]
+
+    if isinstance(questions[0], list):
+      questions = questions[0]
+
+    if isinstance(contexts[0], list):
+      contexts = contexts[0]
+
+    if isinstance(answers[0], list):
+      answers = answers[0]
+
+    print(f"  examples: {examples.__class__}")
+    print(f"  questions: {questions.__class__}, {questions[0].__class__}")
+    print(f"  contexts: {contexts.__class__}, {contexts[0].__class__}")
+    print(f"  answers: {answers.__class__}, {answers[0].__class__}")
+    print()
 
     def generate_input(_question, _context):
       return " ".join(["question:", _question.lstrip(), "context:", _context.lstrip()])
@@ -553,11 +580,17 @@ def main():
 
     return inputs, targets
 
-  # [3/4]
+
+  # [3/4] Called from: 'train_dataset.map()' [COPIED FROM 'seq2seq_qa_train.py']
   def preprocess_function(examples):
     print()
     print()
     print("*** TRAINING DATASET ***")
+
+    print()
+    print( "###")
+    print(f"### preprocess_function() INPUT => examples: {examples.__class__}")
+    print( "###")
 
     inputs, targets = preprocess_squad_batch(examples, question_column, context_column, answer_column)
 
@@ -573,7 +606,14 @@ def main():
       ]
 
     model_inputs["labels"] = labels["input_ids"]
+
+    print( "###")
+    print(f"### preprocess_function() OUTPUT => model_inputs: {model_inputs.__class__}")
+    print( "###")
+    print()
+    # 'model_inputs' is the tiered tokenizer() return
     return model_inputs
+
 
   # [4/4]
   # Validation preprocessing
@@ -622,12 +662,15 @@ def main():
   # Initialize our Trainer
   ##################################################################
   
-  
+    #######################################################
+    # 5/2/24 DH: *** The meat of training + saving here ***
+    #######################################################
 
   ##############################################################################
   # 3/2/24 DH: Now run the trained model for Q&A
   ##############################################################################
   print()
+  print("------ Now running the trained model for Q&A ------")
   print("train_dataset:")
   print(train_dataset)
 
@@ -645,7 +688,13 @@ def main():
   print(f"raw_data: {raw_data.__class__}, {raw_data.keys()}")
   print()
   for key in raw_data:
-    print(f"{key}) {raw_data[key]}")
+    if isinstance(raw_data[key], list):
+      raw_data_key = raw_data[key][0]
+    else:
+      raw_data_key = raw_data[key]
+
+    print(f"{key}) {raw_data_key}")
+    print("  ...")
     print("---")
 
   #print("Returning before 'HACK ZONE'...")
@@ -663,43 +712,60 @@ def main():
   #  able to make "no answer" predictions. The t5 tokenizer does not automatically add this special token which is why it is added manually."
 
   #model_name = "sjrhuschlee/flan-t5-base-squad2"
-  model_name = "previous_output_dir"
-  #model_name = "previous_output_dir/checkpoint-38868"
+  
+  model_name = "previous_output_dir-Google-T5"
+  #model_name = "previous_output_dir-Google-T5/checkpoint-4810"
+
+  #model_name = "previous_output_dirTEST"
 
   #model = AutoModelForQuestionAnswering.from_pretrained(model_name)
   #tokenizer = AutoTokenizer.from_pretrained(model_name)
   
   # 4/2/24 DH: See comment below re 'T5ForConditionalGeneration' vs 'T5ForQuestionAnswering'
   #model = T5ForConditionalGeneration.from_pretrained(model_name)
+
+  print( "###################################")
+  print(f"LOADING: {model_name}")
+  print( "###################################")
   model = T5ForQuestionAnswering.from_pretrained(model_name)
 
   print()
   print("Model type in Q&A: ", model.__class__)
   print()
   
-  #question = f"{tokenizer.cls_token}Why did Putin invade Ukraine?"
-
-  """
+  
   #tokenizer.cls_token = '<cls>'
   #question = f"{tokenizer.cls_token}{raw_data['question']}"
   question = raw_data['question']
   context = raw_data['context']
-  answer = raw_data['answers']['text'][0]
+  answer = raw_data['answers']
   #context = context.replace('as a child, and rose to fame in the late 1990s ', '')
+
+  # 14/2/24 DH:
+  (question, context, answer) = stripListLayer(question, context, answer)
+  #answer = raw_data['answers']['text'][0]
+  answer = answer['text'][0]
   """
   question = "When did Beyonce become famous?"
   context = "Beyonce started singing as a child but became famous in the 1990s"
   #context = "Beyonce became famous in 1990s and then went onto selling many records"
   answer = ""
-  
+  """
 
   print()
+  if answer == "":
+    print("Params from script")
+  else:
+    print(f"Params from '{data_args.dataset_name if data_args.dataset_name else data_args.train_file}'")
+  print("-------------------------")
   print("QUESTION: ", question)
   print("CONTEXT: ", context)
   print("ANSWER: ", answer)
 
   """
   
+  # DEBUG FOR 'encoding' SENT TO "model(encoding['input_ids']")
+  # -----------------------------------------------------------
   questionEncoding = tokenizer(question, return_tensors="pt")
   contextEncoding = tokenizer(context, return_tensors="pt")
   print("question encoding: ", questionEncoding['input_ids'])
@@ -730,26 +796,41 @@ def main():
 
   # 6/2/24 DH: "RuntimeError: Can't call numpy() on Tensor that requires grad. Use tensor.detach().numpy() instead."
   #             FROM: start_logits_dump = np.array(output['start_logits'])
-  start_logits_dump = output['start_logits'].detach().numpy()
+  start_logits_dumpORIG = start_logits_dump = output['start_logits'].detach().numpy()
+  end_logits_dumpORIG = end_logits_dump = output['end_logits'].detach().numpy()
+
+  tokNum = 10
+  
   # 6/2/24 DH: [-5:][::-1] MEANS...take an array from end-5, then take an array with reverse order
-  start_logits_dump = np.sort(start_logits_dump[0])[-10:][::-1]
-  start_logits_dump = [np.round(value, 3) for value in start_logits_dump]
+  start_logits_dump = np.sort(start_logits_dump[0])[-tokNum:][::-1]
+  start_logits_dump = [np.round(value) for value in start_logits_dump]
 
-  end_logits_dump = output['end_logits'].detach().numpy()
-  end_logits_dump = np.sort(end_logits_dump[0])[-10:][::-1]
-  end_logits_dump = [np.round(value, 3) for value in end_logits_dump]
-
+  end_logits_dump = np.sort(end_logits_dump[0])[-tokNum:][::-1]
+  end_logits_dump = [np.round(value) for value in end_logits_dump]
+  
   print()
-  print("Transformer LIME'ing")
-  print("--------------------")
-  print(f"start_logits max: {max_start_logits_idx}, value: {output['start_logits'][0][max_start_logits_idx]}")
-  print(f"end_logits max: {max_end_logits_idx}, value: {output['end_logits'][0][max_end_logits_idx]}")
+  print(f"Transformer LIME'ing (printing {tokNum} from {start_logits_dumpORIG.shape})")
+  print( "--------------------")
+  maxStartLogit = start_logits_dumpORIG[0][max_start_logits_idx]
+  maxEndLogit = end_logits_dumpORIG[0][max_end_logits_idx]
+
+  print(f"start_logits max: {max_start_logits_idx}, value: {np.round(maxStartLogit)}")
+  print(f"end_logits max: {max_end_logits_idx}, value: {np.round(maxEndLogit)}")
   print()
   print(f"output['start_logits']: {len(output['start_logits'][0])}, {start_logits_dump}")
   print(f"output['end_logits']:   {len(output['end_logits'][0])}, {end_logits_dump}")
   print()
   print(f"all_tokens: {len(all_tokens)}, {all_tokens.__class__}")
   print(tokenizer.decode(tokenizer.convert_tokens_to_ids(all_tokens)))
+
+  for i in range(len(all_tokens)):
+    # 2 layers of decoding: tok -> id -> syllable/word
+    tokWord = tokenizer.decode( tokenizer.convert_tokens_to_ids(all_tokens[i]) )
+    startTokVal = np.round(start_logits_dumpORIG[0][i])
+    endTokVal = np.round(end_logits_dumpORIG[0][i])
+
+    print(f"{i:<3} {tokWord:10} {startTokVal:>5} (start) {endTokVal:>10} (end)")
+  
   print()
   print(f"answer_tokens: {len(answer_tokens)}")
   print(f"  '{answer_tokens}'")

@@ -292,6 +292,10 @@ def createLoggers(training_args):
   sigLogger.setLevel(logging.DEBUG)
   fileName = "seq2seq_qa_trainer"
   logPath = training_args.output_dir
+
+  # 15/2/24 DH: Taken from 'trainer.py:Trainer._save()'
+  os.makedirs(training_args.output_dir, exist_ok=True)
+
   fileHandler = logging.FileHandler(f"{logPath}/{fileName}.log")
   logFormatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
   fileHandler.setFormatter(logFormatter)
@@ -1007,13 +1011,18 @@ def main():
   #   Number of rows in the dataset.  
   #   return self.num_rows
   # ----------------------------------------------------------
-
+  
   print()
   print(f"raw_datasets['train'] : {raw_datasets['train'].__class__}, num_rows: {raw_datasets['train'].num_rows}")
   print(f"raw_data: {raw_data.__class__}, {raw_data.keys()}")
   print()
   for key in raw_data:
-    print(f"{key}) {raw_data[key][0]}")
+    if isinstance(raw_data[key], list):
+      raw_data_key = raw_data[key][0]
+    else:
+      raw_data_key = raw_data[key]
+
+    print(f"{key}) {raw_data_key}")
     print("  ...")
     print("---")
 
@@ -1031,14 +1040,19 @@ def main():
   # "The <cls> token must be manually added to the beginning of the question for this model to work properly. It uses the <cls> token to be
   #  able to make "no answer" predictions. The t5 tokenizer does not automatically add this special token which is why it is added manually."
 
-  model_name = "sjrhuschlee/flan-t5-base-squad2"
-  #model_name = "previous_output_dir/checkpoint-4"
+  #model_name = "sjrhuschlee/flan-t5-base-squad2"
+  #model_name = "previous_output_dir"
+  model_name = "previous_output_dirTEST"
 
   #model = AutoModelForQuestionAnswering.from_pretrained(model_name)
   #tokenizer = AutoTokenizer.from_pretrained(model_name)
   
   # 4/2/24 DH: See comment below re 'T5ForConditionalGeneration' vs 'T5ForQuestionAnswering'
   #model = T5ForConditionalGeneration.from_pretrained(model_name)
+
+  print( "########")
+  print(f"LOADING: {model_name}")
+  print( "########")
   model = T5ForQuestionAnswering.from_pretrained(model_name)
 
   print()
@@ -1047,13 +1061,19 @@ def main():
   
   #question = f"{tokenizer.cls_token}Why did Putin invade Ukraine?"
   tokenizer.cls_token = '<cls>'
-  
+
   question = raw_data['question']
   context = raw_data['context']
   #context = context.replace('as a child, and rose to fame in the late 1990s ', '')
 
   # 14/2/24 DH:
   (question, context) = stripListLayer(question, context)
+
+  """
+  question = "When did Beyonce become famous?"
+  context = "Beyonce started singing as a child but became famous in the 1990s"
+  #context = "Beyonce became famous in 1990s and then went onto selling many records"
+  """
 
   print()
   print(f"QUESTION: {question.__class__}, {question}")
@@ -1064,7 +1084,7 @@ def main():
   # T5ForConditionalGeneration results in: "ValueError: You have to specify either decoder_input_ids or decoder_inputs_embeds"
   output = model(
     encoding["input_ids"],
-    attention_mask=encoding["attention_mask"]
+    #attention_mask=encoding["attention_mask"]
   )
 
   all_tokens = tokenizer.convert_ids_to_tokens(encoding["input_ids"][0].tolist())
@@ -1095,10 +1115,14 @@ def main():
   print()
   print(f"all_tokens: {len(all_tokens)}, {all_tokens.__class__}")
   print(tokenizer.decode(tokenizer.convert_tokens_to_ids(all_tokens)))
-  print(f"answer_tokens: {len(answer_tokens)}, '{answer_tokens}', '{tokenizer.convert_tokens_to_ids(answer_tokens)}', \
-'{tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))}' ")
+  print()
+  print(f"answer_tokens: {len(answer_tokens)}")
+  print(f"               '{answer_tokens}'")
+  print(f"               '{tokenizer.convert_tokens_to_ids(answer_tokens)}'")
+  print(f"               '{tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))}'")
 
   answer = tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))
+  print()
   print("ANSWER: ", answer)
 
 # 7/2/24 DH:
@@ -1151,6 +1175,9 @@ def signal_handler(sig, frame):
   global gStoppingFlag
   global gCheckpointNum
 
+  # 18/2/24 DH: Running with '"overwrite_output_dir": "True"' + 'checkpoints' will overwrite high checkpoints with restarted number
+  #      (may need 'kill -9 <PID>' from 'seq2seq_qa_INtrainer.log' 'PID: 52979' BECAUSE 'checkpointNum == gCheckpointNum')
+  #                                  ...misfire drill error'esk if not required...
   if not gStoppingFlag:
     gStoppingFlag = True
   

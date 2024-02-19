@@ -29,7 +29,7 @@ parser = HfArgumentParser((Arguments))
 if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
   jsonFile = os.path.abspath(sys.argv[1])
 else:
-  jsonFile = os.path.join(scriptDir, "qa_train.json")
+  jsonFile = os.path.join(scriptDir, "qa_train-Google-T5-small.json")
 
 # 11/2/24 DH: Need ',' after 'args' in order to parse tuple response (the "()" are not required but make the tuple clearer)
 (args,) = parser.parse_json_file(json_file=jsonFile, allow_extra_keys=True)
