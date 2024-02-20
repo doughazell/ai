@@ -45,6 +45,8 @@ from transformers.trainer_utils import EvalLoopOutput, EvalPrediction, get_last_
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 
+# 19/2/24 DH:
+from seq2seq_qa_utils import *
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.38.0.dev0")
@@ -336,17 +338,9 @@ def stripListArrowLayer(_datasets):
       except TypeError as e:
         print(f"  {e}, when: data['{column}'] = data['{column}'][0]")
 
-  
   return _datasets
 
-def stripListLayer(_question, _context):
-  if isinstance(_question, list):
-    _question = _question[0]
-  
-  if isinstance(_context, list):
-    _context = _context[0]
 
-  return (_question, _context)
 
 def main():
   # See all possible arguments in src/transformers/training_args.py
@@ -1002,128 +996,15 @@ def main():
   ##############################################################################
   # 3/2/24 DH: Now run the trained model for Q&A
   ##############################################################################
-
-  #train_dataset = train_dataset.select(range(max_train_samples))
-  raw_data = raw_datasets["train"][0]
-  
-  # ----------------------------------------------------------
-  # 'datasets.arrow_dataset.py' line 2349: def __len__(self):
-  #   Number of rows in the dataset.  
-  #   return self.num_rows
-  # ----------------------------------------------------------
-  
   print()
-  print(f"raw_datasets['train'] : {raw_datasets['train'].__class__}, num_rows: {raw_datasets['train'].num_rows}")
-  print(f"raw_data: {raw_data.__class__}, {raw_data.keys()}")
-  print()
-  for key in raw_data:
-    if isinstance(raw_data[key], list):
-      raw_data_key = raw_data[key][0]
-    else:
-      raw_data_key = raw_data[key]
+  print("------ Now running the trained model for Q&A ------")
+  print("train_dataset:")
+  print(train_dataset)
 
-    print(f"{key}) {raw_data_key}")
-    print("  ...")
-    print("---")
+  printDatasetInfo(raw_datasets)
+  getModelOutput(tokenizer, data_args)
+  # ----------------------------------------------- END: main() -----------------------------------------------
 
-  #print("Returning before 'HACK ZONE'...")
-  #return
-
-  # ================================= HACK ZONE ==================================
-  #                                   ---------
-  import torch
-
-  from transformers import AutoModelForQuestionAnswering, T5ForQuestionAnswering, T5ForConditionalGeneration
-
-  # https://huggingface.co/sjrhuschlee/flan-t5-base-squad2
-  #
-  # "The <cls> token must be manually added to the beginning of the question for this model to work properly. It uses the <cls> token to be
-  #  able to make "no answer" predictions. The t5 tokenizer does not automatically add this special token which is why it is added manually."
-
-  #model_name = "sjrhuschlee/flan-t5-base-squad2"
-  #model_name = "previous_output_dir"
-  model_name = "previous_output_dirTEST"
-
-  #model = AutoModelForQuestionAnswering.from_pretrained(model_name)
-  #tokenizer = AutoTokenizer.from_pretrained(model_name)
-  
-  # 4/2/24 DH: See comment below re 'T5ForConditionalGeneration' vs 'T5ForQuestionAnswering'
-  #model = T5ForConditionalGeneration.from_pretrained(model_name)
-
-  print( "########")
-  print(f"LOADING: {model_name}")
-  print( "########")
-  model = T5ForQuestionAnswering.from_pretrained(model_name)
-
-  print()
-  print("Model type in Q&A: ", model.__class__)
-  print()
-  
-  #question = f"{tokenizer.cls_token}Why did Putin invade Ukraine?"
-  tokenizer.cls_token = '<cls>'
-
-  question = raw_data['question']
-  context = raw_data['context']
-  #context = context.replace('as a child, and rose to fame in the late 1990s ', '')
-
-  # 14/2/24 DH:
-  (question, context) = stripListLayer(question, context)
-
-  """
-  question = "When did Beyonce become famous?"
-  context = "Beyonce started singing as a child but became famous in the 1990s"
-  #context = "Beyonce became famous in 1990s and then went onto selling many records"
-  """
-
-  print()
-  print(f"QUESTION: {question.__class__}, {question}")
-  print(f"CONTEXT: {context.__class__}, {context}")
-
-  encoding = tokenizer(question, context, return_tensors="pt")
-
-  # T5ForConditionalGeneration results in: "ValueError: You have to specify either decoder_input_ids or decoder_inputs_embeds"
-  output = model(
-    encoding["input_ids"],
-    #attention_mask=encoding["attention_mask"]
-  )
-
-  all_tokens = tokenizer.convert_ids_to_tokens(encoding["input_ids"][0].tolist())
-
-  max_start_logits_idx = torch.argmax(output["start_logits"])
-  max_end_logits_idx = torch.argmax(output["end_logits"])
-  answer_tokens = all_tokens[max_start_logits_idx : max_end_logits_idx + 1]
-
-  # 6/2/24 DH: "RuntimeError: Can't call numpy() on Tensor that requires grad. Use tensor.detach().numpy() instead."
-  #             FROM: start_logits_dump = np.array(output['start_logits'])
-  start_logits_dump = output['start_logits'].detach().numpy()
-  # 6/2/24 DH: [-5:][::-1] = Take an array from end-5, then take an array with reverse order
-  start_logits_dump = np.sort(start_logits_dump[0])[-10:][::-1]
-  start_logits_dump = [np.round(value, 3) for value in start_logits_dump]
-
-  end_logits_dump = output['end_logits'].detach().numpy()
-  end_logits_dump = np.sort(end_logits_dump[0])[-10:][::-1]
-  end_logits_dump = [np.round(value, 3) for value in end_logits_dump]
-
-  print()
-  print("Transformer LIME'ing")
-  print("--------------------")
-  print(f"start_logits max: {max_start_logits_idx}, value: {output['start_logits'][0][max_start_logits_idx]}")
-  print(f"end_logits max: {max_end_logits_idx}, value: {output['end_logits'][0][max_end_logits_idx]}")
-  print()
-  print(f"output['start_logits']: {len(output['start_logits'][0])}, {start_logits_dump}")
-  print(f"output['end_logits']:   {len(output['end_logits'][0])}, {end_logits_dump}")
-  print()
-  print(f"all_tokens: {len(all_tokens)}, {all_tokens.__class__}")
-  print(tokenizer.decode(tokenizer.convert_tokens_to_ids(all_tokens)))
-  print()
-  print(f"answer_tokens: {len(answer_tokens)}")
-  print(f"               '{answer_tokens}'")
-  print(f"               '{tokenizer.convert_tokens_to_ids(answer_tokens)}'")
-  print(f"               '{tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))}'")
-
-  answer = tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))
-  print()
-  print("ANSWER: ", answer)
 
 # 7/2/24 DH:
 import signal, time, subprocess

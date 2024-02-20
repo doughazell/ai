@@ -207,7 +207,8 @@ pairs = [
   820,
 """
 
-
+# 19/2/24 DH: Display of last graph of prob of collision vs number of pairs
+# -------------------------------------------------------------------------
 plt.plot(pairs, probFree)
 plt.ylim(ymin=0, ymax=1.2)
 plt.title("Birthday Paradox")
