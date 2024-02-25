@@ -1,0 +1,100 @@
+#################################################################################
+# 25/2/24 DH: Algorithm from 'run_qa.py'
+#
+#             Used for Q&A fine-tuning
+#################################################################################
+
+===================== 1/3 - GET DATATYPES =================
+Define:
+  ModelArguments, DataTrainingArguments
+  
+HfArgumentParser from JSON or cmd line args
+  Define: model_args, data_args, training_args
+
+Setup logging
+
+Get raw_datasets = load_dataset()
+  From: hub or custom JSON
+  
+Create:
+  config = AutoConfig.from_pretrained()
+  tokenizer = AutoTokenizer.from_pretrained()
+  model = AutoModelForQuestionAnswering.from_pretrained()
+
+Ensure:
+  model.config.decoder_start_token_id
+
+Assign:
+  question_column_name, context_column_name, answer_column_name
+
+===================== 2/3 - CREATE MAPPING =================
+Preprocess raw_datasets:
+  raw_datasets["train"]
+    prepare_train_features()
+      Tokenize examples incl 'doc_stride' (to connect features)
+      Create 'sample_mapping' & 'offset_mapping'
+      Get 'sequence_ids'
+      if 'len(answers["answer_start"]) == 0
+        Set 'cls_index' as answer
+      else
+        if answer is out of the span
+          tokenized_examples["start_positions"].append(cls_index)
+          tokenized_examples["end_positions"].append(cls_index)
+        else
+          tokenized_examples["start_positions"].append(token_start_index - 1)
+          tokenized_examples["end_positions"].append(token_end_index + 1)
+          
+  raw_datasets["validation"]
+    prepare_validation_features
+      Tokenize examples incl 'doc_stride' (to connect features)
+      Create 'sample_mapping'
+      
+      for i in range(len(tokenized_examples["input_ids"]))
+        sample_index = sample_mapping[i]
+        tokenized_examples["example_id"].append(examples["id"][sample_index])
+        
+        tokenized_examples["offset_mapping"][i] = [
+          (o if sequence_ids[k] == context_index else None)
+          for k, o in enumerate(tokenized_examples["offset_mapping"][i])
+        ]
+      return tokenized_examples
+
+  raw_datasets["test"]
+    prepare_validation_features
+
+Define post_processing_function:
+  # match the start logits and end logits to answers in the original context.
+  predictions = postprocess_qa_predictions(...)
+
+  # Format the result to the format the metric expects.
+  return EvalPrediction(predictions=formatted_predictions, label_ids=references)
+  
+Define compute_metrics:
+  Use predictions + references
+
+===================== 3/3 - TRAIN/EVALUATE/PREDICT ===================
+Create:
+  data_collator = (
+    default_data_collator
+    if data_args.pad_to_max_length
+    else DataCollatorWithPadding(tokenizer, pad_to_multiple_of=8 if training_args.fp16 else None)
+  )
+  trainer = QuestionAnsweringTrainer(
+    model, training_args, [datasets], tokenizer, data_collator, post_process_function, compute_metrics
+  )
+  
+Train:
+  train_result = trainer.train(resume_from_checkpoint=checkpoint)
+  trainer.save_model()
+  metrics = train_result.metrics
+  trainer.save_metrics("train", metrics)
+  trainer.save_state()
+
+Evaluate:
+  metrics = trainer.evaluate(max_length=max_length, num_beams=num_beams, metric_key_prefix="eval")
+
+Predict:
+  results = trainer.predict(predict_dataset, predict_examples)
+  metrics = results.metrics
+
+

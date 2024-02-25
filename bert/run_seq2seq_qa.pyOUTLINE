@@ -1,0 +1,72 @@
+#################################################################################
+# 25/2/24 DH: Algorithm from 'run_seq2seq_qa.py'
+#
+#             Used for Generative fine-tuning
+#################################################################################
+
+===================== 1/3 - GET DATATYPES =================
+Define:
+  ModelArguments, DataTrainingArguments
+
+HfArgumentParser from JSON or cmd line args
+  Define: model_args, data_args, training_args
+
+Setup logging
+
+Get raw_datasets = load_dataset()
+  From: hub or custom JSON
+  
+Create:
+  config = AutoConfig.from_pretrained()
+  tokenizer = AutoTokenizer.from_pretrained()
+  model = AutoModelForSeq2SeqLM.from_pretrained()
+
+Ensure:
+  model.config.decoder_start_token_id
+
+Assign:
+  question_column, context_column, answer_column
+
+===================== 2/3 - CREATE MAPPING =================
+Preprocess raw_datasets:
+  raw_datasets["train"]
+    Preprocess SQuAD:
+      Inputs = Join Questions + Contexts
+      Targets = Answers
+
+    Tokenize:
+      Inputs, Targets
+      Create joined dict
+
+  raw_datasets["validation"]
+    <SIMILAR PROCESS OF TOKENIZATION + MAPPING>
+
+Define compute_metrics:
+  Use predictions + references
+  
+Define post_processing_function:
+  Args passed from HuggingFace:
+    examples: datasets.Dataset, features: datasets.Dataset, outputs: EvalLoopOutput, stage="eval"
+  Decode outputs + map to answers
+  return EvalPrediction(predictions=formatted_predictions, label_ids=references)
+
+===================== 3/3 - TRAIN/EVALUATE/PREDICT ===================
+Create:
+  data_collator = DataCollatorForSeq2Seq
+  trainer = QuestionAnsweringSeq2SeqTrainer(
+    model, training_args, [datasets], tokenizer, data_collator, compute_metrics, post_process_function
+  )
+
+Train:
+  train_result = trainer.train(resume_from_checkpoint=checkpoint)
+  trainer.save_model()
+  metrics = train_result.metrics
+  trainer.save_metrics("train", metrics)
+  trainer.save_state()
+
+Evaluate:
+  metrics = trainer.evaluate(max_length=max_length, num_beams=num_beams, metric_key_prefix="eval")
+
+Predict:
+  results = trainer.predict(predict_dataset, predict_examples)
+  metrics = results.metrics
