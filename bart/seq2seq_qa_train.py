@@ -1002,7 +1002,9 @@ def main():
   print(train_dataset)
 
   printDatasetInfo(raw_datasets)
-  getModelOutput(tokenizer, data_args)
+
+  raw_data = raw_datasets["train"][0]
+  getModelOutput(raw_data, tokenizer, data_args)
   # ----------------------------------------------- END: main() -----------------------------------------------
 
 

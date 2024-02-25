@@ -43,7 +43,7 @@ with open(filename) as source :
 
   textLines = [line.strip() for line in source.readlines() if line.strip()]
 
-checkpointNum = 5962
+checkpointNum = 0
 checkpointDict = {"largeDiff": 1000, "datetimes": [], "checkpoints": []}
 
 for line in textLines:
@@ -53,7 +53,7 @@ for line in textLines:
   checkpoint = int(lineSplit[1])
   
   if checkpoint > checkpointNum + checkpointDict["largeDiff"]:
-    print(f"  {checkpoint} from {checkpointNum:6} ({checkpoint - checkpointNum}) at {datetime}")
+    print(f"  {checkpoint:>5} from {checkpointNum:>5} ({checkpoint - checkpointNum}) at {datetime}")
 
     checkpointDict["checkpoints"].append(checkpoint)
     checkpointDict["datetimes"].append(datetime)

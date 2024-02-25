@@ -43,8 +43,6 @@ def printDatasetInfo(raw_datasets):
 
 # 19/2/24 DH: Taken from 'real_bday_paradox.py'
 def graphTokenVals(startVals, endVals):
-  #plt.plot(pairs, probFree)
-  #plt.ylim(ymin=0, ymax=1.2)
   
   # from 'lime_utils.py::displayCoefficients()'
   #plt.axhline(y=0, color='green', linestyle='-')
@@ -123,17 +121,17 @@ def transformerLIMEing(output, tokenizer, all_tokens):
 
   graphTokenVals(startVals, endVals)
 
-def getModelOutput(tokenizer, data_args):
+def getModelOutput(raw_data, tokenizer, data_args):
 
   # https://huggingface.co/sjrhuschlee/flan-t5-base-squad2
   #
   # "The <cls> token must be manually added to the beginning of the question for this model to work properly. It uses the <cls> token to be
   #  able to make "no answer" predictions. The t5 tokenizer does not automatically add this special token which is why it is added manually."
 
-  model_name = "sjrhuschlee/flan-t5-base-squad2"
+  #model_name = "sjrhuschlee/flan-t5-base-squad2"
   
-  #model_name = "previous_output_dir-Google-T5"
-  #model_name = "previous_output_dir-Google-T5/checkpoint-8088"
+  model_name = "previous_output_dir-Google-T5"
+  #model_name = "previous_output_dir-Google-T5/checkpoint-21704"
 
   #model_name = "previous_output_dirTEST"
   
@@ -148,7 +146,7 @@ def getModelOutput(tokenizer, data_args):
   print("Model type in Q&A: ", model.__class__)
   print()
 
-  """
+  
   #tokenizer.cls_token = '<cls>'
   #question = f"{tokenizer.cls_token}{raw_data['question']}"
   question = raw_data['question']
@@ -165,7 +163,7 @@ def getModelOutput(tokenizer, data_args):
   context = "Beyonce started singing as a child but became famous in the 1990s"
   #context = "Beyonce became famous in 1990s and then went onto selling many records"
   answer = ""
-  
+  """
 
   print()
   if answer == "":
@@ -205,3 +203,11 @@ def getModelOutput(tokenizer, data_args):
 
   all_tokens = tokenizer.convert_ids_to_tokens(encoding["input_ids"][0].tolist())
   transformerLIMEing(output, tokenizer, all_tokens)
+
+  # 23/2/24 DH: modeling_t5.py(1163) T5Stack.forward()
+  """
+  testIDs = [366,    19,  2634,    58,     1, 18428,    19,    44,   431,  2028,  1]
+  print()
+  print("'input_ids' from 'modeling_t5.py(2229)forward()'")
+  print(tokenizer.convert_ids_to_tokens(testIDs))
+  """

@@ -225,6 +225,7 @@ print("2 people for a repeat occurred {} times, which is relatively {:.4%}".form
 print("1/365 = 0.0027")
 """
 
+# 20/2/24 DH: Using https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.hist.html to get metrics
 rel_dist = plt.hist(counts, bins = np.arange(0,100), density=True)
 
 print("50% of time, no more than {} people were needed for a repeat.".format(
