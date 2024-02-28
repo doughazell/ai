@@ -4,6 +4,19 @@
 #             Used for Generative fine-tuning
 #################################################################################
 
+Intro
+-----
+1) Use AutoModelForSeq2SeqLM
+2)  preprocess_function()
+      preprocess_squad_batch()
+        Join Question + Context
+      Tokenize inputs + targets
+    
+    post_processing_function()
+      # Format the result to the format the metric expects.
+      return EvalPrediction(predictions=formatted_predictions, label_ids=references)
+3) Use QuestionAnsweringSeq2SeqTrainer
+
 ===================== 1/3 - GET DATATYPES =================
 Define:
   ModelArguments, DataTrainingArguments
@@ -44,7 +57,7 @@ Preprocess raw_datasets:
 Define compute_metrics:
   Use predictions + references
   
-Define post_processing_function:
+Define post_processing_function()
   Args passed from HuggingFace:
     examples: datasets.Dataset, features: datasets.Dataset, outputs: EvalLoopOutput, stage="eval"
   Decode outputs + map to answers

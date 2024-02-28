@@ -1,7 +1,7 @@
 # 19/2/24 DH:
 import torch
 import numpy as np
-from transformers import T5ForQuestionAnswering, T5ForConditionalGeneration
+from transformers import T5ForQuestionAnswering, T5ForConditionalGeneration, BertForQuestionAnswering, AutoTokenizer
 import matplotlib.pyplot as plt
 
 def stripListLayer(_question, _context, _answer):
@@ -122,26 +122,43 @@ def transformerLIMEing(output, tokenizer, all_tokens):
 
   graphTokenVals(startVals, endVals)
 
-def getModelOutput(raw_data, tokenizer, data_args):
+def getModelOutput(raw_data, tokenizer, data_args, model_args):
 
-  # https://huggingface.co/sjrhuschlee/flan-t5-base-squad2
-  #
-  # "The <cls> token must be manually added to the beginning of the question for this model to work properly. It uses the <cls> token to be
-  #  able to make "no answer" predictions. The t5 tokenizer does not automatically add this special token which is why it is added manually."
-
-  model_name = "sjrhuschlee/flan-t5-base-squad2"
-  
-  #model_name = "previous_output_dir-Google-T5"
-  #model_name = "previous_output_dir-Google-T5/checkpoint-21704"
-
-  #model_name = "previous_output_dirTEST"
+  #model_name = "sjrhuschlee/flan-t5-base-squad2"
+  #model_name = "previous_output_dir-Google-BERT"
+  model_name = "previous_output_dir-Google-BERT/checkpoint-2950"
   
   print( "###################################")
   print(f"LOADING: {model_name}")
   print( "###################################")
-  # 4/2/24 DH: See comment below re 'T5ForConditionalGeneration' vs 'T5ForQuestionAnswering'
-  #model = T5ForConditionalGeneration.from_pretrained(model_name)
-  model = T5ForQuestionAnswering.from_pretrained(model_name)
+
+  if "t5" in model_name:
+    # 4/2/24 DH: See comment below re 'T5ForConditionalGeneration' vs 'T5ForQuestionAnswering'
+    #model = T5ForConditionalGeneration.from_pretrained(model_name)
+    model = T5ForQuestionAnswering.from_pretrained(model_name)
+
+    oldTokenizer = tokenizer
+    # 27/2/24 DH: Need to change the tokenizer as well...!!!
+    tokenizer = AutoTokenizer.from_pretrained(
+      model_name,
+      cache_dir=model_args.cache_dir,
+      use_fast=True,
+      revision=model_args.model_revision,
+      token=model_args.token,
+      trust_remote_code=model_args.trust_remote_code,
+    )
+
+    # DEBUG
+    #tokenizer = oldTokenizer
+
+    print()
+    print("Changing Tokenizer")
+    print(f"  from: {oldTokenizer.__class__}")
+    print(f"  to:   {tokenizer.__class__}")
+    print()
+
+  else:
+    model = BertForQuestionAnswering.from_pretrained(model_name)
 
   print()
   print("Model type in Q&A: ", model.__class__)
@@ -205,39 +222,5 @@ def getModelOutput(raw_data, tokenizer, data_args):
   all_tokens = tokenizer.convert_ids_to_tokens(encoding["input_ids"][0].tolist())
   transformerLIMEing(output, tokenizer, all_tokens)
 
-  # ------------------------------------------- HACK ZONE -----------------------------------------------
-  # 25/2/24 DH: Testing whether trained T5 is Generative as claimed in 
-  #             https://github.com/huggingface/transformers/tree/main/examples/pytorch/question-answering
-  #text = "Replace me by any text you'd like."
-  text = "When it rains then"
-
-  """
-  # From https://huggingface.co/openai-community/gpt2, "Here is how to use this model to get the FEATURES of a given text in PyTorch:"
-  encoded_input = tokenizer(text, return_tensors='pt')
-  output = model(**encoded_input)
-  """
-
-  encoded_input = tokenizer.encode(text, add_special_tokens=False, return_tensors="pt")
-
-  # TypeError: The current model class (T5ForQuestionAnswering) is not compatible with `.generate()`, as it doesn't have a language model head. 
-  # Please use one of the following classes instead: {'T5ForConditionalGeneration'}
-  model = T5ForConditionalGeneration.from_pretrained(model_name)
-  output_sequences = model.generate(
-    input_ids=encoded_input,
-    do_sample=True,
-  )
-  output_txt = tokenizer.decode(output_sequences[0], clean_up_tokenization_spaces=True)
-  print()
-  print(f"INPUT: {text}")
-  print(f"OUTPUT: {output_sequences.__class__}")
-  #print(f"OUTPUT: {output.keys()}")
-  print(f"OUTPUT: {output_txt}")
-
-
-  # 23/2/24 DH: modeling_t5.py(1163) T5Stack.forward()
-  """
-  testIDs = [366,    19,  2634,    58,     1, 18428,    19,    44,   431,  2028,  1]
-  print()
-  print("'input_ids' from 'modeling_t5.py(2229)forward()'")
-  print(tokenizer.convert_ids_to_tokens(testIDs))
-  """
+  
+  
