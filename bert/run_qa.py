@@ -281,30 +281,45 @@ def main():
     transformers.utils.logging.enable_default_handler()
     transformers.utils.logging.enable_explicit_format()
 
-    # 24/2/24 DH:
-    createLoggers(training_args)
+    # 2/3/24 DH:
+    print()
+    print("  Calling: 'transformers.utils.logging.set_verbosity_error()'")
+    print()
+    transformers.utils.logging.set_verbosity_error()
 
     # Log on each process the small summary:
     logger.warning(
         f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}, "
         + f"distributed training: {training_args.parallel_mode.value == 'distributed'}, 16-bits training: {training_args.fp16}"
     )
-    logger.info(f"Training/evaluation parameters {training_args}")
+    print()
+    print("  Removing: logger.info(f'Training/evaluation parameters {training_args}')")
+    print()
+    #logger.info(f"Training/evaluation parameters {training_args}")
 
     # Detecting last checkpoint.
     last_checkpoint = None
     if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
         last_checkpoint = get_last_checkpoint(training_args.output_dir)
         if last_checkpoint is None and len(os.listdir(training_args.output_dir)) > 0:
+            
+            print(f"Output directory ({training_args.output_dir}) already exists and is not empty BUT NOT RAISING ValueError...!")
+            """
             raise ValueError(
                 f"Output directory ({training_args.output_dir}) already exists and is not empty. "
                 "Use --overwrite_output_dir to overcome."
             )
+            """
+        
         elif last_checkpoint is not None and training_args.resume_from_checkpoint is None:
             logger.info(
                 f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, change "
                 "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
             )
+
+    # 29/2/24 DH: Needs to be after "Detecting last checkpoint" in order to create the first checkpoint with Ctrl-C 
+    #             (and prevent the need for "run/remove/rerun" involving, ' "overwrite_output_dir": "True" ')
+    createLoggers(training_args)
 
     # Set seed before initializing model.
     set_seed(training_args.seed)
