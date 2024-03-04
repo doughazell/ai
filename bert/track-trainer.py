@@ -5,9 +5,9 @@ import subprocess, sys, time, os
 
 # https://docs.python.org/2/whatsnew/2.5.html#pep-328-absolute-and-relative-imports
 sys.path.append(os.path.abspath('../huggingface'))
-from stop_trainer import sigintPIDFromTrainerLog, parseTrainerStack
+from stop_trainer import sigintPIDFromTrainerLog, parseTrainerStack, saveStackTraceFile
 
-if __name__ == "__main__":
+def runStackTraceCapture():
   # 2/3/24 DH: Now moved to 'track_trainer_backend.py'
   #run_qa.main()
 
@@ -23,47 +23,76 @@ if __name__ == "__main__":
     # https://docs.python.org/3/library/subprocess.html#older-high-level-api
     stackTextFDname = "stack.txt"
     stackTextFD = open(stackTextFDname, "w")
-    proc = subprocess.Popen(f"python track-trainer-backend.py {jsonFile}", shell=True, stderr=stackTextFD)
+    backendScript = "track-trainer-backend.py"
+
+    print()
+    print(f"STARTING: {backendScript} (which is just 'run_qa.main()')")
+    proc = subprocess.Popen(f"python {backendScript} {jsonFile}", shell=True, stderr=stackTextFD)
+    #proc = subprocess.Popen(f"echo '  nice work, good job'", shell=True, stderr=stackTextFD)
 
   else:
     print("You need to provide a JSON config")
   
+  # 4/3/24 DH: Necessary when change script-function namespace which triggers dataset download
+  #sleepSecs = 120
+    
   sleepSecs = 30
-  print(f"  Sleeping for {sleepSecs} secs (to let Trainer get started)")
+  print(f"  [Sleeping for {sleepSecs} secs (to let Trainer get started)]")
   time.sleep(sleepSecs)
 
   scriptDir = os.path.dirname(os.path.realpath(__file__))
   sigintPIDFromTrainerLog(scriptDir, waitFlag=False)
 
   # 2/3/24 DH: If being used to get a stack trace then it does not wait in 'sigintPIDFromTrainerLog()'
-  #            ("KeyboardInterrupt" is the last line of the stack trace, SOMETIMES IT IS PENULTIMATE...!!!)
-  with open(stackTextFDname) as source :  
-    print()
-    lines = source.readlines()
-    lastLine = lines[-1]
-    ws = ""
-    print(f"  Last line: {lastLine.strip():50}(Read lines: {len(lines)})")
+  #            ("KeyboardInterrupt" is the last line of the stack trace, SOMETIMES PENULTIMATE when sched immediately)
 
-    while "KeyboardInterrupt" not in lastLine:
+  # DB DeBug
+  stackWorkingFDname = "stack-WORKING.txt"
+
+  parseFile = stackTextFDname
+  print(f"  *** Parse file set to: {parseFile} ***")
+  with open(parseFile) as source :
+    print()
+    initLines = source.readlines()
+    initLinesLen = len(initLines)
+    lastLine = initLines[-1]
+    
+    print(f"  Last line: {lastLine.strip():50}(Read lines: {initLinesLen})")
+
+    totalSleeps = 0
+    maxSleeps = 5
+    while "KeyboardInterrupt" not in lastLine and totalSleeps < maxSleeps:
       sleepSecs = 1
       print(f"  Sleeping for {sleepSecs} secs to provided time for stack trace to be returned")
       time.sleep(sleepSecs)
 
+      # 4/3/24 DH: Catch unusual condition where last line is weird despite having normal stack trace
+      totalSleeps += 1
+
       lines = source.readlines()
-      if len(lines) > 1:
+      linesLen = len(lines)
+      if linesLen > 1:
         lastLine = lines[-1]
-      else:
-        lastLine = lines[0]
-      print(f"  Last line: {lastLine.strip():50}(Read lines: {len(lines)})")
+      if linesLen == 0: # ie when KeyboardInterrupt scheduled immediately in preference to Trainer
+        lastLine = initLines[-3]
+      print(f"  Last line: {lastLine.strip():50}(Read lines: {linesLen})")
     print()
 
   print(f"Terminating {proc}")
   proc.terminate()
-  print(f"Closing: {stackTextFDname}")
+  print(f"Closing: {stackTextFDname} ( opened for 'proc = subprocess.Popen(..., stderr=stackTextFD)' )")
 
-  scriptDir = os.path.dirname(os.path.realpath(__file__))
-  parseTrainerStack( os.path.join(scriptDir, stackTextFDname) )
+  if totalSleeps < maxSleeps:
+    scriptDir = os.path.dirname(os.path.realpath(__file__))
+    parseTrainerStack( os.path.join(scriptDir, parseFile) )
+  else:
+    newStackFilename = saveStackTraceFile(stackTextFDname)
+    print(f"Total sleeps of {totalSleeps} was in excess of max {maxSleeps} so saving stack trace to {newStackFilename}")
 
+
+# 4/3/24 DH:
+if __name__ == "__main__":
+  runStackTraceCapture()
 
 # =================================================================================================
 

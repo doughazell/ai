@@ -9,6 +9,9 @@ from typing import Optional
 # 2/3/24 DH:
 import psutil
 
+# 3/3/24 DH:
+import sqlite3
+
 # ---------------------------------------------------------------------------------------------------------------
 @dataclass
 class Arguments:
@@ -28,8 +31,163 @@ class Arguments:
 
 scriptDir = os.path.dirname(os.path.realpath(__file__))
 
+# 4/3/24 DH:
+def saveStackTraceFile(stackTextFDname):
+  # Record the stack trace for user inspection for bug-fix
+  # copy 'stack.txt' to 'stack-DTG.txt'
+  stackDTGname = time.strftime("stack-%Y%m%d%H%M%S.txt")
+  os.rename(stackTextFDname, stackDTGname)
+  
+  return stackDTGname
+
+# 3/3/24 DH: (This probably will be moved into a separate file at some point)
+"""
+  # 2/3/24 DH: 'trainingFunction' Table
+  ID, File, Line, Function, Tally
+
+  # 3/3/24 DH: Call seq Table
+  ID, TrainingFunction, SeqIDs, Tally
+"""
+def getOrCreateDB(stackFile, trainingFunction):
+  # ------------------------ DB CONNECTION -------------------------
+  try:
+    stack_trace_db=os.path.join(os.path.dirname(stackFile), "stack_trace.db")
+    traceDB = sqlite3.connect(stack_trace_db, check_same_thread=False)
+    print("Opened connection to cache file: ", stack_trace_db)
+
+  except sqlite3.OperationalError as e:
+    print(e)
+    return None
+  
+  # ------------------- 'trainingFunction' TABLE --------------
+  try:
+    # From '.deeppavlov/downloads/odqa/enwiki_schema.sql' :
+    #   CREATE TABLE documents (id, title, text);
+    #   CREATE INDEX idx_id ON documents(id);
+    cursor = traceDB.cursor()
+    cursor.execute(
+      # "SELECT text FROM {} WHERE id = ?".format(self.db_name),(doc_id,)
+
+      # "INSERT INTO documents (id, title, text) VALUES (?,?,?)",
+      # (record['id'], record['title'], record['text'])
+
+      f"CREATE TABLE {trainingFunction} (id INTEGER PRIMARY KEY, file, line, function, tally)"
+    )
+
+    index_name = f"{trainingFunction}_id"
+    cursor.execute(
+      f"CREATE INDEX {index_name} ON {trainingFunction}(id)"
+    )
+    traceDB.commit()
+    cursor.close()
+    print(f"  Created table: '{trainingFunction}'")
+    print(f"     with index: '{index_name}'")
+
+  except sqlite3.OperationalError as e:
+    if f"table {trainingFunction} already exists" in e.args:
+      print(f"  Table: '{trainingFunction}' already exists")
+    else:
+      print(e)
+  
+  # --------------------- 'call_sequence' TABLE -----------------
+  try:
+    cursor = traceDB.cursor()
+
+    table_name = "call_sequence"
+    cursor.execute(
+      f"CREATE TABLE {table_name} (id INTEGER PRIMARY KEY, training_function, seq_ids, tally)"
+    )
+
+    index_name = "call_sequence_id"
+    cursor.execute(
+      f"CREATE INDEX {index_name} ON {table_name}(id)"
+    )
+    traceDB.commit()
+    cursor.close()
+    print(f"  Created table: '{table_name}'")
+    print(f"     with index: '{index_name}'")
+
+  except sqlite3.OperationalError as e:
+    if f"table {table_name} already exists" in e.args:
+      print(f"  Table: '{table_name}' already exists")
+    else:
+      print(e)
+
+  return traceDB
+
+def checkForRecord(cursor, stmnt, tallyFieldNum):
+  try:
+    cursor.execute(stmnt)
+    # 'fetchall() returns an array of tuples for wanted fields
+    result = cursor.fetchall()
+    resultNum = len(result)
+    if resultNum > 0:
+      id = result[0][0]
+      tally = result[0][tallyFieldNum]
+      return (id, tally)
+    else:
+      return (0, 0)
+
+  except sqlite3.OperationalError as e:
+    print(e)
+
+def populateDB(stackFile, trainingFunction, records):
+  print()
+  print(f"Adding {len(records)} record call-stack to '{trainingFunction}' SQLite table")
+
+  traceDB = getOrCreateDB(stackFile, trainingFunction)
+  
+  try:
+    cursor = traceDB.cursor()
+
+    seqIDs = []
+    for record in records:
+      # Need to firstly check to see whether "file-line" has already been added to DB and its associated 'tally' (prior to incrementing)
+      #
+      # 'checkForRecord()' returns (0,0) for unseen "file-line"
+      stmnt = f"SELECT * FROM {trainingFunction} WHERE file = '{record['file']}' AND line = '{record['line']}'"
+      (id, tally) = checkForRecord(cursor, stmnt, tallyFieldNum=4)
+
+      newTally = int(tally) + 1
+      if tally == 0:
+        stmnt = f"INSERT INTO {trainingFunction} (file, line, function, tally) VALUES ('{record['file']}', '{record['line']}', '{record['function']}', {newTally})"
+      else:
+        stmnt = f"UPDATE {trainingFunction} SET tally = {newTally} WHERE id={id}"
+
+      print(stmnt)
+      # 4/3/24 DH: Need ID of new "file-line" record for 'call-sequence' Table
+      cursor.execute(stmnt)
+      if "INSERT INTO" in stmnt:
+        # https://peps.python.org/pep-0249/#lastrowid, "most databases return a rowid only when a single INSERT operation is performed"
+        id = cursor.lastrowid
+      traceDB.commit()
+
+      # 4/3/24 DH: The 'call_sequence' Table requires complete seq of valid ID's for complete stack-trace
+      seqIDs.append(id)
+    
+    # 4/3/24 DH: Now insert a record into 'call_sequence' Table (if it does not already exist)
+    print(f"Call sequence ({len(seqIDs)}): {seqIDs}")
+
+    stmnt = f"SELECT * FROM call_sequence WHERE training_function = '{trainingFunction}' AND seq_ids = '{seqIDs}'"
+    (id, tally) = checkForRecord(cursor, stmnt, tallyFieldNum=3)
+
+    newTally = int(tally) + 1
+    if tally == 0:
+      stmnt = f"INSERT INTO call_sequence (training_function, seq_ids, tally) VALUES ('{trainingFunction}', '{seqIDs}', '{newTally}')"
+    else:
+      stmnt = f"UPDATE call_sequence SET tally = {newTally} WHERE id={id}"
+
+    print(f"  {stmnt}")
+    cursor.execute(stmnt)
+    traceDB.commit()
+
+    cursor.close()
+  except sqlite3.OperationalError as e:
+    print(e)
+
 # 2/3/24 DH:
 def parseTrainerStack(stackFile):
+  records = []
 
   with open(stackFile) as source :
     print()
@@ -37,6 +195,8 @@ def parseTrainerStack(stackFile):
     print("---------")
 
     textLines = [line.strip() for line in source.readlines() if line.strip()]
+  
+  trainingFunction = None
   
   for line in textLines:
     if "File" in line:
@@ -58,7 +218,22 @@ def parseTrainerStack(stackFile):
       lineNum = lineSplit[0].lstrip("line ")
       funcName = lineSplit[1]
 
-      print(f"FILE: {fileName:50} LINE: {lineNum:7} FUNCTION: {funcName}")
+      # 2/3/24 DH: The last 'trainer.py' entry in the stack is the 'training_step()' function
+      if "transformers/trainer.py" in fileName:
+        trainingFunction = funcName
+
+      recordDict = {'file': fileName, 'line': lineNum, 'function': funcName}
+      print(f"FILE: {recordDict['file']:50} LINE: {recordDict['line']:7} FUNCTION: {recordDict['function']}")
+      
+      records.append(recordDict)
+  
+  # 4/3/24 DH: If HuggingFace is downloading a dataset then the normal time to start is insufficient for training to start
+  if trainingFunction:
+    populateDB(stackFile, trainingFunction, records)
+  else:
+    newStackFilename = saveStackTraceFile(stackFile)
+    print(f"There is no 'trainingFunction' in {stackFile} so saving to {newStackFilename}")
+  
 
 
 # 2/3/24 DH: Refactor to use a library rather than cmd line script

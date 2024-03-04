@@ -50,7 +50,6 @@ from transformers.utils.versions import require_version
 
 # 27/2/24 DH:
 from qa_lime import *
-from checkpointing import *
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.38.0.dev0")
@@ -274,15 +273,24 @@ def main():
   transformers.utils.logging.enable_default_handler()
   transformers.utils.logging.enable_explicit_format()
 
-  # 24/2/24 DH:
-  createLoggers(training_args)
+  # 2/3/24 DH:
+  print()
+  print("  Calling: 'transformers.utils.logging.set_verbosity_error()'")
+  print()
+  transformers.utils.logging.set_verbosity_error()
+
+  
 
   # Log on each process the small summary:
   logger.warning(
       f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}, "
       + f"distributed training: {training_args.parallel_mode.value == 'distributed'}, 16-bits training: {training_args.fp16}"
   )
-  logger.info(f"Training/evaluation parameters {training_args}")
+
+  print()
+  print("  Removing: logger.info(f'Training/evaluation parameters {training_args}')")
+  print()
+  #logger.info(f"Training/evaluation parameters {training_args}")
 
   # Detecting last checkpoint.
   last_checkpoint = None
@@ -298,6 +306,8 @@ def main():
               f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, change "
               "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
           )
+
+  # 3/3/24 DH: NO NEED TO CREATE LOGGERS FOR NON-TRAINING
 
   # Set seed before initializing model.
   set_seed(training_args.seed)
