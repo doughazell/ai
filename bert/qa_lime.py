@@ -126,7 +126,7 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args):
 
   #model_name = "sjrhuschlee/flan-t5-base-squad2"
   #model_name = "previous_output_dir-Google-BERT"
-  model_name = "previous_output_dir-Google-BERT/checkpoint-8848"
+  model_name = "previous_output_dir-Google-BERT/checkpoint-12314"
   
   print( "###################################")
   print(f"LOADING: {model_name}")

@@ -1,4 +1,9 @@
 # 11/2/24 DH:
+##############################################################################
+#
+#                                HugginAPI
+#
+##############################################################################
 
 import os, sys, signal, time
 import transformers
@@ -31,11 +36,25 @@ class Arguments:
 
 scriptDir = os.path.dirname(os.path.realpath(__file__))
 
+"""
+# -----------------------------------------------------------------------------------
+  Functions
+  ---------
+  saveStackTraceFile(stackTextFDname)
+  getOrCreateDB(stackFile, trainingFunction)
+  checkForRecord(cursor, stmnt, tallyFieldNum)
+  populateDB(stackFile, trainingFunction, records)
+  parseTrainerStack(stackFile)
+  sigintPIDFromTrainerLog(scriptDir, waitFlag=True)
+  
+# -----------------------------------------------------------------------------------
+"""
+
 # 4/3/24 DH:
 def saveStackTraceFile(stackTextFDname):
   # Record the stack trace for user inspection for bug-fix
   # copy 'stack.txt' to 'stack-DTG.txt'
-  stackDTGname = time.strftime("stack-%Y%m%d%H%M%S.txt")
+  stackDTGname = time.strftime("stack-%Y%m%d-%H%M%S.txt")
   os.rename(stackTextFDname, stackDTGname)
   
   return stackDTGname
@@ -197,15 +216,24 @@ def parseTrainerStack(stackFile):
     textLines = [line.strip() for line in source.readlines() if line.strip()]
   
   trainingFunction = None
-  
+
+  # Eg:
+  # 1) File "/Users/doug/src/ai/bert/run_qa.py", line 338, in main
+  # 2) File "/Users/doug/.pyenv/versions/3.9.15/lib/python3.9/site-packages/datasets/data_files.py", line 689, in from_patterns
+  # 3) File "<string>", line 3, in raise_from
+
   for line in textLines:
-    if "File" in line:
+    # BE AWARE OF LINES LIKE: "    data_files = DataFilesDict.from_patterns("
+    #                     *** critical space after "File" ***
+    #
+    # (Currently no except handler for "IndexError: list index out of range" in order to inspect Traceback)
+    if "File " in line:
 
       lineSplit = line.split("site-packages/")
       if len(lineSplit) > 1:
         linePart = lineSplit[1]
-      else:
-        linePart = lineSplit[0]
+      else: # non 'site-packages' path
+        linePart = lineSplit[0] # ie whole line
         lineSplit = linePart.split("File \"")
         if len(lineSplit) > 1:
           linePart = lineSplit[1]
@@ -226,18 +254,17 @@ def parseTrainerStack(stackFile):
       print(f"FILE: {recordDict['file']:50} LINE: {recordDict['line']:7} FUNCTION: {recordDict['function']}")
       
       records.append(recordDict)
-  
+  # ---------------------------- END: for line in textLines --------------------------
+
   # 4/3/24 DH: If HuggingFace is downloading a dataset then the normal time to start is insufficient for training to start
   if trainingFunction:
     populateDB(stackFile, trainingFunction, records)
   else:
     newStackFilename = saveStackTraceFile(stackFile)
     print(f"There is no 'trainingFunction' in {stackFile} so saving to {newStackFilename}")
-  
 
-
-# 2/3/24 DH: Refactor to use a library rather than cmd line script
-def sigintPIDFromTrainerLog(scriptDir, waitFlag=True):
+# 8/3/24 DH:
+def getCmdLineArgs():
   parser = HfArgumentParser((Arguments))
   if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
     jsonFile = os.path.abspath(sys.argv[1])
@@ -246,6 +273,11 @@ def sigintPIDFromTrainerLog(scriptDir, waitFlag=True):
 
   # 11/2/24 DH: Need ',' after 'args' in order to parse tuple response (the "()" are not required but make the tuple clearer)
   (args,) = parser.parse_json_file(json_file=jsonFile, allow_extra_keys=True)
+
+  return args
+
+# 2/3/24 DH: Refactor to use a library rather than cmd line script
+def sigintPIDFromTrainerLog(scriptDir, args, waitFlag=True):
 
   print()
   print()

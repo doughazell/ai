@@ -1,13 +1,144 @@
 # 29/2/24 DH: A script to track and learn about Seq2SeqLM + QA training
 
 # 2/3/24 DH:
-import subprocess, sys, time, os
+import subprocess, sys, time, os, random, numpy, csv
+# 7/3/24 DH:
+from subprocess import Popen, PIPE, STDOUT
+# 8/3/24 DH:
+from datetime import datetime
 
 # https://docs.python.org/2/whatsnew/2.5.html#pep-328-absolute-and-relative-imports
 sys.path.append(os.path.abspath('../huggingface'))
-from stop_trainer import sigintPIDFromTrainerLog, parseTrainerStack, saveStackTraceFile
+from stop_trainer import sigintPIDFromTrainerLog, parseTrainerStack, saveStackTraceFile, getCmdLineArgs
 
-def runStackTraceCapture():
+# 6/3/24 DH: Run 'runStackTraceCapure()' at random time intervals to get full code coverage
+#   ('random  // 10' secs should provide sufficient HuggingFace-Transformer training code coverage)
+#   (The used time delays should be a horizontal line histogram over the interval set)
+#
+#   Use 'delay-hist.csv' for csv of each time interval (which gets updated regularly on delta-reset)
+  
+def runRandomIntervalCapture(iterations, numOfIntervals=40):
+  csvFile = "delay-hist.csv"
+  try:
+    with open(csvFile, 'r') as csvfile:
+      intervalLogReader = csv.reader(csvfile)
+      # 6/3/24 DH: 'csv.reader' iteration returns a 2-D list (one list for each row)
+      csvFileContents = [row for row in intervalLogReader][0]
+      #print(f"{csvFile}: {csvFileContents}, {csvFileContents.__class__} of {csvFileContents[0].__class__}")
+
+      csvIntegers = [int(elem) for elem in csvFileContents]
+      print(f"'{csvFile}': {csvIntegers}, {csvIntegers.__class__} of {csvIntegers[0].__class__} (after 'int(elem)' for each {csvFileContents[0].__class__})")
+      intervalLog = numpy.array(csvIntegers)
+  except FileNotFoundError as e:
+    print(f"('{csvFile}' not found so starting from scratch)")
+    intervalLog = numpy.zeros(numOfIntervals, dtype=numpy.uint32)
+  
+  print(f"PRE-LOOP:  {intervalLog}, {intervalLog.__class__}")
+
+  # 7/3/24 DH: The 'numOfIntervals' needs to be the length of time of 1 training cycle
+  for i in range(iterations):
+    # "Return the next random floating point number in the range 0.0 <= X < 1.0"
+    randomTime = random.random()
+    deltaSecs = int( (randomTime * numOfIntervals * numOfIntervals) // numOfIntervals )
+    #print(f"Random: {randomTime}, Delta: {deltaSecs}, Intervals: {numOfIntervals}")
+    
+    intervalLog[deltaSecs] += 1
+
+    firstTimeFlag = False
+    if i == 0:
+      firstTimeFlag = True
+
+    (dt, baseTime) = runStackTraceCapture(deltaSecs, firstTimeFlag)
+    print(f"{i}) dt: {dt}, base time: {baseTime}")
+
+  print(f"POST-LOOP: {intervalLog}")
+  with open(csvFile, 'w') as csvfile:
+    # https://docs.python.org/3/library/csv.html#csv.writer
+    intervalLogWriter = csv.writer(csvfile)
+    intervalLogWriter.writerow(intervalLog)
+
+# 8/3/24 DH:
+def getLogTime(line):
+  lineParts = line.split(" ")
+  if len(lineParts) > 2:
+    logTime = lineParts[1]
+    return logTime
+
+# 7/3/24 DH:  
+def parseTQDMline(line, backendPID):
+  dt = 0
+  n = 0
+  baseTime = 0
+
+  # 2024-03-08 17:15:03,723 [INFO] PID: 13154
+  # 2024-03-08 17:15:45,816 [INFO] tqdm.refresh(): dt: 33.263055086135864, n: 12315
+  if str(backendPID) in line:
+    parseTQDMline.startTime = getLogTime(line)
+
+  lineParts = line.split("tqdm.refresh(): ")
+  if len(lineParts) > 1:
+    parseTQDMline.firstEndTime = getLogTime(line)
+
+    tqdmInfo = lineParts[1]
+    
+    tqdmInfoParts = tqdmInfo.split(",")
+    if len(tqdmInfoParts) > 1:
+      dtStr = tqdmInfoParts[0]
+      dtStrParts = dtStr.split(":")
+      if len(dtStrParts) > 1:
+        dt = round( float(dtStrParts[1]) )
+
+      nStr = tqdmInfoParts[1]
+      nStrParts = nStr.split(":")
+      if len(nStrParts) > 1:
+        n = nStrParts[1]
+
+  if hasattr(parseTQDMline, 'startTime') and hasattr(parseTQDMline, 'firstEndTime'):
+    print()
+    print(f"  Get time diff between {parseTQDMline.startTime} and {parseTQDMline.firstEndTime}")
+    FMT = '%H:%M:%S,%f'
+    timeDiff = datetime.strptime(parseTQDMline.firstEndTime, FMT) - datetime.strptime(parseTQDMline.startTime, FMT)
+    print(f"  Time diff: {timeDiff}, {timeDiff.__class__}")
+    timeDiffSecs = round(timeDiff.total_seconds())
+    print(f"  Time diff (rounded secs): {timeDiffSecs}")
+
+    # The base time is taken from [1st TQDM time - PID time - TQDM dt] in 'seq2seq_qa_INtrainer.log'
+    baseTime = timeDiffSecs - dt
+    print(f"  Base time: {baseTime}")
+
+  return (dt, n, baseTime)
+
+# 7/3/24 DH:
+def getTrainTime(args, backendScript, backendPID):
+  # 8/3/24 DH: 'args.trainer_log' default of 'seq2seq_qa_INtrainer.log' in 'stop_trainer.py::Arguments'
+  procProgress = subprocess.Popen(f"tail -f {args.output_dir}/{args.trainer_log}", shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
+  pid = os.getpid()
+  print(f"{__file__} pid: {pid}, {backendScript} pid: {backendPID}")
+
+  displayFlag = False
+  dt = 0
+  for line in procProgress.stdout:
+    # Convert from rec'd 'bytes' to 'string'
+    line = line.decode()
+
+    # Make sure tailing correct version of file
+    if str(backendPID) in line:
+      displayFlag = True
+
+    if displayFlag:
+      (dt, n, baseTime) = parseTQDMline(line, backendPID)
+
+      print(f"  TQDM: {dt}, {n}")
+    
+    if dt > 0:
+      break
+  
+  print(f"Terminating {procProgress}")
+  procProgress.terminate()
+
+  return (dt, baseTime)
+
+def runStackTraceCapture(deltaSecs, firstTimeFlag):
   # 2/3/24 DH: Now moved to 'track_trainer_backend.py'
   #run_qa.main()
 
@@ -17,6 +148,11 @@ def runStackTraceCapture():
 
   # 2/3/24 DH: https://pypi.org/project/gprof/
 
+  # 8/3/24 DH:
+  args = getCmdLineArgs()
+  scriptDir = os.path.dirname(os.path.realpath(__file__))
+
+  dt = 0 # to cover when not first time (and 'getTrainTime()' not called)
   if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
     jsonFile = sys.argv[1]
 
@@ -28,20 +164,34 @@ def runStackTraceCapture():
     print()
     print(f"STARTING: {backendScript} (which is just 'run_qa.main()')")
     proc = subprocess.Popen(f"python {backendScript} {jsonFile}", shell=True, stderr=stackTextFD)
+    backendPID = proc.pid
     #proc = subprocess.Popen(f"echo '  nice work, good job'", shell=True, stderr=stackTextFD)
+    
+    if firstTimeFlag:
+      # 8/3/24 DH: 'dt' is needed for the random sleep set in 'runRandomIntervalCapture(iterations, numOfIntervals=40)'
+      #
+      # (It is currently hard-coded and this was a mechanism to ensure complete coverage of code lines over Q&A training
+      #  by storing the max train cycle time in 'delay-hist.csv' (SEE 'baseTime' BELOW))
+      dt = getTrainTime(args, backendScript, backendPID)
+    else:
+      print("  Not first time so continuing...")
 
   else:
     print("You need to provide a JSON config")
   
   # 4/3/24 DH: Necessary when change script-function namespace which triggers dataset download
   #sleepSecs = 120
-    
-  sleepSecs = 30
-  print(f"  [Sleeping for {sleepSecs} secs (to let Trainer get started)]")
+  
+  # 8/3/24 DH: TODO: Automate calc of base time via 'getTrainTime()'
+  #              & pass back to 'runRandomIntervalCapture()' to be stored in LINE 1 & 2 of 'delay-hist.csv': 
+  #                <Base time>,<Num of intervals>
+  #                <csv Interval Count>
+  baseTime = 10
+  sleepSecs = baseTime + deltaSecs
+  print(f"  [Sleeping for ({baseTime} + {deltaSecs}) {sleepSecs} secs (now that Trainer has started)]")
   time.sleep(sleepSecs)
 
-  scriptDir = os.path.dirname(os.path.realpath(__file__))
-  sigintPIDFromTrainerLog(scriptDir, waitFlag=False)
+  sigintPIDFromTrainerLog(scriptDir, args, waitFlag=False)
 
   # 2/3/24 DH: If being used to get a stack trace then it does not wait in 'sigintPIDFromTrainerLog()'
   #            ("KeyboardInterrupt" is the last line of the stack trace, SOMETIMES PENULTIMATE when sched immediately)
@@ -49,21 +199,32 @@ def runStackTraceCapture():
   # DB DeBug
   stackWorkingFDname = "stack-WORKING.txt"
 
+  # 8/3/24 DH: TODO: Move to 'waitForKeyboardInterrupt()'
+  # ---------------------------------------------------------------------------------------------------------
   parseFile = stackTextFDname
   print(f"  *** Parse file set to: {parseFile} ***")
   with open(parseFile) as source :
+    # 8/3/24 DH: Needed to append to renamed 'parseFile'
+    printLineList = []
+
     print()
     initLines = source.readlines()
     initLinesLen = len(initLines)
-    lastLine = initLines[-1]
+    if len(initLines) > 1:
+      lastLine = initLines[-1]
+    else:
+      lastLine = "Error"
     
-    print(f"  Last line: {lastLine.strip():50}(Read lines: {initLinesLen})")
+    sourceLine = "INIT LINES"
+    printLine = f"  Last line: {lastLine.strip():50}(Read lines: {initLinesLen} from {sourceLine})"
+    printLineList.append(printLine)
+    print(printLine)
 
     totalSleeps = 0
     maxSleeps = 5
     while "KeyboardInterrupt" not in lastLine and totalSleeps < maxSleeps:
       sleepSecs = 1
-      print(f"  Sleeping for {sleepSecs} secs to provided time for stack trace to be returned")
+      print(f"  Sleeping for {sleepSecs} secs to provide time for stack trace to be returned")
       time.sleep(sleepSecs)
 
       # 4/3/24 DH: Catch unusual condition where last line is weird despite having normal stack trace
@@ -73,11 +234,18 @@ def runStackTraceCapture():
       linesLen = len(lines)
       if linesLen > 1:
         lastLine = lines[-1]
+        sourceLine = "LAST LINE"
       if linesLen == 0: # ie when KeyboardInterrupt scheduled immediately in preference to Trainer
-        lastLine = initLines[-3]
-      print(f"  Last line: {lastLine.strip():50}(Read lines: {linesLen})")
-    print()
+        if len(initLines) > 2:
+          lastLine = initLines[-3]
+          sourceLine = "INIT LINES[-3]"
 
+      printLine = f"  Last line: {lastLine.strip():50}(Read lines: {linesLen} so using {sourceLine})"
+      printLineList.append(printLine)
+      print(printLine)
+  # ------------------------------------ END: with open(parseFile) as source --------------------------------
+
+  print()
   print(f"Terminating {proc}")
   proc.terminate()
   print(f"Closing: {stackTextFDname} ( opened for 'proc = subprocess.Popen(..., stderr=stackTextFD)' )")
@@ -86,13 +254,23 @@ def runStackTraceCapture():
     scriptDir = os.path.dirname(os.path.realpath(__file__))
     parseTrainerStack( os.path.join(scriptDir, parseFile) )
   else:
+    # 8/3/24 DH: Need to add "Last line" printout above to end of complete file 
+    #            (in order to add new code pathways to cover unusual scheduling events)
+    stackTextFD.write("\n")
+    stackTextFD.write("Script used lines\n")
+    stackTextFD.write("-----------------\n")
+    for line in printLineList:
+      stackTextFD.write(line + "\n")
+
     newStackFilename = saveStackTraceFile(stackTextFDname)
     print(f"Total sleeps of {totalSleeps} was in excess of max {maxSleeps} so saving stack trace to {newStackFilename}")
 
+  return (dt, baseTime)
 
-# 4/3/24 DH:
 if __name__ == "__main__":
-  runStackTraceCapture()
+  
+  #runStackTraceCapture()
+  runRandomIntervalCapture(iterations=2)
 
 # =================================================================================================
 
