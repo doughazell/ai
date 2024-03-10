@@ -16,6 +16,8 @@ import psutil
 
 # 3/3/24 DH:
 import sqlite3
+# 9/3/24 DH:
+import io
 
 # ---------------------------------------------------------------------------------------------------------------
 @dataclass
@@ -45,7 +47,9 @@ scriptDir = os.path.dirname(os.path.realpath(__file__))
   checkForRecord(cursor, stmnt, tallyFieldNum)
   populateDB(stackFile, trainingFunction, records)
   parseTrainerStack(stackFile)
+  getCmdLineArgs()
   sigintPIDFromTrainerLog(scriptDir, waitFlag=True)
+  waitForKeyboardInterrupt(parseFile, parseFD)
   
 # -----------------------------------------------------------------------------------
 """
@@ -328,6 +332,121 @@ def sigintPIDFromTrainerLog(scriptDir, args, waitFlag=True):
 
   except ProcessLookupError as e:
     print(f"Process {pid} is cancelled")
+
+# 9/3/24 DH: If 'parseFDwriter != 'io.IOBase' then this is being used as A TEST HARNESS TO PARSE KEPT STDERR'S
+#            ('parseFDwriter' is INTEGER ARRAY used to chunk the file to simulate phased IO)
+#
+# NOTE: TQDM uses '^M' to get new-line which is displayed by Vi on same line as following text
+def waitForKeyboardInterrupt(parseFile, parseFDwriter):
+  # 2/3/24 DH: If being used to get a stack trace then it does not wait in 'sigintPIDFromTrainerLog()'
+  #            ("KeyboardInterrupt" is the last line of the stack trace, SOMETIMES PENULTIMATE when sched immediately)
+
+  # DB DeBug
+  #parseFile = "stack-WORKING.txt"
+
+  print(f"  *** Parse file set to: {parseFile} ***")
+  with open(parseFile) as source :
+    # 8/3/24 DH: Needed to append to renamed 'parseFile'
+    printLineList = []
+
+    # https://docs.python.org/3/tutorial/inputoutput.html#reading-and-writing-files
+    # "If you want to read all the lines of a file in a list you can also use list(f) or f.readlines()."
+    initLines = []
+    if isinstance(parseFDwriter,io.IOBase):
+      initLines = source.readlines()    
+    else: # TEST HARNESS FOR PARSING STDERR: read the number of lines specified by 'parseFDwriter' integer array
+      linesToRead = parseFDwriter[0]
+      for _ in range(linesToRead):
+        line = source.readline() # "if f.readline() returns an empty string, the end of the file has been reached"
+        if len(line) > 0:
+          initLines.append(line)
+
+    initLinesLen = len(initLines)
+    if len(initLines) > 1:
+      lastLine = initLines[-1]
+    else:
+      lastLine = "Error"
+    
+    sourceLine = "INIT LINES"
+    printLine = f"  Last line: {lastLine.strip():50}(Read lines: {initLinesLen} from {sourceLine})"
+    printLineList.append(printLine)
+    print()
+    print(printLine)
+
+    totalSleeps = 0
+    totalEmptyLines = 0
+    maxSleeps = 5
+    lines = []
+    while "KeyboardInterrupt" not in lastLine and totalSleeps < maxSleeps:
+      sleepSecs = 1
+      print(f"  Sleeping for {sleepSecs} secs to provide time for stack trace to be returned")
+      time.sleep(sleepSecs)
+
+      # 4/3/24 DH: Catch unusual condition where last line is weird despite having normal stack trace
+      totalSleeps += 1
+
+      if isinstance(parseFDwriter,io.IOBase):
+        lines = source.readlines() # overrides 'lines = []' added above for TEST HARNESS
+        linesLen = len(lines)
+      else: # TEST HARNESS FOR PARSING STDERR: read the number of lines specified by 'parseFDwriter' integer array
+        try:
+          linesToRead = parseFDwriter[totalSleeps]
+        except IndexError:
+          linesToRead = 0
+
+        for _ in range(linesToRead):
+          line = source.readline() # "if f.readline() returns an empty string, the end of the file has been reached"
+          if len(line) > 0:
+            lines.append(line)
+          
+        linesLen = linesToRead
+      # ------------------ END: TEST HARNESS ------------------
+      
+      if linesLen > 1:
+        lastLine = lines[-1]
+        sourceLine = "LAST LINE"
+
+      # FALLBACK OPTIONS
+      # ----------------
+      if linesLen == 0: # ie unusual scheduling set theory overlap
+        totalEmptyLines += 1
+        try:
+          if totalEmptyLines == 1:
+            # Accommodating the "^M" line (NOT OBVIOUS FROM 'VI' LINENUMS)
+            lastLine = lines[-3]
+            sourceLine = "LAST LINES[-3]"
+          if totalSleeps > 2:
+            lastLine = initLines[-3]
+            sourceLine = "INIT LINES[-3]"
+        except IndexError:
+          pass # for next sleep/read cycle
+      # ----------------
+      # 'lastLine' & 'sourceLine' maintained from last condition met
+      printLine = f"  Last line: {lastLine.strip():50}(Read lines: {linesLen} so using {sourceLine})"
+      printLineList.append(printLine)
+      print(printLine)
+  # ------------------------------------ END: with open(parseFile) as source --------------------------------
+  
+  # https://docs.python.org/3/tutorial/inputoutput.html#reading-and-writing-files
+  # "If you’re not using the with keyword, then you should call f.close() to close the file and immediately free up any system resources used by it."
+  print()
+  print(f"Closing: {parseFile} ( opened for 'proc = subprocess.Popen(..., stderr=stackTextFD)' )")
+
+  if totalSleeps > maxSleeps and isinstance(parseFDwriter,io.IOBase):
+    # 8/3/24 DH: Need to add "Last line" printout above to end of complete file 
+    #            (in order to add new code pathways to cover unusual scheduling events)
+    parseFDwriter.write("\n")
+    parseFDwriter.write("Script used lines\n")
+    parseFDwriter.write("-----------------\n")
+    for line in printLineList:
+      parseFDwriter.write(line + "\n")
+
+    newStackFilename = saveStackTraceFile(parseFile)
+    print(f"Total sleeps of {totalSleeps} was in excess of max {maxSleeps} so saving stack trace to {newStackFilename}")
+
+    return False
+  
+  return True
 
 if __name__ == "__main__":
   
