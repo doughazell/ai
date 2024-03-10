@@ -188,11 +188,11 @@ def runStackTraceCapture(deltaSecs, firstTimeFlag):
   #              & pass back to 'runRandomIntervalCapture()' to be stored in LINE 1 & 2 of 'delay-hist.csv': 
   #                <Base time>,<Num of intervals>
   #                <csv Interval Count>
-  if "baseTime" in locals():
+  try: # Prob faster than 'if "baseTime" in locals()' due to hash lookup rather than str cmp of all locals
     baseTime = min(10,baseTime)
-  else:
+  except UnboundLocalError:
     baseTime = 10
-  
+
   sleepSecs = baseTime + deltaSecs
   print(f"  [Sleeping for ({baseTime} + {deltaSecs}) {sleepSecs} secs (now that Trainer has started)]")
   time.sleep(sleepSecs)

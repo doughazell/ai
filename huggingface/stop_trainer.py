@@ -415,12 +415,14 @@ def waitForKeyboardInterrupt(parseFile, parseFDwriter):
             # Accommodating the "^M" line (NOT OBVIOUS FROM 'VI' LINENUMS)
             lastLine = lines[-3]
             sourceLine = "LAST LINES[-3]"
+
           if totalSleeps > 2:
             lastLine = initLines[-3]
             sourceLine = "INIT LINES[-3]"
         except IndexError:
           pass # for next sleep/read cycle
       # ----------------
+      
       # 'lastLine' & 'sourceLine' maintained from last condition met
       printLine = f"  Last line: {lastLine.strip():50}(Read lines: {linesLen} so using {sourceLine})"
       printLineList.append(printLine)
@@ -430,9 +432,9 @@ def waitForKeyboardInterrupt(parseFile, parseFDwriter):
   # https://docs.python.org/3/tutorial/inputoutput.html#reading-and-writing-files
   # "If you’re not using the with keyword, then you should call f.close() to close the file and immediately free up any system resources used by it."
   print()
-  print(f"Closing: {parseFile} ( opened for 'proc = subprocess.Popen(..., stderr=stackTextFD)' )")
+  print(f"Closing: {parseFile} ( opened for 'proc = subprocess.Popen(..., stderr=stackTextFD)' ) after {totalSleeps} sleeps")
 
-  if totalSleeps > maxSleeps and isinstance(parseFDwriter,io.IOBase):
+  if totalSleeps == maxSleeps and isinstance(parseFDwriter, io.IOBase):
     # 8/3/24 DH: Need to add "Last line" printout above to end of complete file 
     #            (in order to add new code pathways to cover unusual scheduling events)
     parseFDwriter.write("\n")
