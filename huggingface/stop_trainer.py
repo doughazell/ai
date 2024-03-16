@@ -49,7 +49,9 @@ scriptDir = os.path.dirname(os.path.realpath(__file__))
   parseTrainerStack(stackFile)
   getCmdLineArgs()
   sigintPIDFromTrainerLog(scriptDir, waitFlag=True)
+  searchAllReadlines(initLines, lines, totalEmptyLines)
   waitForKeyboardInterrupt(parseFile, parseFD)
+  checkForSIGTERM(stackFilename)
   
 # -----------------------------------------------------------------------------------
 """
@@ -333,6 +335,28 @@ def sigintPIDFromTrainerLog(scriptDir, args, waitFlag=True):
   except ProcessLookupError as e:
     print(f"Process {pid} is cancelled")
 
+# 15/3/24 DH:
+def searchAllReadlines(initLines, lines, totalEmptyLines):
+  # We only need to search the 'initLines' once
+  if totalEmptyLines == 1:
+    cnt = 0
+    print(f"Searching 'initLines'")
+    for line in initLines:
+      cnt += 1
+      if "KeyboardInterrupt" in line:
+        print(f"  Found line in 'initLines' #{cnt}")
+        return line
+  
+  cnt = 0
+  for line in lines:
+    cnt += 1
+    if "KeyboardInterrupt" in line:
+      print(f"  Found line in 'lines' #{cnt}")
+      return line
+  
+  # 15/3/24 DH: Needed for later addition to f"...{lastLine.strip():50}..."
+  return ""
+
 # 9/3/24 DH: If 'parseFDwriter != 'io.IOBase' then this is being used as A TEST HARNESS TO PARSE KEPT STDERR'S
 #            ('parseFDwriter' is INTEGER ARRAY used to chunk the file to simulate phased IO)
 #
@@ -353,13 +377,16 @@ def waitForKeyboardInterrupt(parseFile, parseFDwriter):
     # "If you want to read all the lines of a file in a list you can also use list(f) or f.readlines()."
     initLines = []
     if isinstance(parseFDwriter,io.IOBase):
-      initLines = source.readlines()    
+      initLines = source.readlines()
+    
+    # ---------------------- TEST HARNESS ------------------
     else: # TEST HARNESS FOR PARSING STDERR: read the number of lines specified by 'parseFDwriter' integer array
       linesToRead = parseFDwriter[0]
       for _ in range(linesToRead):
         line = source.readline() # "if f.readline() returns an empty string, the end of the file has been reached"
         if len(line) > 0:
           initLines.append(line)
+    # ------------------ END: TEST HARNESS ------------------
 
     initLinesLen = len(initLines)
     if len(initLines) > 1:
@@ -368,7 +395,7 @@ def waitForKeyboardInterrupt(parseFile, parseFDwriter):
       lastLine = "Error"
     
     sourceLine = "INIT LINES"
-    printLine = f"  Last line: {lastLine.strip():50}(Read lines: {initLinesLen} from {sourceLine})"
+    printLine = f"  Last line: {lastLine.strip():50}(READ LINES: {initLinesLen} from {sourceLine})"
     printLineList.append(printLine)
     print()
     print(printLine)
@@ -379,7 +406,8 @@ def waitForKeyboardInterrupt(parseFile, parseFDwriter):
     lines = []
     while "KeyboardInterrupt" not in lastLine and totalSleeps < maxSleeps:
       sleepSecs = 1
-      print(f"  Sleeping for {sleepSecs} secs to provide time for stack trace to be returned")
+      print()
+      print(f"Sleeping for {sleepSecs} secs to provide time for stack trace to be returned")
       time.sleep(sleepSecs)
 
       # 4/3/24 DH: Catch unusual condition where last line is weird despite having normal stack trace
@@ -388,6 +416,7 @@ def waitForKeyboardInterrupt(parseFile, parseFDwriter):
       if isinstance(parseFDwriter,io.IOBase):
         lines = source.readlines() # overrides 'lines = []' added above for TEST HARNESS
         linesLen = len(lines)
+      # ---------------------- TEST HARNESS ------------------
       else: # TEST HARNESS FOR PARSING STDERR: read the number of lines specified by 'parseFDwriter' integer array
         try:
           linesToRead = parseFDwriter[totalSleeps]
@@ -401,54 +430,78 @@ def waitForKeyboardInterrupt(parseFile, parseFDwriter):
           
         linesLen = linesToRead
       # ------------------ END: TEST HARNESS ------------------
-      
-      if linesLen > 1:
-        lastLine = lines[-1]
-        sourceLine = "LAST LINE"
 
       # FALLBACK OPTIONS
       # ----------------
-      if linesLen == 0: # ie unusual scheduling set theory overlap
+      if linesLen == 0: # ie unusual scheduling overlap
         totalEmptyLines += 1
-        try:
-          if totalEmptyLines == 1:
-            # Accommodating the "^M" line (NOT OBVIOUS FROM 'VI' LINENUMS)
-            lastLine = lines[-3]
-            sourceLine = "LAST LINES[-3]"
+      # END: if linesLen == 0
 
-          if totalSleeps > 2:
-            lastLine = initLines[-3]
-            sourceLine = "INIT LINES[-3]"
-        except IndexError:
-          pass # for next sleep/read cycle
+      # 15/3/24 DH: Search through entire readlines to look for 'KeyboardInterrupt' line
+      #             Need to accommodate the "^M" line (NOT OBVIOUS FROM 'VI' LINENUMS)
+      sourceLine = "ALL LINES SEARCH"
+      lastLine = searchAllReadlines(initLines, lines, totalEmptyLines)
       # ----------------
       
       # 'lastLine' & 'sourceLine' maintained from last condition met
-      printLine = f"  Last line: {lastLine.strip():50}(Read lines: {linesLen} so using {sourceLine})"
+      printLine = f"  Last line: {lastLine.strip():50}(READ LINES: {linesLen} so using {sourceLine}, total empty lines: {totalEmptyLines})"
       printLineList.append(printLine)
       print(printLine)
+    # ---------- END: while "KeyboardInterrupt" not in lastLine and totalSleeps < maxSleeps ----------
   # ------------------------------------ END: with open(parseFile) as source --------------------------------
   
   # https://docs.python.org/3/tutorial/inputoutput.html#reading-and-writing-files
   # "If you’re not using the with keyword, then you should call f.close() to close the file and immediately free up any system resources used by it."
-  print()
-  print(f"Closing: {parseFile} ( opened for 'proc = subprocess.Popen(..., stderr=stackTextFD)' ) after {totalSleeps} sleeps")
-
-  if totalSleeps == maxSleeps and isinstance(parseFDwriter, io.IOBase):
+  #
+  # We opened 'parseFile' TWICE (1 for writing and 1 for reading) so read FD closed at end of 'with' block
+  
+  # 10/3/24 DH: Sometimes (through unusual scheduling) the 'KeyboardInterrupt' APPEARS (as if by magick) at end of arbitrary wait time
+  #
+  # 15/3/24 DH: "grep -vl 'Script used lines' stack-2024031*|xargs grep -l load_dataset|wc -l" (=> 514...wtf ???)
+  #              grep -vl 'Script used lines' stack-2024031*|xargs grep -l load_dataset|xargs rm
+  if totalSleeps == maxSleeps and isinstance(parseFDwriter, io.IOBase) and "KeyboardInterrupt" not in lastLine:
     # 8/3/24 DH: Need to add "Last line" printout above to end of complete file 
     #            (in order to add new code pathways to cover unusual scheduling events)
+    parseFDwriter.write("\n")
     parseFDwriter.write("\n")
     parseFDwriter.write("Script used lines\n")
     parseFDwriter.write("-----------------\n")
     for line in printLineList:
       parseFDwriter.write(line + "\n")
+    parseFDwriter.write("-----------------\n")
 
     newStackFilename = saveStackTraceFile(parseFile)
     print(f"Total sleeps of {totalSleeps} was in excess of max {maxSleeps} so saving stack trace to {newStackFilename}")
 
-    return False
+    return (False, newStackFilename)
   
-  return True
+  return (True, parseFile)
+
+# 10/3/24 DH: When SIGTERM has been handled instead of prior SIGINT then following found in 'stackTextFDname':
+#             "There appear to be 1 leaked semaphore objects to clean up at shutdown"
+
+# 15/3/24 DH: Need a global count of the total number of SIGTERM's
+gSIGTERMcnt = 0
+
+def checkForSIGTERM(stackFilename):
+  sigtermFlag = False
+
+  with open(stackFilename) as source :
+    for line in source.readlines():
+      if "objects to clean up at shutdown" in line:
+        global gSIGTERMcnt
+        gSIGTERMcnt += 1
+
+        print(f"  SIGTERM handled instead of prior SIGINT - #{gSIGTERMcnt}")
+        # 15/3/24 DH: Delete dump file created in 'saveStackTraceFile()' with filename passed as arg
+        #             (Set flag to delete outside 'with open()' loop)
+        # [Can be deleted en-masse with: "grep -l 'objects to clean up at shutdown' stack-2024031*| xargs rm"]
+        sigtermFlag = True
+  # END: 'with open()'
+  
+  if sigtermFlag:
+    os.remove(stackFilename)
+
 
 if __name__ == "__main__":
   

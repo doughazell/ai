@@ -9,16 +9,22 @@ from datetime import datetime
 
 # https://docs.python.org/2/whatsnew/2.5.html#pep-328-absolute-and-relative-imports
 sys.path.append(os.path.abspath('../huggingface'))
-from stop_trainer import sigintPIDFromTrainerLog, parseTrainerStack, saveStackTraceFile, getCmdLineArgs, waitForKeyboardInterrupt
+from stop_trainer import sigintPIDFromTrainerLog, parseTrainerStack, getCmdLineArgs, waitForKeyboardInterrupt, checkForSIGTERM
+#from stop_trainer import * # causes IDE to mark functions as unfound (but still works)
+
+from sort_error_logs import sortErrorLogs
 
 # 6/3/24 DH: Run 'runStackTraceCapure()' at random time intervals to get full code coverage
 #   ('random  // 10' secs should provide sufficient HuggingFace-Transformer training code coverage)
 #   (The used time delays should be a horizontal line histogram over the interval set)
 #
 #   Use 'delay-hist.csv' for csv of each time interval (which gets updated regularly on delta-reset)
-  
-def runRandomIntervalCapture(iterations, numOfIntervals=40):
-  csvFile = "delay-hist.csv"
+
+# 14/3/24 DH: 'intervalLog' needs to be global so it can be saved in Ctrl-C Handler
+intervalLog = None
+csvFile = "delay-hist.csv"
+
+def loadIntervalLog(numOfIntervals):
   try:
     with open(csvFile, 'r') as csvfile:
       intervalLogReader = csv.reader(csvfile)
@@ -33,7 +39,23 @@ def runRandomIntervalCapture(iterations, numOfIntervals=40):
     print(f"('{csvFile}' not found so starting from scratch)")
     intervalLog = numpy.zeros(numOfIntervals, dtype=numpy.uint32)
   
+  print()
   print(f"PRE-LOOP:  {intervalLog}, {intervalLog.__class__}")
+  return intervalLog
+
+def saveIntervalLog():
+  print()
+  print(f"POST-LOOP: {intervalLog}")
+  with open(csvFile, 'w') as csvfile:
+    # https://docs.python.org/3/library/csv.html#csv.writer
+    intervalLogWriter = csv.writer(csvfile)
+    intervalLogWriter.writerow(intervalLog) 
+
+def runRandomIntervalCapture(iterations, numOfIntervals=40):
+  # 14/3/24 DH: 'intervalLog' needs to be global so it can be saved in Ctrl-C Handler
+  global intervalLog
+
+  intervalLog = loadIntervalLog(numOfIntervals)
 
   # 7/3/24 DH: The 'numOfIntervals' needs to be the length of time of 1 training cycle
   for i in range(iterations):
@@ -50,14 +72,11 @@ def runRandomIntervalCapture(iterations, numOfIntervals=40):
 
     (dt, baseTime) = runStackTraceCapture(deltaSecs, firstTimeFlag)
     print()
-    print(f"COMPLETED runStackTraceCapture() {i+1}/{iterations}) numOfIntervals: {numOfIntervals}, dt: {dt}, base time: {baseTime}")
+    print(f"{i+1}/{iterations} COMPLETED runStackTraceCapture() - numOfIntervals: {numOfIntervals}, dt: {dt}, base time: {baseTime}")
+    print("************************************")
+  # END: ------- for i in range(iterations) --------
 
-  print()
-  print(f"POST-LOOP: {intervalLog}")
-  with open(csvFile, 'w') as csvfile:
-    # https://docs.python.org/3/library/csv.html#csv.writer
-    intervalLogWriter = csv.writer(csvfile)
-    intervalLogWriter.writerow(intervalLog)
+  saveIntervalLog()
 
 # 8/3/24 DH:
 def getLogTime(line):
@@ -194,31 +213,64 @@ def runStackTraceCapture(deltaSecs, firstTimeFlag):
     baseTime = 10
 
   sleepSecs = baseTime + deltaSecs
-  print(f"  [Sleeping for ({baseTime} + {deltaSecs}) {sleepSecs} secs (now that Trainer has started)]")
+  print(f"  [Sleeping for ({baseTime} + {deltaSecs}) {sleepSecs} secs]")
   time.sleep(sleepSecs)
 
   sigintPIDFromTrainerLog(scriptDir, args, waitFlag=False)
 
   print(f"stackTextFDwriter: {stackTextFDwriter}")
-  stackRecdOK = waitForKeyboardInterrupt(stackTextFDname, stackTextFDwriter)
+  stackRecdOK, newStackFilename = waitForKeyboardInterrupt(stackTextFDname, stackTextFDwriter)
+
+  # 16/3/24 DH: 'no-stack/stack-20240316-090124.txt'
+  #   1/2) Window of opportunity for 'KeyboardInterrupt' to be in "NamedPipe" from last 'source.readlines()'...
 
   print()
   print(f"Terminating {proc}")
   proc.terminate()
 
+  #   2/2) ...then 'objects to clean up' from SIGTERM before file closed below.
+
+  print()
+  print(f"Closing: {stackTextFDname} ( write opened for 'proc = subprocess.Popen(..., stderr=stackTextFD)' )")
+  stackTextFDwriter.close()
+  
   if stackRecdOK:
     scriptDir = os.path.dirname(os.path.realpath(__file__))
     parseTrainerStack( os.path.join(scriptDir, stackTextFDname) )
+  else:
+    sleepSecs = 1
+    print(f"Stack trace not rec'd in '{newStackFilename}' so sleeping for {sleepSecs} secs before checking for object clean up...")
+    time.sleep(sleepSecs)
+    checkForSIGTERM(newStackFilename)
 
   return (dt, baseTime)
 
+# 11/3/24 DH:
+def signal_handler(sig, frame):
+  print('\nYou pressed Ctrl+C')
+
+  # 14/3/24 DH:
+  saveIntervalLog()
+
+  # 16/3/24 DH:
+  sortErrorLogs()
+
+  # 12/3/24 DH: This propagates SIGINT to child processes which take a few secs to terminate (as shown by "ps -fp <PID>")
+  #   (However when script exists from Error then children NEED to be sent SIGINT (both events cause PPID to shift to "1"))
+  sys.exit(0)
+
 if __name__ == "__main__":
-  
+  # 11/3/24 DH:
+  import signal
+  signal.signal(signal.SIGINT, signal_handler)
+
   runRandomIntervalCapture(iterations=2)
+  sortErrorLogs()
 
   # TEST HARNESS FOR PARSING STDERR
   # -------------------------------
-  #waitForKeyboardInterrupt(parseFile="stack-9Mar-TEST.txt", parseFDwriter=[10,51])
+  #waitForKeyboardInterrupt(parseFile="stack-20240315-224914.txt", parseFDwriter=[10,56])
+  #checkForSIGTERM("stack-10Mar-object_at_shutdown.txt")
 
 # =================================================================================================
 

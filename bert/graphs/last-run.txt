@@ -1,0 +1,78 @@
+bert$ python run_qa.py qa_train-Google-BERT.json
+2024-03-10 23:41:21.272443: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+
+  Calling: 'transformers.utils.logging.set_verbosity_error()'
+
+03/10/2024 23:41:27 - WARNING - __main__ - Process rank: 0, device: cpu, n_gpu: 0, distributed training: False, 16-bits training: False
+
+  Removing: logger.info(f'Training/evaluation parameters {training_args}')
+
+03/10/2024 23:41:27 - INFO - __main__ - Checkpoint detected, resuming training at previous_output_dir-Google-BERT/checkpoint-14216. To avoid this behavior, change the `--output_dir` or add `--overwrite_output_dir` to train from scratch.
+03/10/2024 23:41:27 - INFO - trainer_signaller - PID: 5402
+Overwrite dataset info from restored data version if exists.
+03/10/2024 23:41:30 - INFO - datasets.builder - Overwrite dataset info from restored data version if exists.
+Loading Dataset info from /Users/doug/.cache/huggingface/datasets/squad/plain_text/0.0.0/7b6d24c440a36b6815f21b70d25016731768db1f
+03/10/2024 23:41:30 - INFO - datasets.info - Loading Dataset info from /Users/doug/.cache/huggingface/datasets/squad/plain_text/0.0.0/7b6d24c440a36b6815f21b70d25016731768db1f
+Found cached dataset squad (/Users/doug/.cache/huggingface/datasets/squad/plain_text/0.0.0/7b6d24c440a36b6815f21b70d25016731768db1f)
+03/10/2024 23:41:30 - INFO - datasets.builder - Found cached dataset squad (/Users/doug/.cache/huggingface/datasets/squad/plain_text/0.0.0/7b6d24c440a36b6815f21b70d25016731768db1f)
+Loading Dataset info from /Users/doug/.cache/huggingface/datasets/squad/plain_text/0.0.0/7b6d24c440a36b6815f21b70d25016731768db1f
+03/10/2024 23:41:30 - INFO - datasets.info - Loading Dataset info from /Users/doug/.cache/huggingface/datasets/squad/plain_text/0.0.0/7b6d24c440a36b6815f21b70d25016731768db1f
+Loading cached processed dataset at /Users/doug/.cache/huggingface/datasets/squad/plain_text/0.0.0/7b6d24c440a36b6815f21b70d25016731768db1f/cache-697a61524cc75fd1.arrow
+03/10/2024 23:41:32 - INFO - datasets.arrow_dataset - Loading cached processed dataset at /Users/doug/.cache/huggingface/datasets/squad/plain_text/0.0.0/7b6d24c440a36b6815f21b70d25016731768db1f/cache-697a61524cc75fd1.arrow
+Loading cached processed dataset at /Users/doug/.cache/huggingface/datasets/squad/plain_text/0.0.0/7b6d24c440a36b6815f21b70d25016731768db1f/cache-3c3e9f63c359f1a7.arrow
+03/10/2024 23:41:32 - INFO - datasets.arrow_dataset - Loading cached processed dataset at /Users/doug/.cache/huggingface/datasets/squad/plain_text/0.0.0/7b6d24c440a36b6815f21b70d25016731768db1f/cache-3c3e9f63c359f1a7.arrow
+ 96%|███████████████████████████████████████████████████████████████████████████████████████████████████████    | 14217/14754 [00:41<00:01, 339.17it/s]03/10/2024 23:42:19 - INFO - trainer_signaller - tqdm.refresh(): dt: 41.91671299934387, n: 14217
+ 97%|██████████████████████████████████████████████████████████████████████████████████████████████████████▋   | 14300/14754 [57:10<5:57:03, 47.19s/it]03/11/2024 00:38:48 - INFO - trainer_signaller - tqdm.refresh(): dt: 49.23066997528076, n: 14300
+ 98%|█████████████████████████████████████████████████████████████████████████████████████████████████████▌  | 14400/14754 [2:16:36<4:44:38, 48.24s/it]03/11/2024 01:58:14 - INFO - trainer_signaller - tqdm.refresh(): dt: 52.100553035736084, n: 14400
+ 98%|██████████████████████████████████████████████████████████████████████████████████████████████████████▏ | 14500/14754 [3:33:51<3:20:50, 47.44s/it]03/11/2024 03:15:29 - INFO - trainer_signaller - tqdm.refresh(): dt: 50.122644901275635, n: 14500
+{'loss': 0.6618, 'learning_rate': 5.164701098007319e-07, 'epoch': 1.97}                                                                                
+ 98%|██████████████████████████████████████████████████████████████████████████████████████████████████████▏ | 14500/14754 [3:33:51<3:20:50, 47.44s/it]03/11/2024 03:16:19 - INFO - trainer_signaller - STEP: 14500, args.logging_steps: 500
+ 99%|██████████████████████████████████████████████████████████████████████████████████████████████████████▉ | 14600/14754 [4:51:46<2:03:51, 48.26s/it]03/11/2024 04:33:24 - INFO - trainer_signaller - tqdm.refresh(): dt: 51.34233093261719, n: 14600
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████▌| 14700/14754 [6:10:08<42:47, 47.55s/it]03/11/2024 05:51:45 - INFO - trainer_signaller - tqdm.refresh(): dt: 43.216652154922485, n: 14700
+{'train_runtime': 24751.1951, 'train_samples_per_second': 7.153, 'train_steps_per_second': 0.596, 'train_loss': 0.023234574859730836, 'epoch': 2.0}    
+100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 14754/14754 [6:52:31<00:00,  1.68s/it]
+***** train metrics *****
+  epoch                    =        2.0
+  train_loss               =     0.0232
+  train_runtime            = 6:52:31.19
+  train_samples            =      88524
+  train_samples_per_second =      7.153
+  train_steps_per_second   =      0.596
+03/11/2024 06:34:10 - INFO - __main__ - *** Evaluate ***
+  0%|▏                                                                                                              | 2/1348 [00:06<1:13:23,  3.27s/it]03/11/2024 06:34:25 - INFO - trainer_signaller - tqdm.refresh(): dt: 6.542482852935791, n: 2
+  7%|████████                                                                                                     | 100/1348 [10:43<2:15:46,  6.53s/it]03/11/2024 06:45:02 - INFO - trainer_signaller - tqdm.refresh(): dt: 6.510317087173462, n: 100
+ 15%|████████████████▏                                                                                            | 200/1348 [21:32<2:04:43,  6.52s/it]03/11/2024 06:55:51 - INFO - trainer_signaller - tqdm.refresh(): dt: 6.5324108600616455, n: 200
+ 22%|████████████████████████▎                                                                                    | 300/1348 [32:27<1:54:27,  6.55s/it]03/11/2024 07:06:46 - INFO - trainer_signaller - tqdm.refresh(): dt: 6.607003927230835, n: 300
+ 30%|████████████████████████████████▎                                                                            | 400/1348 [43:18<1:42:09,  6.47s/it]03/11/2024 07:17:37 - INFO - trainer_signaller - tqdm.refresh(): dt: 6.270745754241943, n: 400
+ 37%|████████████████████████████████████████▍                                                                    | 500/1348 [54:14<1:31:06,  6.45s/it]03/11/2024 07:28:33 - INFO - trainer_signaller - tqdm.refresh(): dt: 6.428133964538574, n: 500
+ 45%|███████████████████████████████████████████████▋                                                           | 600/1348 [1:05:08<1:20:24,  6.45s/it]03/11/2024 07:39:27 - INFO - trainer_signaller - tqdm.refresh(): dt: 6.3623130321502686, n: 600
+ 52%|███████████████████████████████████████████████████████▌                                                   | 700/1348 [1:16:00<1:09:59,  6.48s/it]03/11/2024 07:50:19 - INFO - trainer_signaller - tqdm.refresh(): dt: 6.240913152694702, n: 700
+ 59%|████████████████████████████████████████████████████████████████▋                                            | 800/1348 [1:26:49<59:28,  6.51s/it]03/11/2024 08:01:07 - INFO - trainer_signaller - tqdm.refresh(): dt: 6.590994358062744, n: 800
+ 67%|████████████████████████████████████████████████████████████████████████▊                                    | 900/1348 [1:37:44<49:17,  6.60s/it]03/11/2024 08:12:03 - INFO - trainer_signaller - tqdm.refresh(): dt: 6.570212125778198, n: 900
+ 74%|████████████████████████████████████████████████████████████████████████████████                            | 1000/1348 [1:48:39<37:43,  6.51s/it]03/11/2024 08:22:57 - INFO - trainer_signaller - tqdm.refresh(): dt: 6.484280824661255, n: 1000
+ 82%|████████████████████████████████████████████████████████████████████████████████████████▏                   | 1100/1348 [1:59:32<26:40,  6.45s/it]03/11/2024 08:33:51 - INFO - trainer_signaller - tqdm.refresh(): dt: 6.3364222049713135, n: 1100
+ 89%|████████████████████████████████████████████████████████████████████████████████████████████████▏           | 1200/1348 [2:10:28<16:42,  6.78s/it]03/11/2024 08:44:47 - INFO - trainer_signaller - tqdm.refresh(): dt: 7.149464130401611, n: 1200
+ 96%|████████████████████████████████████████████████████████████████████████████████████████████████████████▏   | 1300/1348 [2:21:23<05:12,  6.51s/it]03/11/2024 08:55:42 - INFO - trainer_signaller - tqdm.refresh(): dt: 6.626942157745361, n: 1300
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1348/1348 [2:26:37<00:00,  6.56s/it]03/11/2024 09:01:19 - INFO - utils_qa - Post-processing 10570 example predictions split into 10784 features.
+                                                                                                                                                      03/11/2024 09:01:20 - INFO - trainer_signaller - tqdm.refresh(): dt: 0.10514497756958008, n: 13                     | 13/10570 [00:00<01:25, 123.64it/s]
+                                                                                                                                                      03/11/2024 09:01:22 - INFO - trainer_signaller - tqdm.refresh(): dt: 0.10069990158081055, n: 300                   | 300/10570 [00:02<01:24, 121.64it/s]
+                                                                                                                                                      03/11/2024 09:02:06 - INFO - trainer_signaller - tqdm.refresh(): dt: 0.10476922988891602, n: 7800                 | 7800/10570 [00:46<00:17, 161.11it/s]
+                                                                                                                                                      03/11/2024 09:02:13 - INFO - trainer_signaller - tqdm.refresh(): dt: 0.10562920570373535, n: 9100█▉               | 9100/10570 [00:53<00:08, 180.56it/s]
+                                                                                                                                                      03/11/2024 09:02:14 - INFO - trainer_signaller - tqdm.refresh(): dt: 0.10481834411621094, n: 9400█████            | 9400/10570 [00:54<00:07, 151.23it/s]
+                                                                                                                                                      03/11/2024 09:02:18 - INFO - trainer_signaller - tqdm.refresh(): dt: 0.10094380378723145, n: 10100██████████▏    | 10100/10570 [00:58<00:02, 195.85it/s]
+                                                                                                                                                      03/11/2024 09:02:21 - INFO - trainer_signaller - tqdm.refresh(): dt: 0.1407179832458496, n: 10500███████████████▎| 10500/10570 [01:01<00:00, 101.37it/s]
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████| 10570/10570 [01:02<00:00, 169.97it/s]
+03/11/2024 09:02:22 - INFO - utils_qa - Saving predictions to previous_output_dir-Google-BERT/eval_predictions.json.563/10570 [01:02<00:00, 140.75it/s]
+03/11/2024 09:02:22 - INFO - utils_qa - Saving nbest_preds to previous_output_dir-Google-BERT/eval_nbest_predictions.json.
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1348/1348 [2:28:13<00:00,  6.60s/it]
+***** eval metrics *****
+  epoch                   =        2.0
+  eval_exact_match        =     81.315
+  eval_f1                 =     88.636
+  eval_runtime            = 2:26:44.89
+  eval_samples            =      10784
+  eval_samples_per_second =      1.225
+  eval_steps_per_second   =      0.153
+bert$ 
+
