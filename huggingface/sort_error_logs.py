@@ -8,6 +8,8 @@
 import subprocess, time, os
 from subprocess import Popen, PIPE, STDOUT
 
+from stop_trainer import getSIGTERMcnt
+
 gStringList = [
   'objects to clean up at shutdown',
   'Last line: To enable the following instructions:',
@@ -21,6 +23,7 @@ gStringList = [
   'load_dataset',
   'load_processed_shard_from_cache',
 ]
+gListLen = len(gStringList)
 
 gStackFileGlob = "stack-2024*"
 
@@ -33,17 +36,36 @@ def deleteLogFiles(strDict):
       print(f"    {elem}")
       os.remove(elem)
 
+# 17/3/24 DH:
+def displayOrderedList(strDict):
+  global gListLen
+  cnt = 0
+
+  # Returns a list: https://docs.python.org/3/library/functions.html#sorted
+  orderedDict = sorted(strDict, key=lambda key: len(strDict[key]), reverse=False)
+
+  for key in orderedDict:
+    cnt += 1
+    print(f"{cnt}/{gListLen}) '{key}'")
+    print(f"-----")
+    print(f"  {len(strDict[key])}")
+    print()
+
 def checkLogFileDetails(allFiles, totalCnt):
   subTotal = 0
   strDict = {}
 
   # ------------------- Cycle through each type of file ----------
   cnt = 0
-  gListLen = len(gStringList)
+  global gListLen
+
+  print()
   for searchStr in gStringList:
     cnt += 1
-    print(f"{cnt}/{gListLen}) '{searchStr}'")
-    print(f"-----")
+
+    # 17/3/24 DH: Move to ordered display function
+    #print(f"{cnt}/{gListLen}) '{searchStr}'")
+    #print(f"-----")
 
     proc = subprocess.Popen(f"grep -l '{searchStr}' {gStackFileGlob}", shell=True, stdout=PIPE)
     for line in proc.stdout:
@@ -72,16 +94,21 @@ def checkLogFileDetails(allFiles, totalCnt):
     except KeyError:
       searchStrNum = 0
 
-    print(f"  {searchStrNum}")
-    print()
+    # 17/3/24 DH: Move to ordered display function
+    #print(f"  {searchStrNum}")
+    #print()
+
     subTotal += searchStrNum
 
     proc.wait()
     proc.terminate()
   # END: --- for searchStr in gStringList ---
   
+  displayOrderedList(strDict)
+
+  sigtermCnt = getSIGTERMcnt()
   totalRemaining = totalCnt - subTotal
-  print(f"Total: {totalCnt}, Sub total: {subTotal}, Total remaining: {totalRemaining}")
+  print(f"Total: {totalCnt}, Sub total: {subTotal}, Total remaining: {totalRemaining}, SIGTERM cnt: {sigtermCnt}")
   if totalRemaining > 0:
     print(f"Total files remaining:")
     for logFile in allFiles:

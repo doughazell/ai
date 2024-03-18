@@ -52,6 +52,7 @@ scriptDir = os.path.dirname(os.path.realpath(__file__))
   searchAllReadlines(initLines, lines, totalEmptyLines)
   waitForKeyboardInterrupt(parseFile, parseFD)
   checkForSIGTERM(stackFilename)
+  getSIGTERMcnt()
   
 # -----------------------------------------------------------------------------------
 """
@@ -502,6 +503,10 @@ def checkForSIGTERM(stackFilename):
   if sigtermFlag:
     os.remove(stackFilename)
 
+# 17/3/24 DH:
+def getSIGTERMcnt():
+  global gSIGTERMcnt
+  return gSIGTERMcnt
 
 if __name__ == "__main__":
   

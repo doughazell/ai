@@ -264,7 +264,7 @@ if __name__ == "__main__":
   import signal
   signal.signal(signal.SIGINT, signal_handler)
 
-  runRandomIntervalCapture(iterations=2)
+  runRandomIntervalCapture(iterations=2000)
   sortErrorLogs()
 
   # TEST HARNESS FOR PARSING STDERR
