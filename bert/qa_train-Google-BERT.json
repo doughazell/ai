@@ -10,8 +10,6 @@
   "doc_stride": 128,
   "output_dir": "previous_output_dir-Google-BERT",
 
-  
-
   "save_strategy": "epoch",
   "save_total_limit": 2
 

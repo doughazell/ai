@@ -212,7 +212,7 @@ def populateDB(stackFile, trainingFunction, records):
     print(e)
 
 # 2/3/24 DH:
-def parseTrainerStack(stackFile):
+def parseTrainerStack(stackFile, sleepToInterruptSecs):
   records = []
 
   with open(stackFile) as source :
@@ -268,7 +268,15 @@ def parseTrainerStack(stackFile):
     populateDB(stackFile, trainingFunction, records)
   else:
     newStackFilename = saveStackTraceFile(stackFile)
-    print(f"There is no 'trainingFunction' in {stackFile} so saving to {newStackFilename}")
+    print()
+    line = f"There is no 'trainingFunction' in {stackFile} so saving to {newStackFilename}"
+    print(line)
+
+    # 18/3/24 DH: Need to append data to file like 'waitForKeyboardInterrupt()'
+    with open(newStackFilename, "a") as stackFileFD:
+      stackFileFD.write("\n")
+      line = f"There is no 'trainingFunction' found after sleeping {sleepToInterruptSecs} secs"
+      stackFileFD.write(line + "\n")
 
 # 8/3/24 DH:
 def getCmdLineArgs():
@@ -362,7 +370,7 @@ def searchAllReadlines(initLines, lines, totalEmptyLines):
 #            ('parseFDwriter' is INTEGER ARRAY used to chunk the file to simulate phased IO)
 #
 # NOTE: TQDM uses '^M' to get new-line which is displayed by Vi on same line as following text
-def waitForKeyboardInterrupt(parseFile, parseFDwriter):
+def waitForKeyboardInterrupt(parseFile, parseFDwriter, sleepToInterruptSecs):
   # 2/3/24 DH: If being used to get a stack trace then it does not wait in 'sigintPIDFromTrainerLog()'
   #            ("KeyboardInterrupt" is the last line of the stack trace, SOMETIMES PENULTIMATE when sched immediately)
 
@@ -463,8 +471,11 @@ def waitForKeyboardInterrupt(parseFile, parseFDwriter):
   if totalSleeps == maxSleeps and isinstance(parseFDwriter, io.IOBase) and "KeyboardInterrupt" not in lastLine:
     # 8/3/24 DH: Need to add "Last line" printout above to end of complete file 
     #            (in order to add new code pathways to cover unusual scheduling events)
+
+    # 18/3/24 DH: Add sleep time to output
     parseFDwriter.write("\n")
     parseFDwriter.write("\n")
+    parseFDwriter.write(f"Sleep time before interrupt: {sleepToInterruptSecs}\n")
     parseFDwriter.write("Script used lines\n")
     parseFDwriter.write("-----------------\n")
     for line in printLineList:

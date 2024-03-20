@@ -219,7 +219,8 @@ def runStackTraceCapture(deltaSecs, firstTimeFlag):
   sigintPIDFromTrainerLog(scriptDir, args, waitFlag=False)
 
   print(f"stackTextFDwriter: {stackTextFDwriter}")
-  stackRecdOK, newStackFilename = waitForKeyboardInterrupt(stackTextFDname, stackTextFDwriter)
+  # 18/3/24 DH: Adding 'sleepSecs' to 'waitForKeyboardInterrupt()' to record when the interrupt occurred
+  stackRecdOK, newStackFilename = waitForKeyboardInterrupt(stackTextFDname, stackTextFDwriter, sleepSecs)
 
   # 16/3/24 DH: 'no-stack/stack-20240316-090124.txt'
   #   1/2) Window of opportunity for 'KeyboardInterrupt' to be in "NamedPipe" from last 'source.readlines()'...
@@ -236,7 +237,8 @@ def runStackTraceCapture(deltaSecs, firstTimeFlag):
   
   if stackRecdOK:
     scriptDir = os.path.dirname(os.path.realpath(__file__))
-    parseTrainerStack( os.path.join(scriptDir, stackTextFDname) )
+    # 18/3/24 DH: Adding 'sleepSecs' to 'parseTrainerStack()' to record when the interrupt occurred
+    parseTrainerStack( os.path.join(scriptDir, stackTextFDname), sleepSecs)
   else:
     sleepSecs = 1
     print(f"Stack trace not rec'd in '{newStackFilename}' so sleeping for {sleepSecs} secs before checking for object clean up...")
