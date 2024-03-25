@@ -317,6 +317,8 @@ def createLoggers(training_args):
 
 # 14/2/24 DH: If the data came from 'json' rather than 'arrow' then there will be an extra 'list' layer 
 #             (due to 'datasets' arrow formatting)
+#
+# 14/2/24 DH: Currently causes, "'Dataset' object does not support item assignment" when attempt to chg top level
 def stripListArrowLayer(_datasets):
   toplevelDict = _datasets.column_names
   print()

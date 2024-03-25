@@ -9,6 +9,7 @@ import subprocess, time, os, copy
 from subprocess import Popen, PIPE, STDOUT
 
 from stop_trainer import getSIGTERMcnt
+from stop_trainer_utils import graphSleeptimeDistrib
 # 20/3/24 DH:
 import matplotlib.pyplot as plt
 
@@ -38,6 +39,19 @@ gOutputFile = "stack_error_logs.txt"
 gFilenamesFile = "stack_error_log_files.txt"
 # ---------------------------------------------------------------
 
+# --------------------------- FUNCTIONS -------------------------
+"""
+deleteLogFiles(strDict)
+recordLogFiles(strDict)
+displayOrderedList(strDict)
+checkLogFileDetails(allFiles, totalCnt)
+graphSleeptimeDistrib(xVals, yVals)
+getNoTrgFuncTotals(xVals, yVals)
+outputStatementList()
+getTypesWithoutTrgFuncError(tmpStrDict, noTrgFuncFileList)
+sortErrorLogs()
+"""
+# ---------------------------------------------------------------
 def deleteLogFiles(strDict):
   gDeleteList.append("")
   gDeleteList.append("Removing:")
@@ -132,21 +146,6 @@ def checkLogFileDetails(allFiles, totalCnt):
 
   return strDict
 
-# 20/3/24 DH: Taken from 'qa_lime.py::graphTokenVals(startVals, endVals)'
-def graphSleeptimeDistrib(xVals, yVals):
-  #plt.plot(range(len(startVals)), startVals, label="Start logits")
-  #plt.legend(loc="upper left")
-  #plt.ylim(ymin=0, ymax=50)
-  #plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
-
-  plt.plot(xVals, yVals, label="Time distribution")
-  plt.title("Distribution of intervals giving no training function necessary for DB")
-  plt.xlabel("Times")
-  plt.ylabel("Number of files")
-
-  plt.draw()
-  plt.show()
-
 # 18/3/24 DH:
 def getNoTrgFuncTotals(xVals, yVals):
   fileList = []
@@ -214,6 +213,7 @@ def getNoTrgFuncTotals(xVals, yVals):
 
     gStatementList.append(f"    ({key} secs) {sleepTimeDict[key]}")
 
+    # 20/3/24 DH: Gets propagated back to caller
     xVals.append(key)
     yVals.append(sleepTimeDict[key])
   # ------------------------------------------------------------------------------
@@ -252,7 +252,8 @@ def getTypesWithoutTrgFuncError(tmpStrDict, noTrgFuncFileList):
     #   2) key = list(filter(lambda x: my_dict[x] == 100, my_dict))[0]
   
   print()
-  print( "  -----------")
+  print(f"  STACK LOG TYPES WITHOUT TRG FUNC ERROR")
+  print( "  --------------------------------------")
 
   totalCnt = 0
   keyNum = 0
