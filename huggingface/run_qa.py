@@ -472,8 +472,8 @@ def main():
             # We will label impossible answers with the index of the CLS token.
             input_ids = tokenized_examples["input_ids"][i]
 
-            # 23/3/24 DH: BertTokenizer/BartTokenizer centric NOT "T5" 
-            #             
+            # 25/3/24 DH: Despite indicating that T5 was not suitable for Q&A it has been trained for Q&A just by changing the 
+            #             'learning_rate' + 'cls_index' (below)
             # https://github.com/huggingface/transformers/tree/main/examples/pytorch/question-answering#fine-tuning-t5-on-squad20
             # "The run_seq2seq_qa.py script is meant for encoder-decoder (also called seq2seq) Transformer models, such as T5 or BART. 
             #  These models are generative, rather than discriminative."
@@ -542,6 +542,7 @@ def main():
         # Create train feature from dataset
         with training_args.main_process_first(desc="train dataset map pre-processing"):
             train_dataset = train_dataset.map(
+                # 25/3/24 DH: Get tokenized_examples = tokenizer(...) + {start_positions, end_positions} cross references (aka "labels")
                 prepare_train_features,
                 batched=True,
                 num_proc=data_args.preprocessing_num_workers,

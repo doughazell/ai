@@ -170,12 +170,16 @@ def getCorrectModelAndTokenizer(model_name, model_args, origTokenizer):
 
 def getModelOutput(raw_data, tokenizer, data_args, model_args):
 
+  # Model needs to set here (so can easily use HuggingFace Hub model or local directory specified by 'model_name_or_path')
+  # -----------------------
   #model_name = "sjrhuschlee/flan-t5-base-squad2"
+
   #model_name = "previous_output_dir-Google-BERT"
   #model_name = "previous_output_dir-Google-BERT/checkpoint-14216"
+  
   # 23/3/24 DH:
-  model_name = "previous_output_dir-Google-T5"
-  #model_name = "previous_output_dir-Google-TEST"
+  #model_name = "previous_output_dir-Google-T5"
+  model_name = "previous_output_dir-Fairseq-BART"
   
   # ----------------------------------------------------------------------------
   (model, tokenizer) = getCorrectModelAndTokenizer(model_name, model_args, tokenizer)

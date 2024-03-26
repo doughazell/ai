@@ -1,0 +1,9 @@
+{
+  "model_name_or_path": "facebook/bart-base",
+  
+  "train_file": "data.json",
+
+  "do_train": "True",
+  "num_train_epochs": 11,
+  "output_dir": "previous_output_dir-Fairseq-BART"
+}
