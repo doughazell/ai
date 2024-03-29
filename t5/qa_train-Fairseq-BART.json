@@ -4,6 +4,6 @@
   "train_file": "data.json",
 
   "do_train": "True",
-  "num_train_epochs": 11,
+  "num_train_epochs": 1,
   "output_dir": "previous_output_dir-Fairseq-BART"
 }

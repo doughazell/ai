@@ -4,6 +4,6 @@
   "train_file": "data.json",
 
   "do_train": "True",
-  "num_train_epochs": 11,
+  "num_train_epochs": 10,
   "output_dir": "previous_output_dir-Google-BERT"
 }

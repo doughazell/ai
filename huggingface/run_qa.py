@@ -723,6 +723,39 @@ def main():
             checkpoint = training_args.resume_from_checkpoint
         elif last_checkpoint is not None:
             checkpoint = last_checkpoint
+        # ---------------------------------------------------------------
+        # 27/3/24 DH:
+        #
+        # 'transformers/models/bert/modeling_bert.py'
+        #   BertForQuestionAnswering.forward()
+        #     return QuestionAnsweringModelOutput()
+        #
+        # 'transformers/modeling_outputs.py'
+        #   QuestionAnsweringModelOutput(ModelOutput)
+        """
+              (Pdb) sequence_output.shape
+              torch.Size([8, 384, 768])
+
+              (Pdb) qaModelOutput['start_logits'].shape
+              torch.Size([8, 384]) => 'per_device_train_batch_size' default 8 (BERT/SQuAD training used 12)
+                                   => 'max_seq_length' default 384
+
+                https://discuss.huggingface.co/t/squad-bert-why-max-length-384-by-default-and-not-512/11693/2
+                "This maximum length refers to the combined length of the question and context, right?"
+
+                "We use the same default as the Google scripts to reproduce their results. I'm guessing the 384 was a 
+                compromise for the regular SQUAD dataset between having most question/contexts be tokenized without any 
+                truncation while keeping something small to go fast."
+
+              (Pdb) qaModelOutput['end_logits'].shape
+              torch.Size([8, 384])
+              (Pdb) qaModelOutput['loss'].shape
+              torch.Size([])
+
+              (Pdb) qaModelOutput['loss']
+              tensor(6.0426, grad_fn=<DivBackward0>)
+        """
+        # ---------------------------------------------------------------
         train_result = trainer.train(resume_from_checkpoint=checkpoint)
         trainer.save_model()  # Saves the tokenizer too for easy upload
 

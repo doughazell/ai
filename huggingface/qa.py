@@ -415,7 +415,7 @@ def main():
   printDatasetInfo(raw_datasets)
   
   raw_data = raw_datasets["train"][0]
-  getModelOutput(raw_data, tokenizer, data_args, model_args)
+  getModelOutput(raw_data, tokenizer, data_args, model_args, training_args)
 
 
 

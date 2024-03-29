@@ -4,15 +4,15 @@ import numpy as np
 from transformers import T5ForQuestionAnswering, T5ForConditionalGeneration, BertForQuestionAnswering, AutoTokenizer, BartForQuestionAnswering
 import matplotlib.pyplot as plt
 
-def stripListLayer(_question, _context, _answer):
-  if isinstance(_question, list):
-    _question = _question[0]
+def getListElem(_questions, _contexts, _answers, index):
+  if isinstance(_questions, list):
+    _question = _questions[index]
   
-  if isinstance(_context, list):
-    _context = _context[0]
+  if isinstance(_contexts, list):
+    _context = _contexts[index]
   
-  if isinstance(_answer, list):
-    _answer = _answer[0]
+  if isinstance(_answers, list):
+    _answer = _answers[index]
 
   return (_question, _context, _answer)
 
@@ -42,7 +42,7 @@ def printDatasetInfo(raw_datasets):
     print("---")
 
 # 19/2/24 DH: Taken from 'real_bday_paradox.py'
-def graphTokenVals(startVals, endVals):
+def graphTokenVals(startVals, endVals, tokWordStr, tokIDStr):
   
   # from 'lime_utils.py::displayCoefficients()'
   #plt.axhline(y=0, color='green', linestyle='-')
@@ -56,6 +56,12 @@ def graphTokenVals(startVals, endVals):
   plt.title("Logits by token ID")
   plt.xlabel("Token ID")
   plt.ylabel("Logit value")
+
+  # From 'stop_trainer_utils.py::displayIntervals(intervalLog)'
+  #legendStr = f"{mTxt:>24} {mRound}\n{bTxt:>22} {bRound}\n{rvTxt:>23} {rvalue}\n{sdTxt:>20} {stderr}\n{inTxt} {intercept_stderr}"
+  #plt.figtext(0.2, 0.2, legendStr)
+  legendStr = f"{tokWordStr}\n{tokIDStr}"
+  plt.figtext(0.15, 0.2, legendStr)
 
   plt.draw()
   plt.show()
@@ -72,7 +78,7 @@ def transformerLIMEing(output, tokenizer, all_tokens):
   
   tokNum = 10
   
-  # 6/2/24 DH: [-5:][::-1] MEANS...take an array from end-5, then take an array with reverse order
+  # 6/2/24 DH: "[-5:][::-1]" MEANS take an array from end-5, then take an array with reverse order
   start_logits_dump = np.sort(start_logits_dump[0])[-tokNum:][::-1]
   start_logits_dump = [np.round(value) for value in start_logits_dump]
 
@@ -92,16 +98,41 @@ def transformerLIMEing(output, tokenizer, all_tokens):
   print(f"output['end_logits']:   {len(output['end_logits'][0])}, {end_logits_dump}")
   print()
   print(f"all_tokens: {len(all_tokens)}, {all_tokens.__class__}")
-  print(tokenizer.decode(tokenizer.convert_tokens_to_ids(all_tokens)))
+  
+  # 26/3/24 DH:
+  tokenIDs = range(len(all_tokens))
+
+  tokWordStr = ""
+  tokIDStr = ""
+  tokIDStrPLT = ""
+  for i in tokenIDs:
+    tokWord = tokenizer.decode( tokenizer.convert_tokens_to_ids(all_tokens[i]) )
+    tokWordStr += f"{tokWord},"
+
+    tokWordLen = len(tokWord)
+    tokWordLenPLT = tokWordLen
+    if tokWordLen > 3:
+      tokWordLenPLT += 1
+
+    tokWordSpace = tokWordLen - len(str(i))
+    sp = ""
+    # This renders different on cmd line and 'plt.draw()'
+    tokIDStr += f"{sp:>{tokWordSpace}}{i},"
+    tokIDStrPLT += f"{sp:>{tokWordLenPLT}}{i},"
+
+  print(tokWordStr)
+  print(tokIDStr)
+  print()
 
   startVals = []
   endVals = []
-  for i in range(len(all_tokens)):
+  for i in tokenIDs:
     # 2 layers of decoding: tok -> id -> syllable/word
     tokWord = tokenizer.decode( tokenizer.convert_tokens_to_ids(all_tokens[i]) )
     startTokVal = np.round(start_logits_dumpORIG[0][i])
     endTokVal = np.round(end_logits_dumpORIG[0][i])
 
+    # Used for 'graphTokenVals(startVals, endVals)'
     startVals.append(startTokVal)
     endVals.append(endTokVal)
 
@@ -120,7 +151,7 @@ def transformerLIMEing(output, tokenizer, all_tokens):
   print("ANSWER: ", answer)
   print("------")
 
-  graphTokenVals(startVals, endVals)
+  graphTokenVals(startVals, endVals, tokWordStr, tokIDStrPLT)
 
 # 24/3/24 DH:
 def getCorrectModelAndTokenizer(model_name, model_args, origTokenizer):
@@ -168,18 +199,22 @@ def getCorrectModelAndTokenizer(model_name, model_args, origTokenizer):
   return (model, tokenizer)
 
 
-def getModelOutput(raw_data, tokenizer, data_args, model_args):
+def getModelOutput(raw_data, tokenizer, data_args, model_args, training_args):
 
-  # Model needs to set here (so can easily use HuggingFace Hub model or local directory specified by 'model_name_or_path')
+  # Model needs to set here (so can easily use HuggingFace Hub model or local directory specified by 'output_dir')
   # -----------------------
   #model_name = "sjrhuschlee/flan-t5-base-squad2"
 
+  # Initial training of BERT/SQuAD
+  # (from: https://github.com/huggingface/transformers/tree/main/examples/pytorch/question-answering#fine-tuning-bert-on-squad10)
   #model_name = "previous_output_dir-Google-BERT"
   #model_name = "previous_output_dir-Google-BERT/checkpoint-14216"
-  
-  # 23/3/24 DH:
-  #model_name = "previous_output_dir-Google-T5"
-  model_name = "previous_output_dir-Fairseq-BART"
+
+  model_name = training_args.output_dir
+
+  # 26/3/24 DH: BERT/BART trained custom JSON in 1 epoch so graphing untrained models
+  #model_name = "google-bert/bert-base-uncased"
+  #model_name = "facebook/bart-base"
   
   # ----------------------------------------------------------------------------
   (model, tokenizer) = getCorrectModelAndTokenizer(model_name, model_args, tokenizer)
@@ -191,13 +226,14 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args):
   
   #tokenizer.cls_token = '<cls>'
   #question = f"{tokenizer.cls_token}{raw_data['question']}"
-  question = raw_data['question']
-  context = raw_data['context']
-  answer = raw_data['answers']
+  questions = raw_data['question']
+  contexts = raw_data['context']
+  answers = raw_data['answers']
   #context = context.replace('as a child, and rose to fame in the late 1990s ', '')
 
   # 14/2/24 DH:
-  (question, context, answer) = stripListLayer(question, context, answer)
+  index = 2 # index = (#item - 1)
+  (question, context, answer) = getListElem(questions, contexts, answers, index)
   #answer = raw_data['answers']['text'][0]
   answer = answer['text'][0]
   """
@@ -217,6 +253,21 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args):
   print("CONTEXT: ", context)
   print("ANSWER: ", answer)
 
+  # --- DEBUG ---
+  # 27/3/24 DH: Taken from "(Pdb) input_ids[0]" ('BertForQuestionAnswering.forward()' in 'transformers/models/bert/modeling_bert.py')
+  # FIRST ENTRY 1nd time in 'BertForQuestionAnswering.forward()' input_ids[0] (ie #9 in JSON) - SAME EACH TIME 'run_qa.py' RUN
+  #debug_tokens = [101,  2073,  2003,  1996,  2082,  1029,   102,  1996,  2082,  2003, 3875,  1996, 26821,  2100,  3023,   102]
+  
+  # LAST ENTRY 2nd time in 'BertForQuestionAnswering.forward()' input_ids[1] (ie #8 in JSON)
+  #debug_tokens = [101, 2043, 2079, 4654, 5669, 2015, 5258, 1029,  102, 4654, 5669, 2015, 5258, 2012, 1996, 5353,  102]
+  
+  # FIRST ENTRY 2nd time
+  debug_tokens = [101, 2043, 2003, 6350, 1029,  102, 6350, 2003, 2012, 1021, 3286,  102]
+  
+  debug_txt = tokenizer.decode(debug_tokens)
+  
+  print(f"debug_txt: {debug_txt}")
+
   """
   
   # DEBUG FOR 'encoding' SENT TO "model(encoding['input_ids']")
@@ -227,7 +278,7 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args):
   print("-------")
   print("context encoding: ", contextEncoding['input_ids'])
   """
-  
+
   # 'transformers/tokenization_utils_base.py(2731)__call__()'
   encoding = tokenizer(question, context, return_tensors="pt")
 

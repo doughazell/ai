@@ -42,10 +42,12 @@ scriptDir = os.path.dirname(os.path.realpath(__file__))
 # -----------------------------------------------------------------------------------
   Functions
   ---------
-  saveStackTraceFile(stackTextFDname)
+  
   getOrCreateDB(stackFile, trainingFunction)
   checkForRecord(cursor, stmnt, tallyFieldNum)
   populateDB(stackFile, trainingFunction, records)
+  
+  saveStackTraceFile(stackTextFDname)
   parseTrainerStack(stackFile)
   getCmdLineArgs()
   sigintPIDFromTrainerLog(scriptDir, waitFlag=True)
@@ -57,15 +59,7 @@ scriptDir = os.path.dirname(os.path.realpath(__file__))
 # -----------------------------------------------------------------------------------
 """
 
-# 4/3/24 DH:
-def saveStackTraceFile(stackTextFDname):
-  # Record the stack trace for user inspection for bug-fix
-  # copy 'stack.txt' to 'stack-DTG.txt'
-  stackDTGname = time.strftime("stack-%Y%m%d-%H%M%S.txt")
-  os.rename(stackTextFDname, stackDTGname)
-  
-  return stackDTGname
-
+# =========================================== START DB FUNCTIONS =============================================
 # 3/3/24 DH: (This probably will be moved into a separate file at some point)
 """
   # 2/3/24 DH: 'trainingFunction' Table
@@ -210,6 +204,17 @@ def populateDB(stackFile, trainingFunction, records):
     cursor.close()
   except sqlite3.OperationalError as e:
     print(e)
+# =========================================== END DB FUNCTIONS ===============================================
+
+
+# 4/3/24 DH:
+def saveStackTraceFile(stackTextFDname):
+  # Record the stack trace for user inspection for bug-fix
+  # copy 'stack.txt' to 'stack-DTG.txt'
+  stackDTGname = time.strftime("stack-%Y%m%d-%H%M%S.txt")
+  os.rename(stackTextFDname, stackDTGname)
+  
+  return stackDTGname
 
 # 2/3/24 DH:
 def parseTrainerStack(stackFile, sleepToInterruptSecs):
