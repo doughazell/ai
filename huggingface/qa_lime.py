@@ -151,6 +151,7 @@ def transformerLIMEing(output, tokenizer, all_tokens):
   print("ANSWER: ", answer)
   print("------")
 
+  #print("NOT CALLING: 'graphTokenVals()'")
   graphTokenVals(startVals, endVals, tokWordStr, tokIDStrPLT)
 
 # 24/3/24 DH:
@@ -255,18 +256,13 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args, training_args):
 
   # --- DEBUG ---
   # 27/3/24 DH: Taken from "(Pdb) input_ids[0]" ('BertForQuestionAnswering.forward()' in 'transformers/models/bert/modeling_bert.py')
-  # FIRST ENTRY 1nd time in 'BertForQuestionAnswering.forward()' input_ids[0] (ie #9 in JSON) - SAME EACH TIME 'run_qa.py' RUN
-  #debug_tokens = [101,  2073,  2003,  1996,  2082,  1029,   102,  1996,  2082,  2003, 3875,  1996, 26821,  2100,  3023,   102]
-  
-  # LAST ENTRY 2nd time in 'BertForQuestionAnswering.forward()' input_ids[1] (ie #8 in JSON)
-  #debug_tokens = [101, 2043, 2079, 4654, 5669, 2015, 5258, 1029,  102, 4654, 5669, 2015, 5258, 2012, 1996, 5353,  102]
-  
+
   # FIRST ENTRY 2nd time
-  debug_tokens = [101, 2043, 2003, 6350, 1029,  102, 6350, 2003, 2012, 1021, 3286,  102]
+  #debug_tokens = [101, 2043, 2003, 6350, 1029,  102, 6350, 2003, 2012, 1021, 3286,  102]
   
-  debug_txt = tokenizer.decode(debug_tokens)
-  
-  print(f"debug_txt: {debug_txt}")
+  #debug_txt = tokenizer.decode(debug_tokens)
+  #print(f"debug_txt: {debug_txt}")
+  # -------------
 
   """
   
@@ -281,12 +277,11 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args, training_args):
 
   # 'transformers/tokenization_utils_base.py(2731)__call__()'
   encoding = tokenizer(question, context, return_tensors="pt")
-
-  """
   
+  print()
   print("Just passing 'encoding['input_ids'] to model(): ")
-  print(encoding['input_ids'])
-  """
+  print(f"  {encoding['input_ids'][0].tolist()}")
+  print()
   
   # T5ForConditionalGeneration results in: "ValueError: You have to specify either decoder_input_ids or decoder_inputs_embeds"
   output = model(
@@ -294,7 +289,7 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args, training_args):
     #attention_mask=encoding["attention_mask"]
   )
 
-  all_tokens = tokenizer.convert_ids_to_tokens(encoding["input_ids"][0].tolist())
+  all_tokens = tokenizer.convert_ids_to_tokens( encoding["input_ids"][0].tolist() )
   transformerLIMEing(output, tokenizer, all_tokens)
 
   

@@ -15,12 +15,46 @@ def niceWorkGoodjob():
 inputIdsWritten = False
 epochNum = 0
 
-def logLogits(input_ids, start_logits, end_logits, start_loss, end_loss):
+def getIDsAndLogits(input_ids, start_logits, end_logits, startDelta):
+  try:
+    inputIdsEnd = (input_ids[0] == 0).nonzero()[0]
+  except IndexError:
+    inputIdsEnd = input_ids[0].shape[0]
+
+  idxEnd = inputIdsEnd + startDelta
+
+  startLogitsList = (start_logits[0][0:idxEnd]).tolist()
+  startLogitsList = [round(value,2) for value in startLogitsList]
+
+  endLogitsList = (end_logits[0][0:idxEnd]).tolist()
+  endLogitsList = [round(value,2) for value in endLogitsList]
+
+  return (inputIdsEnd, startLogitsList, endLogitsList)
+
+# 30/3/24 DH: So that the same function can be used for a training run + model run
+def logLogits(input_ids, start_logits, end_logits, start_loss=None, end_loss=None):
   global epochNum
   global inputIdsWritten
 
+  startDelta = 2
+  
+  (inputIdsEnd, startLogitsList, endLogitsList) = getIDsAndLogits(input_ids, start_logits, end_logits, startDelta)
+
+  # Model run only gets called once
+  # -------------------------------
+  if start_loss == None:
+    import logging
+    sigLogger = logging.getLogger("trainer_signaller")
+    
+    sigLogger.info(f"input_ids[0]: {input_ids[0][0:inputIdsEnd]}")
+    sigLogger.info(f"startLogitsList (+{startDelta}): {startLogitsList}")
+    sigLogger.info(f"endLogitsList (+{startDelta}): {endLogitsList}")
+
+  # -------------------------------
+
   # 28/3/24 DH: Use Python logging rather than 'transformers.utils.logging'
-  #             (Take first entry of overflow batch from Dataset #10 with batch size #8)
+  #
+  # (DURING TRAINING: Take first entry of overflow batch from Dataset #10 with batch size #8)
   if start_logits.shape[0] == 2:
   
     epochNum += 1
@@ -28,7 +62,6 @@ def logLogits(input_ids, start_logits, end_logits, start_loss, end_loss):
     import logging
     sigLogger = logging.getLogger("trainer_signaller")
 
-    inputIdsEnd = (input_ids[0] == 0).nonzero()[0]
     # Need to add in 'input_ids[0]' on first time using global 'inputIdsWritten'
     # 30/3/24 DH: However it looks like there is randomisation of the dataset between epochs...!
     if not inputIdsWritten:
@@ -54,18 +87,13 @@ def logLogits(input_ids, start_logits, end_logits, start_loss, end_loss):
     print(f"            (-{endDelta}): {postEndEndList}")
     print()
 
-    startDelta = 2
-    idxEnd = inputIdsEnd + startDelta
-
-    startLogitsList = (start_logits[0][0:idxEnd]).tolist()
-    startLogitsList = [round(value,2) for value in startLogitsList]
+    
     sigLogger.info(f"{epochNum}) startLogitsList (+{startDelta}): {startLogitsList}")
     sigLogger.info(f"  {epochNum}) start_loss: {start_loss}")
 
-    endLogitsList = (end_logits[0][0:idxEnd]).tolist()
-    endLogitsList = [round(value,2) for value in endLogitsList]
     sigLogger.info(f"{epochNum}) endLogitsList (+{startDelta}): {endLogitsList}")
     sigLogger.info(f"  {epochNum}) end_loss: {end_loss}")
+  # END: ------ "if start_logits.shape[0] == 2" ------
 
 
 # https://github.com/huggingface/transformers/tree/main/examples/pytorch/question-answering#fine-tuning-bert-on-squad10

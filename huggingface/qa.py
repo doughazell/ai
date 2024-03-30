@@ -51,6 +51,10 @@ from transformers.utils.versions import require_version
 # 27/2/24 DH:
 from qa_lime import *
 
+# 30/3/24 DH:
+from checkpointing import *
+import checkpointing_config
+
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.38.0.dev0")
 
@@ -313,7 +317,11 @@ def main():
               "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
           )
 
-  # 3/3/24 DH: NO NEED TO CREATE LOGGERS FOR NON-TRAINING
+  # 3/3/24 DH:  PREVIOUSLY NO NEED TO CREATE LOGGERS FOR NON-TRAINING
+  # 30/3/24 DH: NOW, THE INPUT_IDS & LOGITS ARE LOGGED
+  # 30/3/24 DH: Needs to be after "Detecting last checkpoint" in order to create the first checkpoint with Ctrl-C 
+  #             (and prevent the need for "run/remove/rerun" involving, ' "overwrite_output_dir": "True" ')
+  createLoggers(training_args)
 
   # Set seed before initializing model.
   set_seed(training_args.seed)
