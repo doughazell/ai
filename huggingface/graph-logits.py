@@ -15,6 +15,26 @@ from scipy import stats
 
 trainer_log = "seq2seq_qa_INtrainer.log"
 
+# 30/3/24 DH:
+def getLoss(recordsDict, line, lossName, lossType):
+  # Search for f") {lossName}: "
+  lineSplit = re.split(rf"\) {lossName}: ", line)
+
+  if len(lineSplit) > 1:
+    linePart = lineSplit[1]
+    otherPart = lineSplit[0].strip()
+
+    loss = round(float(linePart),2)
+
+    lineSplit = re.split(r' ', otherPart)
+    epochNum = lineSplit[-1]
+
+    try:
+      recordsDict[lossType][epochNum] = loss
+    except KeyError as e:
+      recordsDict[lossType] = {}
+      recordsDict[lossType][epochNum] = loss
+
 def getLogits(recordsDict, line, logitsName, logitsType):
   # Search for f"{logitsName} (+2): "
   lineSplit = re.split(rf"{logitsName} \(.*\): ", line)
@@ -50,12 +70,16 @@ def collectLogits():
     print(f"You need to provide an 'output_dir'")
     exit(0)
   
-  with open(logitsLog) as source :
-    print()
-    print("Filename: ", logitsLog)
-    print("---------")
+  try:
+    with open(logitsLog) as source :
+      print()
+      print(f"Filename: {logitsLog}")
+      print( "--------")
 
-    textLines = [line.strip() for line in source.readlines() if line.strip()]
+      textLines = [line.strip() for line in source.readlines() if line.strip()]
+  except FileNotFoundError:
+    print(f"Filename: {logitsLog} NOT FOUND")
+    exit(0)  
   
   for line in textLines:
     # https://docs.python.org/3/library/re.html#re.split, "The solution is to use Python’s raw string notation for regular expression patterns; 
@@ -86,6 +110,16 @@ def collectLogits():
     if "endLogitsList" in line:
       getLogits(recordsDict, line, "endLogitsList", "end_logits")
 
+    # EXAMPLE:
+    # "2024-03-30 19:31:16,695 [INFO]   10) start_loss: 0.323818176984787"
+    if "start_loss" in line:
+      getLoss(recordsDict, line, "start_loss", "start_loss")
+    
+    # EXAMPLE:
+    # "2024-03-30 19:31:16,696 [INFO]   10) end_loss: 0.35229402780532837"
+    if "end_loss" in line:
+      getLoss(recordsDict, line, "end_loss", "end_loss")
+
   return recordsDict
 
 def displayLogits(recordsDict):
@@ -111,6 +145,7 @@ def displayLogits(recordsDict):
       print(f"{key} ({input_ids_len}): {recordsDict[key]}")
     else:
       print(f"{key}: {recordsDict[key]}")
+  print( "-----------")
 
 # 30/3/24 DH: There is an A & B order to data with B being consistently different in a proportion of the epochs
 def pruneLogits(recordsDict):
@@ -120,19 +155,41 @@ def pruneLogits(recordsDict):
 
   tokenLen = len(recordsDict['input_ids'])
 
+  deleteList = []
   for key in recordsDict:
     if "logits" in key:
       print(f"{key}:")
-      deleteList = []
+      
       for epochKey in recordsDict[key]:
         logitsLen = len(recordsDict[key][epochKey])
         if logitsLen != tokenLen + 2:
           print(f"  {epochKey}) logitsLen: {logitsLen}, tokenLen: {tokenLen}")
           deleteList.append(epochKey)
+    # END: --- if "logits" in key ---
 
-      for item in deleteList:
-        del recordsDict[key][item]
-  print("-------")
+    # Only add the epochKey once so use https://docs.python.org/3/tutorial/datastructures.html#sets
+    #   "A set is an unordered collection with no duplicate elements."
+    deleteSet = set(deleteList)
+    
+    if "logits" in key or "loss" in key:
+      print(f"Deleting '{key}' keys: {deleteSet}")
+      for item in deleteSet:
+        try:
+          del recordsDict[key][item]
+        except KeyError as e:
+          print(f"Unable to delete KEY: {key}, ITEM: {item}")
+    
+  # END: --- for key in recordsDict ---
+print("-------")
+
+# ------------------------------------------------ GRAPHING --------------------------------------------------
+def graphLossLines(recordsDict, keyVal, xVals):
+  yVals = recordsDict[keyVal].values()
+
+  if "end_loss" in keyVal:
+    plt.plot(xVals, yVals, label=f"end_loss", linestyle='dashed')
+  else:
+    plt.plot(xVals, yVals, label=f"start_loss")
 
 # 30/3/24 DH: The 'start_logits' should correlate with 'end_logits' so only need to check 'start_logits'
 def getEpochList(recordsDict):
@@ -190,10 +247,31 @@ def graphLogits(recordsDict):
   plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
 
   #plt.draw()
+  #plt.show()
+  plt.show(block=False)
+
+# 30/3/24 DH: Add the {start_loss + end_loss} line graph
+def graphLosses(recordsDict):
+  plt.figure()
+
+  plt.title("Losses from different training epochs")
+  plt.xlabel("Training epoch")
+  plt.ylabel("Loss value")
+
+  xVals = recordsDict["start_loss"].keys()
+
+  graphLossLines(recordsDict, "start_loss", xVals)
+  graphLossLines(recordsDict, "end_loss", xVals)
+  plt.legend(loc="upper right")
+
   plt.show()
+# -------------------------------------------------END: GRAPHING ---------------------------------------------
 
 if __name__ == "__main__":
   recordsDict = collectLogits()
-  displayLogits(recordsDict)
+
   pruneLogits(recordsDict)
+  displayLogits(recordsDict)
+  
   graphLogits(recordsDict)
+  graphLosses(recordsDict)

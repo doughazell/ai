@@ -235,14 +235,7 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args, training_args):
   # 14/2/24 DH:
   index = 2 # index = (#item - 1)
   (question, context, answer) = getListElem(questions, contexts, answers, index)
-  #answer = raw_data['answers']['text'][0]
   answer = answer['text'][0]
-  """
-  question = "When did Beyonce become famous?"
-  context = "Beyonce started singing as a child but became famous in the 1990s"
-  #context = "Beyonce became famous in 1990s and then went onto selling many records"
-  answer = ""
-  """
 
   print()
   if answer == "":
@@ -259,21 +252,9 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args, training_args):
 
   # FIRST ENTRY 2nd time
   #debug_tokens = [101, 2043, 2003, 6350, 1029,  102, 6350, 2003, 2012, 1021, 3286,  102]
-  
   #debug_txt = tokenizer.decode(debug_tokens)
   #print(f"debug_txt: {debug_txt}")
   # -------------
-
-  """
-  
-  # DEBUG FOR 'encoding' SENT TO "model(encoding['input_ids']")
-  # -----------------------------------------------------------
-  questionEncoding = tokenizer(question, return_tensors="pt")
-  contextEncoding = tokenizer(context, return_tensors="pt")
-  print("question encoding: ", questionEncoding['input_ids'])
-  print("-------")
-  print("context encoding: ", contextEncoding['input_ids'])
-  """
 
   # 'transformers/tokenization_utils_base.py(2731)__call__()'
   encoding = tokenizer(question, context, return_tensors="pt")
