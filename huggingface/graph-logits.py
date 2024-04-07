@@ -153,7 +153,11 @@ def pruneLogits(recordsDict):
   print("Pruning:")
   print("-------")
 
-  tokenLen = len(recordsDict['input_ids'])
+  try:
+    tokenLen = len(recordsDict['input_ids'])
+  except KeyError:
+    print(f"There are no 'input_ids' so check '{trainer_log}'")
+    exit(0)
 
   deleteList = []
   for key in recordsDict:
@@ -163,7 +167,7 @@ def pruneLogits(recordsDict):
       for epochKey in recordsDict[key]:
         logitsLen = len(recordsDict[key][epochKey])
         if logitsLen != tokenLen + 2:
-          print(f"  {epochKey}) logitsLen: {logitsLen}, tokenLen: {tokenLen}")
+          print(f"  '{epochKey}') logitsLen: {logitsLen}, tokenLen: {tokenLen}")
           deleteList.append(epochKey)
     # END: --- if "logits" in key ---
 
@@ -172,7 +176,7 @@ def pruneLogits(recordsDict):
     deleteSet = set(deleteList)
     
     if "logits" in key or "loss" in key:
-      print(f"Deleting '{key}' keys: {deleteSet}")
+      print(f"Deleting '{key}' keys ({deleteSet.__class__}): {deleteSet}")
       for item in deleteSet:
         try:
           del recordsDict[key][item]
@@ -199,17 +203,32 @@ def getEpochList(recordsDict):
   middleIdx = round(epochsLen / 2)
   print(f"epochs: {epochs}, middleIdx: {middleIdx}")
 
-  epochList.append(epochs[0])
-  epochList.append(epochs[middleIdx])
-  epochList.append(epochs[-1])
+  try:
+    epochList.append(epochs[0])
+    epochList.append(epochs[middleIdx])
+    epochList.append(epochs[-1])
+  except IndexError:
+    print()
+    print(f"*** THERE APPEARS TO BE AN ERROR ***")
+    print( "with: ")
+    displayLogits(recordsDict)
+    exit(0)
 
   return epochList
 
-def graphLogitLines(recordsDict, keyVal, xVals):
-  # 30/3/24 DH: Only graph {start, middle, end} logit values
+def graphLogitLines(recordsDict, keyVal, xVals, firstOnly=False):
+  # 30/3/24 DH: Only graph {start, middle, end} logit values for default graph
   epochList = getEpochList(recordsDict)
   epochListLen = len(epochList) - 1
+
+  # 1/4/24 DH: Graph at epoch 1 (which is different to untrained) to compare against 
+  #            'qa.py' run of specified epoch trained model
+  if firstOnly:
+    epochList = epochList[0]
+    epochListLen = 1
   
+  firstEnd = True
+  firstStart = True
   for epoch in epochList:
     lwVal = (int(epoch) / epochListLen) / 3
 
@@ -219,10 +238,19 @@ def graphLogitLines(recordsDict, keyVal, xVals):
     yValsLen = len(yVals)
     if xValsLen == yValsLen:
       
+      firstTitle = ""
       if "end" in keyVal:
-        plt.plot(xVals, yVals, label=f"{epoch}", linestyle='dashed', linewidth=lwVal)
+        if firstEnd:
+          firstTitle = "End "
+          firstEnd = False
+        
+        plt.plot(xVals, yVals, label=f"{firstTitle}#{epoch}", linestyle='dashed', linewidth=lwVal)
       else:
-        plt.plot(xVals, yVals, label=f"{epoch}", linewidth=lwVal)
+        if firstStart:
+          firstTitle = "Start "
+          firstStart = False
+        
+        plt.plot(xVals, yVals, label=f"{firstTitle}#{epoch}", linewidth=lwVal)
 
     # Shouldn't need this anymore after 'pruneLogits()'
     else:
@@ -233,7 +261,7 @@ def graphLogits(recordsDict):
   # 4/9/23 DH: Display all graphs simultaneously with 'plt.show(block=False)' (which needs to be cascaded)
   plt.figure()
 
-  plt.title("Logits from different training epochs")
+  plt.title("Logits by Token from different training epochs")
   plt.xlabel("Token ID")
   plt.ylabel("Logit value")
 
@@ -243,11 +271,13 @@ def graphLogits(recordsDict):
   graphLogitLines(recordsDict, "start_logits", xVals)
   graphLogitLines(recordsDict, "end_logits", xVals)
   plt.legend(loc="upper left")
+
+  #legendStr = f"Start logits: Solid line\nEnd logits:   Dotted line"
+  #plt.figtext(0.15, 0.2, legendStr)
   
   plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
 
   #plt.draw()
-  #plt.show()
   plt.show(block=False)
 
 # 30/3/24 DH: Add the {start_loss + end_loss} line graph
@@ -259,10 +289,31 @@ def graphLosses(recordsDict):
   plt.ylabel("Loss value")
 
   xVals = recordsDict["start_loss"].keys()
+  # Convert key strings into integers
+  xVals = [int(item) for item in xVals]
 
   graphLossLines(recordsDict, "start_loss", xVals)
   graphLossLines(recordsDict, "end_loss", xVals)
+  #plt.xticks(np.arange(0, 11, step=1))
   plt.legend(loc="upper right")
+
+  plt.show(block=False)
+
+def graphFirstLogits(recordsDict):
+  plt.figure()
+
+  plt.title("Logits by Token from different training epochs")
+  plt.xlabel("Token ID")
+  plt.ylabel("Logit value")
+
+  xValNum = recordsDict['input_ids'].shape[0]
+  xVals = range(xValNum + 2)
+
+  graphLogitLines(recordsDict, "start_logits", xVals, firstOnly=True)
+  graphLogitLines(recordsDict, "end_logits", xVals, firstOnly=True)
+  plt.legend(loc="upper left")
+  
+  plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
 
   plt.show()
 # -------------------------------------------------END: GRAPHING ---------------------------------------------
@@ -275,3 +326,4 @@ if __name__ == "__main__":
   
   graphLogits(recordsDict)
   graphLosses(recordsDict)
+  graphFirstLogits(recordsDict)

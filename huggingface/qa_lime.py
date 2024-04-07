@@ -8,11 +8,23 @@ def getListElem(_questions, _contexts, _answers, index):
   if isinstance(_questions, list):
     _question = _questions[index]
   
+  # 7/4/24 DH: Designed to cope with JSON data plus Arrow added list layer + normal Arrow Datasets
+  else:
+    _question = _questions
+  
   if isinstance(_contexts, list):
     _context = _contexts[index]
   
+  # 7/4/24 DH:
+  else:
+    _context = _contexts
+  
   if isinstance(_answers, list):
     _answer = _answers[index]
+  
+  # 7/4/24 DH:
+  else:
+    _answer = _answers
 
   return (_question, _context, _answer)
 
@@ -66,6 +78,34 @@ def graphTokenVals(startVals, endVals, tokWordStr, tokIDStr):
   plt.draw()
   plt.show()
 
+# 7/4/24 DH: Used with custom JSON cut-down data to learn about BERT (not SQuAD)
+def getTokStrings(all_tokens, tokenIDs, tokenizer):
+  
+  tokWordStr = ""
+  tokIDStr = ""
+  tokIDStrPLT = ""
+  
+  for i in tokenIDs:
+    tokWord = tokenizer.decode( tokenizer.convert_tokens_to_ids(all_tokens[i]) )
+    tokWordStr += f"{tokWord},"
+
+    tokWordLen = len(tokWord)
+    tokWordLenPLT = tokWordLen
+    if tokWordLen > 3:
+      tokWordLenPLT += 1
+
+    tokWordSpace = tokWordLen - len(str(i))
+    sp = ""
+    # This renders different on cmd line and 'plt.draw()'
+    tokIDStr += f"{sp:>{tokWordSpace}}{i},"
+    tokIDStrPLT += f"{sp:>{tokWordLenPLT}}{i},"
+
+  print(tokWordStr)
+  print(tokIDStr)
+  print()
+
+  return (tokWordStr, tokIDStrPLT)
+
 def transformerLIMEing(output, tokenizer, all_tokens):
   max_start_logits_idx = torch.argmax(output["start_logits"])
   max_end_logits_idx = torch.argmax(output["end_logits"])
@@ -97,32 +137,17 @@ def transformerLIMEing(output, tokenizer, all_tokens):
   print(f"output['start_logits']: {len(output['start_logits'][0])}, {start_logits_dump}")
   print(f"output['end_logits']:   {len(output['end_logits'][0])}, {end_logits_dump}")
   print()
-  print(f"all_tokens: {len(all_tokens)}, {all_tokens.__class__}")
+  all_tokens_len = len(all_tokens)
+  print(f"all_tokens: {all_tokens_len}, {all_tokens.__class__}")
   
-  # 26/3/24 DH:
-  tokenIDs = range(len(all_tokens))
+  tokenIDs = range(all_tokens_len)
 
-  tokWordStr = ""
-  tokIDStr = ""
-  tokIDStrPLT = ""
-  for i in tokenIDs:
-    tokWord = tokenizer.decode( tokenizer.convert_tokens_to_ids(all_tokens[i]) )
-    tokWordStr += f"{tokWord},"
-
-    tokWordLen = len(tokWord)
-    tokWordLenPLT = tokWordLen
-    if tokWordLen > 3:
-      tokWordLenPLT += 1
-
-    tokWordSpace = tokWordLen - len(str(i))
-    sp = ""
-    # This renders different on cmd line and 'plt.draw()'
-    tokIDStr += f"{sp:>{tokWordSpace}}{i},"
-    tokIDStrPLT += f"{sp:>{tokWordLenPLT}}{i},"
-
-  print(tokWordStr)
-  print(tokIDStr)
-  print()
+  # 7/4/24 DH:
+  if all_tokens_len < 20:
+    (tokWordStr, tokIDStrPLT) = getTokStrings(all_tokens, tokenIDs, tokenizer)
+  else:
+    tokWordStr = "" 
+    tokIDStrPLT = ""
 
   startVals = []
   endVals = []
@@ -208,12 +233,18 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args, training_args):
 
   # Initial training of BERT/SQuAD
   # (from: https://github.com/huggingface/transformers/tree/main/examples/pytorch/question-answering#fine-tuning-bert-on-squad10)
-  #model_name = "previous_output_dir-Google-BERT"
+  model_name = "previous_output_dir-Google-BERT"
   #model_name = "previous_output_dir-Google-BERT/checkpoint-14216"
 
-  model_name = training_args.output_dir
+  #model_name = training_args.output_dir
 
-  # 26/3/24 DH: BERT/BART trained custom JSON in 1 epoch so graphing untrained models
+  # 26/3/24 DH: BERT/BART trained batch size (default 8) sets in 1st epoch 'forward()' hook so graphing untrained models
+  """
+  print("    ---------------------")
+  print("*** USING UNTRAINED MODEL ***")
+  print("    ---------------------")
+  """
+  
   #model_name = "google-bert/bert-base-uncased"
   #model_name = "facebook/bart-base"
   
