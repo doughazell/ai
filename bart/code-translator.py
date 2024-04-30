@@ -11,11 +11,6 @@ from code_translator_data import Seq2SeqModelData
 import os
 from pathlib import Path
 
-# 14/1/24 DH:
-print("-----------------------------------------------------------------------------------------")
-print("Using Transformers BartForConditionalGeneration.from_pretrained('facebook/bart-large-cnn')")
-print("-----------------------------------------------------------------------------------------")
-
 # --------------------------------------------------------------------------------------------------------------
 # 22/1/24 DH:
 def getTensorFromIntStrList(intStrList) -> torch.tensor:
@@ -281,7 +276,9 @@ def runNewVocabTest(seq2seqModelData :Seq2SeqModelData, summaryWanted = False):
     tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
 
   print()
-  print("model.generate: ", model.generate.__qualname__)
+  print(f"model: {model}")
+  print(f"model.generate: {model.generate.__qualname__}")
+  print()
 
   """
   """
@@ -316,13 +313,18 @@ def runNewVocabTest(seq2seqModelData :Seq2SeqModelData, summaryWanted = False):
 # 25/1/24 DH:
 if __name__ == '__main__':
   
-  model = "facebook/bart-large-cnn"
   #model = "bert-base-cased"
-
   #trainSeqClassModel(model)
+
+  model = "facebook/bart-large-cnn"
+  """
   seq2seqModelData = trainSeq2SeqLM(model)
   print()
   print("Trained model name: ", seq2seqModelData.model_name_or_path)
   print()
+  """
 
+  seq2seqModelData = Seq2SeqModelData()
+  seq2seqModelData.model_name_or_path = model
+  
   runNewVocabTest(seq2seqModelData, summaryWanted = True)

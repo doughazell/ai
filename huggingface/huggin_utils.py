@@ -5,6 +5,31 @@
 #
 ##############################################################################
 
+# --------------------------- FUNCTIONS -------------------------
+"""
+niceWorkGoodjob()
+
+Q&A Logits
+----------
+getIDsAndLogits(batchIdx, input_ids, start_logits, end_logits, startDelta)
+logLogits(input_ids, start_logits, end_logits, start_loss=None, end_loss=None)
+
+JSON Arrow data
+---------------
+stripListLayer(examples)
+
+Optimizer Param Groups
+----------------------
+getBiasMapping()
+printParamSummary(i, param, step_size, lr, at_start=True)
+printGroupParams(i, group)
+print_decay_parameter_names(opt_model, decay_parameters)
+
+"""
+# ---------------------------------------------------------------
+
+import sys
+
 # 30/3/24 DH:
 def niceWorkGoodjob():
   print()
@@ -14,6 +39,10 @@ def niceWorkGoodjob():
 # 30/3/24 DH:
 inputIdsWritten = False
 epochNum = 0
+
+# ---------------------------------------------------------------
+# Q&A Logits
+# ---------------------------------------------------------------
 
 def getIDsAndLogits(batchIdx, input_ids, start_logits, end_logits, startDelta):
   
@@ -109,7 +138,10 @@ def logLogits(input_ids, start_logits, end_logits, start_loss=None, end_loss=Non
     sigLogger.info(f"  {epochNum}) end_loss: {end_loss}")
   # END: ------ "if start_logits.shape[0] == 2" ------
 
-
+# ---------------------------------------------------------------
+# JSON Arrow data
+# ---------------------------------------------------------------
+    
 # https://github.com/huggingface/transformers/tree/main/examples/pytorch/question-answering#fine-tuning-bert-on-squad10
 # "You might need to tweak the data processing inside the script if your data is structured differently."
 def stripListLayer(examples):
@@ -131,3 +163,113 @@ def stripListLayer(examples):
     print()
 
   print("-----------------------------------")
+
+# ---------------------------------------------------------------
+# Optimizer Param Groups
+# ---------------------------------------------------------------
+
+# 25/4/24 DH: Create global for population in 'AdamW.__init__()'
+gBiasMapping = []
+
+# 25/4/24 DH: Mapping comes from 'Trainer.create_optimizer()' so written out to file for dynamic data passing
+def getBiasMapping():
+  global gBiasMapping
+  try:
+    gp1_filename = "gp1-params.txt"
+    with open(gp1_filename) as fp:
+      gBiasMapping = [line.strip() for line in fp.readlines() if line.strip()]
+  except IOError as e:
+    print()
+    print(e)
+    print()
+
+def printParamSummary(i, param, step_size, lr, at_start=True):
+  if at_start:
+    if i == 0:
+      print(f"    step_size: {step_size}, lr: {lr}")
+
+    if i < 5:
+      # 23/4/24 DH: Debug of 'AdamW.step()' 'param_groups'
+      # 25/4/24 DH: Added global lookup table before '_single_tensor_adamw()' of layer names for Group 1 elem 'param_groups'
+      
+      if len(param.shape) == 1:
+        try:
+          print(f"    {i}) {param.shape}, '{gBiasMapping[i]}'")
+        except IndexError:
+          print(f"    {i}) {param.shape}, 'NO BIAS MAPPING'")
+
+        print(f"      param[:5] => {param[:5]}")
+      else:
+        print(f"    {i}) {param.shape}")
+        print(f"      param[:5] => {param[:5]}")
+
+  else: # at_end
+    print( "    ...")
+    print(f"    {i}) {param.shape}")
+    # Closure line from AdamW.step()
+    print( "  --------------------------------------")
+    print()
+
+# 25/4/24 DH:
+def printGroupParams(i, group):
+  print( "  --------------------------------------")
+  segment = ""
+  if i == 0:
+    segment = "ie 'weight'"
+  if i == 1:
+    segment = "ie Feedforward 'LayerNorm + bias'"
+  print(f"  AdamW.step(): [GROUP: {i}, {segment}] lr: {group['lr']}, betas: {group['betas']}, eps: {group['eps']}, initial_lr: {group['initial_lr']}")
+  print( "  ------------")
+
+# 26/4/24 DH:
+def print_decay_parameter_names(opt_model, all_layernorm_layers, decay_parameters):
+
+  # 25/4/24 DH: Adapted from 'Trainer.create_optimizer()' BUT USING 'n' versus 'p'
+  all_parameters = [n for n, p in opt_model.named_parameters()]
+  bias_parameters = [name for name in all_layernorm_layers if "weight" not in name]
+
+  non_decay_parameters = [n for n, p in opt_model.named_parameters() if (n not in decay_parameters and p.requires_grad)]
+  extraNonDecayParams = [n for n in non_decay_parameters if (n not in bias_parameters)]
+
+  print()
+
+  # 26/4/24 DH: All params
+  all_filename = "all-params.txt"
+  gp_name = "'all'"
+  print(f"Saving {gp_name:<15} param names to '{all_filename}'")
+  with open(all_filename, 'w') as sys.stdout:
+    for name in all_parameters:
+      print(name)
+  # ...reset 'sys.stdout'
+  sys.stdout = sys.__stdout__
+
+  # 26/4/24 DH: Group 0 params
+  gp0_filename = "gp0-params.txt"
+  gp_name = "'Group 0'"
+  print(f"Saving {gp_name:<15} param names to '{gp0_filename}'")
+  with open(gp0_filename, 'w') as sys.stdout:
+    for name in decay_parameters:
+      print(f"  {name}")
+  # ...reset 'sys.stdout'
+  sys.stdout = sys.__stdout__
+
+  # 25/4/24 DH: Group 1 params
+  gp1_filename = "gp1-params.txt"
+  gp_name = "'Group 1'"
+  print(f"Saving {gp_name:<15} param names to '{gp1_filename}'")
+  with open(gp1_filename, 'w') as sys.stdout:
+    for name in non_decay_parameters:
+      print(name)
+  # ...reset 'sys.stdout'
+  sys.stdout = sys.__stdout__
+
+  # 26/4/24 DH: Group 1 Extra params
+  gp1_extra_filename = "gp1-extra-params.txt"
+  gp_name = "'Group 1 Extra'"
+  print(f"Saving {gp_name:<15} param names to '{gp1_extra_filename}'")
+  with open(gp1_extra_filename, 'w') as sys.stdout:
+    for name in extraNonDecayParams:
+      print(f"  {name}")
+  # ...reset 'sys.stdout'
+  sys.stdout = sys.__stdout__  
+

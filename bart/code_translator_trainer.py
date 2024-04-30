@@ -416,6 +416,14 @@ def trainSeq2SeqLM(modelName) -> Seq2SeqModelData:
         if training_args.resume_from_checkpoint is not None:
             checkpoint = training_args.resume_from_checkpoint
         
+        # 9/4/24 DH:
+        print()
+        print(f"  (Defaults taken from: 'code_translator_trainer_arguments.py')")
+        print( "   -----------------------------------------------------------")
+        print(f"   Training: {model_args.model_name_or_path} (via API: 'trainSeq2SeqLM(modelName)' )")
+        print(f"   with: {data_args.dataset_name}")
+        print()
+
         # 30/1/24 DH: === CALL: 'Seq2SeqTrainer.train()'  ===
         train_result = trainer.train(resume_from_checkpoint=checkpoint)
 

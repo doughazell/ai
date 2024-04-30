@@ -1,7 +1,14 @@
 # 19/2/24 DH:
 import torch
 import numpy as np
-from transformers import T5ForQuestionAnswering, T5ForConditionalGeneration, BertForQuestionAnswering, AutoTokenizer, BartForQuestionAnswering
+from transformers import (
+  T5ForQuestionAnswering, 
+  T5ForConditionalGeneration, 
+  BertForQuestionAnswering, 
+  AutoTokenizer, 
+  BartForQuestionAnswering, 
+  RobertaForQuestionAnswering
+)
 import matplotlib.pyplot as plt
 
 def getListElem(_questions, _contexts, _answers, index):
@@ -190,14 +197,22 @@ def getCorrectModelAndTokenizer(model_name, model_args, origTokenizer):
     # 4/2/24 DH: See comment below re 'T5ForConditionalGeneration' vs 'T5ForQuestionAnswering'
     #model = T5ForConditionalGeneration.from_pretrained(model_name)
     model = T5ForQuestionAnswering.from_pretrained(model_name)
-  
+
+  # 9/4/24 DH:
+  elif "roberta" in model_name.lower():
+    model = RobertaForQuestionAnswering.from_pretrained(model_name)
+
+  # The default model uses: "model_name = training_args.output_dir", so need to use 'model_args'
+  # --------------------------------------------------------------------------------------------
+
   # https://huggingface.co/docs/transformers/model_doc/bart#transformers.BartForQuestionAnswering
   elif "bart" in model_args.model_name_or_path.lower():
     model = BartForQuestionAnswering.from_pretrained(model_name)
   
   elif "t5" in model_args.model_name_or_path.lower():
     model = T5ForQuestionAnswering.from_pretrained(model_name)
-
+  # --------------------------------------------------------------------------------------------
+  
   else:
     print()
     print( "  *****")
@@ -230,6 +245,11 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args, training_args):
   # Model needs to set here (so can easily use HuggingFace Hub model or local directory specified by 'output_dir')
   # -----------------------
   #model_name = "sjrhuschlee/flan-t5-base-squad2"
+  
+  # 8/4/24 DH: Downloading to prevent weeks of fine-tuning work on SQuAD2
+  #model_name = "deepset/bert-base-cased-squad2"
+  #model_name = "deepset/bert-base-uncased-squad2"
+  #model_name = "deepset/roberta-base-squad2"
 
   # Initial training of BERT/SQuAD
   # (from: https://github.com/huggingface/transformers/tree/main/examples/pytorch/question-answering#fine-tuning-bert-on-squad10)
@@ -300,6 +320,16 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args, training_args):
     encoding["input_ids"],
     #attention_mask=encoding["attention_mask"]
   )
+
+  # 24/4/24 DH: "pip install torchinfo" (https://github.com/TylerYep/torchinfo) "(formerly torch-summary)"
+  from torchinfo import summary
+  summary(model)
+
+  # 26/4/24 DH: Also try: https://github.com/mert-kurttutan/torchview, "pip install torchview; pip install graphviz"
+  from torchview import draw_graph
+  model_graph = draw_graph(model, input_data=encoding, depth=4, expand_nested=True, hide_inner_tensors=False)
+  # 29/4/24 DH: Now added to 'draw_graph()' since adding legend
+  #model_graph.visual_graph.render()
 
   all_tokens = tokenizer.convert_ids_to_tokens( encoding["input_ids"][0].tolist() )
   transformerLIMEing(output, tokenizer, all_tokens)
