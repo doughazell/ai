@@ -1,4 +1,76 @@
 # 30/4/24 DH:
+"""
+Written to add a legend to the generated GraphViz graph from 'torchview'
+
+Necessary alterations to 'torchview' codebase:
+----------------------------------------------
+SUMMARY:
+--------
+1) Add API call to 'draw_graph()'
+2) Store Torch component details in ModuleNode
+3) Add Dictionary to ComputationGraph to collate data
+4) Populate ComputationGraph Dictionary
+5) Add legend key to GraphViz component
+
+DETAILS:
+--------
+1) Add API call to 'draw_graph()'.
+torchview.py::draw_graph(…)
+  ...
+  model_graph.fill_visual_graph()
+
+  # Legend API call
+  addLegendToGV(model_graph, filename)
+  ...
+
+2) Add member variable to ModuleNode to hold the Torch component details 
+   (prior to populating 'ComputationGraph.module_unit_dict').
+compute_node.py::ModuleNode(Node).__init__(…)
+  ...
+  # 
+  self.module_unit_ID = module_unit
+  ...
+
+3) Add Dictionary to ComputationGraph to collate data to be added to the graph.
+computation_graph.py::ComputationGraph.reset_graph_history()
+  ...
+  # Dict to store 'module_unit' for later compare with model print out
+  self.module_unit_dict = {}
+  ...
+
+4) Add code to hold the Torch component details in ComputationGraph.module_unit_dict' via component number key.
+computation_graph.py::ComputationGraph.add_node(…)
+  ...
+  # Necessary to add legend to node graph
+  if hasattr(node, 'module_unit_ID'):
+    self.module_unit_dict[self.id_dict[node.node_id]] = node.module_unit_ID
+
+5) Alter the GraphViz HTML generating function to add the component number (ie the legend key)
+computation_graph.py::ComputationGraph.get_node_label(…)
+
+  if isinstance(node, TensorNode):
+    ...
+  else:
+    input_repr = compact_list_repr(node.input_shape)
+    output_repr = compact_list_repr(node.output_shape)
+
+    # ----------------------------------------------------------------------------------------------------
+    module_unit_num = ""
+    if hasattr(node, 'module_unit_ID'):
+
+      # Adding legend # to node box
+      module_unit_num = f"#{self.id_dict[node.node_id]}"
+    # ----------------------------------------------------------------------------------------------------
+
+    # Added '{module_unit_num}' to '{node.name}' row
+    label = f'''<
+        <TABLE BORDER="{border}" CELLBORDER="{cell_bor}"
+        CELLSPACING="{cell_sp}" CELLPADDING="{cell_pad}">
+        <TR>
+          <TD ROWSPAN="2">{module_unit}<BR/>{node.name}<BR/>depth:{node.depth}</TD>
+
+
+"""
 import graphviz
 # -----------------------------------------------   API  ----------------------------------------------------
 def addLegendToGV(model_graph, filename):
