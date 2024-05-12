@@ -1,0 +1,40 @@
+#! /bin/bash
+
+# ===============================================================
+# 17/12/23 DH: Backup changed deeppavlov files
+# 10/5/24 DH: Adapted from 'copy-deeppavlov-files'
+# ===============================================================
+echo
+echo "nice work, good job"
+echo
+
+PKGDIR="/Users/doug/.pyenv/versions/3.9.15/lib/python3.9/site-packages"
+DIR=`pwd`
+
+# 12/5/24 DH: Now saving from multiple packages in corresponding TLD
+mkdir -p copied-files
+
+cd $PKGDIR
+
+# 10/5/24 DH: Orig marking files with comment but now specifying files
+#FILES=`grep -rl 'DH:' *`
+
+FILES="
+  transformers/trainer.py
+  transformers/models/bert/modeling_bert.py
+  torch/nn/modules/linear.py
+"
+
+for FILE in ${FILES}
+do
+  echo "cp ${FILE} to ${DIR}"
+
+  # Parse on '/' and save first part of path from FILES entry
+  TLD=`echo ${FILE} | awk '{split($0, array, "/"); print array[1]}'`
+  mkdir -p ${DIR}/copied-files/${TLD}
+
+  cp ${PKGDIR}/${FILE} ${DIR}/copied-files/${TLD}
+done
+
+
+

@@ -63,6 +63,7 @@ def getIDsAndLogits(batchIdx, input_ids, start_logits, end_logits, startDelta):
 
 ############################################################################################
 # API CALLED FROM '*ForQuestionAnswering.forward()':
+#   import huggin_utils
 #   huggin_utils.logLogits(...) 
 #
 # 30/3/24 DH: The same function can be used for a training run + model run

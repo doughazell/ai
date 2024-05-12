@@ -196,12 +196,16 @@ def graphLossLines(recordsDict, keyVal, xVals):
     plt.plot(xVals, yVals, label=f"start_loss")
 
 # 30/3/24 DH: The 'start_logits' should correlate with 'end_logits' so only need to check 'start_logits'
-def getEpochList(recordsDict):
+def getEpochList(recordsDict, firstOnly):
   epochList = []
   epochs = list(recordsDict['start_logits'].keys())
   epochsLen  = len(epochs)
   middleIdx = round(epochsLen / 2)
-  print(f"epochs: {epochs}, middleIdx: {middleIdx}")
+
+  # 12/5/24 DH: Tidying up user output
+  if firstOnly == False:
+    print(f"    Initial epochs: {epochs}, middleIdx: {middleIdx}")
+    print(f"      Reduced to: [{epochs[0]}, {epochs[middleIdx]}, {epochs[-1]}] (as detailed in the graph legend)")
 
   try:
     epochList.append(epochs[0])
@@ -218,7 +222,7 @@ def getEpochList(recordsDict):
 
 def graphLogitLines(recordsDict, keyVal, xVals, firstOnly=False):
   # 30/3/24 DH: Only graph {start, middle, end} logit values for default graph
-  epochList = getEpochList(recordsDict)
+  epochList = getEpochList(recordsDict, firstOnly)
   epochListLen = len(epochList) - 1
 
   # 1/4/24 DH: Graph at epoch 1 (which is different to untrained) to compare against 
@@ -261,15 +265,22 @@ def graphLogits(recordsDict):
   # 4/9/23 DH: Display all graphs simultaneously with 'plt.show(block=False)' (which needs to be cascaded)
   plt.figure()
 
-  plt.title("Logits by Token from different training epochs")
+  # 12/5/24 DH: Providing more feedback to output stage
+  titleStr = "Logits by Token from different training epochs"
+
+  plt.title(titleStr)
   plt.xlabel("Token ID")
   plt.ylabel("Logit value")
 
   xValNum = recordsDict['input_ids'].shape[0]
   xVals = range(xValNum + 2)
 
+  print(f"\"{titleStr}\"")
+  print("  Adding start logits lines")
   graphLogitLines(recordsDict, "start_logits", xVals)
+  print("  Adding end logits lines")
   graphLogitLines(recordsDict, "end_logits", xVals)
+  print()
   plt.legend(loc="upper left")
 
   #legendStr = f"Start logits: Solid line\nEnd logits:   Dotted line"
@@ -302,15 +313,23 @@ def graphLosses(recordsDict):
 def graphFirstLogits(recordsDict):
   plt.figure()
 
-  plt.title("Logits by Token from different training epochs")
+  # 12/5/24 DH: Providing more feedback to output stage
+  titleStr = "Logits by Token from first training epoch"
+
+  plt.title(titleStr)
   plt.xlabel("Token ID")
   plt.ylabel("Logit value")
 
   xValNum = recordsDict['input_ids'].shape[0]
   xVals = range(xValNum + 2)
 
+  print(f"\"{titleStr}\"")
+  print("  (This reuses 'graphLogitLines()')")
+  print("  Adding start logits line")
   graphLogitLines(recordsDict, "start_logits", xVals, firstOnly=True)
+  print("  Adding end logits line")
   graphLogitLines(recordsDict, "end_logits", xVals, firstOnly=True)
+  print()
   plt.legend(loc="upper left")
   
   plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
@@ -319,6 +338,7 @@ def graphFirstLogits(recordsDict):
 # -------------------------------------------------END: GRAPHING ---------------------------------------------
 
 if __name__ == "__main__":
+  # 'trainer_log = "seq2seq_qa_INtrainer.log"' centric
   recordsDict = collectLogits()
 
   pruneLogits(recordsDict)
