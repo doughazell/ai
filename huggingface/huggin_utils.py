@@ -25,12 +25,16 @@ printParamSummary(i, param, step_size, lr, at_start=True)
 printGroupParams(i, group)
 print_decay_parameter_names(opt_model, decay_parameters)
 
+Storing layer weighting for graphing
+------------------------------------
+logWeightings(weight_tensor)
+
 """
 # ---------------------------------------------------------------
 
 import sys
 
-# 30/3/24 DH:
+# 30/3/24 DH: ;)
 def niceWorkGoodjob():
   print()
   print(f"  niceWorkGoodjob")
@@ -273,4 +277,94 @@ def print_decay_parameter_names(opt_model, all_layernorm_layers, decay_parameter
       print(f"  {name}")
   # ...reset 'sys.stdout'
   sys.stdout = sys.__stdout__  
+
+# ---------------------------------------------------------------
+# Storing layer weighting for graphing
+# ---------------------------------------------------------------
+
+# 12/5/24 DH:
+weightMapDict = {
+  0: "Start",
+  "Start": 767,
+  1: "End",
+  "End": 10,
+}
+weightValMatrix = [[],[]]
+# Start from elem 0 after first toggle
+gValMatrixIdx = 1
+
+def logWeightings(weight_tensor):
+  global gValMatrixIdx
+  # Toggle idx between [0,1]
+  gValMatrixIdx += 1
+  gValMatrixIdx = gValMatrixIdx % 2
+
+  print()
+  print( "  Logging weightings")
+  print( "  ------------------")
+  print(f"  (weightValMatrix[{gValMatrixIdx}])")
+  print()
+
+  # For 'qa_outputs.weight' it is [2,768]
+  weightsDim = list(weight_tensor.shape)
+
+  for idx in range(weightsDim[0]):
+    # ------------------------------------------------------------------------------------
+    # DEBUG
+    # -----
+    print(f"  {weightMapDict[idx]} logits weights :")
+    weightsWanted = 20
+    weightsLine = weight_tensor[idx][:weightsWanted].tolist()
+    valIdx = weightMapDict[weightMapDict[idx]]
+    print(f"    Elem {valIdx} whole number: {weight_tensor[idx][valIdx]}")
+    roundedWeights = [round(elem,3) for elem in weightsLine]
+    print()
+    print(f"    Rounded first {weightsWanted} elems of {weightsDim[1]} 'weight' array:")
+    print(f"      {roundedWeights}")
+    print( "  ---")
+    # ------------------------------------------------------------------------------------
+
+    # Add weights with full precision (prior to comparing with next 'weight_tensor' in order to find diffs prior to rounding)
+
+    # 13/5/24 DH: This needs to 'append()' iff 'weightValMatrix[gValMatrixIdx]' DOES NOT HAVE 'len(newWeights)'
+    newWeights = weight_tensor[idx].tolist()
+    newWeightsLen = len(newWeights)
+    try:
+      currWeightValMatrixLen = len(weightValMatrix[gValMatrixIdx][idx])
+    except IndexError:
+      print("    Setting 'currWeightValMatrixLen = 0'")
+      currWeightValMatrixLen = 0
+
+    print()
+    print(f"    NEW DEBUG: (newWeights len: {newWeightsLen}, weightValMatrix[{gValMatrixIdx}] len: {currWeightValMatrixLen})")
+
+    # Storing weights (currently with full precision)
+    # ---------------
+    if newWeightsLen != currWeightValMatrixLen:
+      print(f"    NEW DEBUG: weightValMatrix[{gValMatrixIdx}].append(newWeights)")
+      weightValMatrix[gValMatrixIdx].append(newWeights)
+    else:
+      # Remove previous weights arrays for (start+end)
+      print(f"    NEW DEBUG: weightValMatrix[{gValMatrixIdx}].pop(); weightValMatrix[{gValMatrixIdx}].append(newWeights)")
+      weightValMatrix[gValMatrixIdx].pop()
+      weightValMatrix[gValMatrixIdx].pop()
+      weightValMatrix[gValMatrixIdx].append(newWeights)
+    
+    print()
+  # END: --- "for idx in range(weightsDim[0])" ---
+
+  # Debug
+  print()
+  print("  ########## DEBUG POPULATED ELEMS ###########")
+  for idx in range(weightsDim[0]):
+    valIdx = weightMapDict[weightMapDict[idx]]
+    print(f"  {weightMapDict[idx]} idx {valIdx}: {weightValMatrix[gValMatrixIdx][idx][valIdx]}")
+    iLast = weightsDim[1] - 1
+    if valIdx < iLast:
+      print(f"  {weightMapDict[idx]} idx {iLast}: {weightValMatrix[gValMatrixIdx][idx][iLast]}")
+    print()
+  print("  ############################################")
+
+  breakpoint()
+  
 

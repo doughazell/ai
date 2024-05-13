@@ -23,17 +23,21 @@ FILES="
   transformers/trainer.py
   transformers/models/bert/modeling_bert.py
   torch/nn/modules/linear.py
+  tqdm/std.py
 "
 
 for FILE in ${FILES}
 do
-  echo "cp ${FILE} to ${DIR}"
+  
 
   # Parse on '/' and save first part of path from FILES entry
   TLD=`echo ${FILE} | awk '{split($0, array, "/"); print array[1]}'`
   mkdir -p ${DIR}/copied-files/${TLD}
 
   cp ${PKGDIR}/${FILE} ${DIR}/copied-files/${TLD}
+  echo "COPIED: '${FILE}'"
+  echo "    TO: 'copied-files/${TLD}'"
+  echo
 done
 
 
