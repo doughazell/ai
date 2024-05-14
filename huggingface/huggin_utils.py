@@ -33,6 +33,7 @@ logWeightings(weight_tensor)
 # ---------------------------------------------------------------
 
 import sys
+import matplotlib.pyplot as plt
 
 # 30/3/24 DH: ;)
 def niceWorkGoodjob():
@@ -73,6 +74,7 @@ def getIDsAndLogits(batchIdx, input_ids, start_logits, end_logits, startDelta):
 # 30/3/24 DH: The same function can be used for a training run + model run
 ############################################################################################
 def logLogits(input_ids, start_logits, end_logits, start_loss=None, end_loss=None):
+  # 14/5/24 DH: TODO: Pass 'epochNum' from 'forward()' (so correlated with checkpoint number rather than just a delta)
   global epochNum
   global inputIdsWritten
 
@@ -282,16 +284,127 @@ def print_decay_parameter_names(opt_model, all_layernorm_layers, decay_parameter
 # Storing layer weighting for graphing
 # ---------------------------------------------------------------
 
-# 12/5/24 DH:
+# 12/5/24 DH: MUTABLE variables (don't need to be accessed with 'global' to prevent local scope overlay)
 weightMapDict = {
   0: "Start",
   "Start": 767,
   1: "End",
   "End": 10,
 }
+# 13/5/24 DH: "transformers$ grep -r '\[\[\]\]' *"
 weightValMatrix = [[],[]]
+
+# 14/5/24 DH: IMMUTABLE variables (so need to be accessed via 'global')
 # Start from elem 0 after first toggle
 gValMatrixIdx = 1
+
+# Taken from: 'ai/huggingface/graph-logits.py'
+def graphWeights(percentChgDictList):
+  # 4/9/23 DH: Display all graphs simultaneously with 'plt.show(block=False)' (which needs to be cascaded)
+  plt.figure()
+
+  # 14/5/24 DH: Access custom additional API
+  from transformers import Trainer
+  epochNum = Trainer.stateAPI.global_step
+
+  # 12/5/24 DH: Providing more feedback to output stage
+  titleStr = f"Weight change by node from start/end layers for epoch {epochNum}"
+
+  plt.title(titleStr)
+  plt.xlabel("Node number")
+  plt.ylabel("Weight")
+
+  print()
+  print(f"  \"{titleStr}\"")
+
+  listLen = len(percentChgDictList)
+  idx = 0
+  for iDict in percentChgDictList:
+    xVals = percentChgDictList[idx].keys()
+    yVals = [percentChgDictList[idx][key] for key in percentChgDictList[idx]]
+    lwVal = (idx + 1) / listLen
+    print(f"    {weightMapDict[idx]} lwVal: {lwVal}")
+
+    plt.plot(xVals, yVals, label=f"{weightMapDict[idx]}", linewidth=lwVal)
+
+    idx += 1
+  
+  plt.legend(loc="upper left")
+
+  #legendStr = f"Start logits: Solid line\nEnd logits:   Dotted line"
+  #plt.figtext(0.15, 0.2, legendStr)
+  
+  #plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
+
+  #plt.draw()
+  plt.show(block=False)
+
+
+# 14/5/24 DH:
+def getWeightStats(weightsListIdx):
+  global gValMatrixIdx
+  #lgeChgDict = {}
+  percentChgDict = {}
+
+  currLen = len(weightValMatrix[gValMatrixIdx][weightsListIdx])
+  try:
+    prevLen = len(weightValMatrix[1 - gValMatrixIdx][weightsListIdx])
+  except IndexError:
+    prevLen = "NONE"
+
+  print()
+  print(f"  Checking weights from latest index: {gValMatrixIdx}, len: {currLen} (other len: {prevLen})")
+  
+  if prevLen != "NONE":
+    for idx in range(currLen):
+      # CURRENTLY ONLY USING '0' (ie start weights)
+      currWeight = weightValMatrix[gValMatrixIdx][weightsListIdx][idx]
+      prevWeight = weightValMatrix[1 - gValMatrixIdx][weightsListIdx][idx]
+      #print(f"    {idx}: {currWeight} from {prevWeight}")
+
+      # Need percent change from previous
+      diff = currWeight - prevWeight
+      percentChgFromPrev = round(diff/prevWeight*100, 3)
+      mTxt = "Diff:"
+      #print(f"{mTxt:>17} {diff}, Percent from prev: {percentChgFromPrev}%")
+
+      percentChgDict[idx] = percentChgFromPrev
+
+      """ Prev debug
+      if percentChgFromPrev > 1:
+        #mTxt = "GREATER THAN ONE"
+        #print(f"{mTxt:>30}")
+      
+        lgeChgDict[idx] = percentChgFromPrev
+      """
+      
+    # END: --- "for idx in range(currLen)" ---
+  
+  """ Prev debug
+  print()
+  print(f"    {weightMapDict[weightsListIdx]}")
+  for key in lgeChgDict:
+    print(f"    {key} = {lgeChgDict[key]}")
+  """
+  
+  return percentChgDict
+
+# 14/5/24 DH:
+def checkWeightsForAllSets():
+  global gValMatrixIdx
+  percentChgDictList = []
+
+  idx = 0
+  for iList in weightValMatrix[gValMatrixIdx]:
+    weightStats = getWeightStats(idx)
+    
+    # Account for first entry when 'prevLen == "NONE"'
+    if len(weightStats) > 0:
+      percentChgDictList.append(weightStats)
+    idx += 1
+
+  if len(percentChgDictList) > 0:
+    graphWeights(percentChgDictList)
 
 def logWeightings(weight_tensor):
   global gValMatrixIdx
@@ -326,7 +439,7 @@ def logWeightings(weight_tensor):
 
     # Add weights with full precision (prior to comparing with next 'weight_tensor' in order to find diffs prior to rounding)
 
-    # 13/5/24 DH: This needs to 'append()' iff 'weightValMatrix[gValMatrixIdx]' DOES NOT HAVE 'len(newWeights)'
+    # 13/5/24 DH: If previous weights present (as determined by list len) then they need removing prior to adding next set
     newWeights = weight_tensor[idx].tolist()
     newWeightsLen = len(newWeights)
     try:
@@ -338,14 +451,14 @@ def logWeightings(weight_tensor):
     print()
     print(f"    NEW DEBUG: (newWeights len: {newWeightsLen}, weightValMatrix[{gValMatrixIdx}] len: {currWeightValMatrixLen})")
 
-    # Storing weights (currently with full precision)
+    # STORING weights (currently with full precision)
     # ---------------
     if newWeightsLen != currWeightValMatrixLen:
       print(f"    NEW DEBUG: weightValMatrix[{gValMatrixIdx}].append(newWeights)")
       weightValMatrix[gValMatrixIdx].append(newWeights)
     else:
       # Remove previous weights arrays for (start+end)
-      print(f"    NEW DEBUG: weightValMatrix[{gValMatrixIdx}].pop(); weightValMatrix[{gValMatrixIdx}].append(newWeights)")
+      print(f"    NEW DEBUG: weightValMatrix[{gValMatrixIdx}].pop() [*2]; weightValMatrix[{gValMatrixIdx}].append(newWeights)")
       weightValMatrix[gValMatrixIdx].pop()
       weightValMatrix[gValMatrixIdx].pop()
       weightValMatrix[gValMatrixIdx].append(newWeights)
@@ -356,6 +469,7 @@ def logWeightings(weight_tensor):
   # Debug
   print()
   print("  ########## DEBUG POPULATED ELEMS ###########")
+  # in both start + end weight arrays
   for idx in range(weightsDim[0]):
     valIdx = weightMapDict[weightMapDict[idx]]
     print(f"  {weightMapDict[idx]} idx {valIdx}: {weightValMatrix[gValMatrixIdx][idx][valIdx]}")
@@ -365,6 +479,6 @@ def logWeightings(weight_tensor):
     print()
   print("  ############################################")
 
-  breakpoint()
+  checkWeightsForAllSets()
   
 

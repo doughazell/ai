@@ -363,6 +363,8 @@ class Trainer:
     # 2/5/24 DH: Change checkpoint saving rate from outside the Torch hooked callbacks
     save_steps = 500 # default value in 'training_args.py'
     should_save = False
+    # 14/5/24 DH: Access state from 'huggin_utils'
+    stateAPI = None
 
     def __init__(
         self,
@@ -3167,6 +3169,10 @@ class Trainer:
             labels = inputs.pop("labels")
         else:
             labels = None
+        
+        # 14/5/24 DH: Access Trainer state from 'huggin_utils' (self.state.global_step)
+        Trainer.stateAPI = self.state
+        
         outputs = model(**inputs)
         # Save past state if it exists
         # TODO: this needs to be fixed and made cleaner later.

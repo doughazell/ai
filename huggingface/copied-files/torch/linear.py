@@ -118,9 +118,9 @@ class Linear(Module):
     def forward(self, input: Tensor) -> Tensor:
         # 11/5/24 DH:
         F_linear_out = F.linear(input, self.weight, self.bias)
-        #breakpoint()
+        
         Linear.fwdCnt += 1
-        print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")
+        #print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")
 
         return F_linear_out
         #return F.linear(input, self.weight, self.bias)
