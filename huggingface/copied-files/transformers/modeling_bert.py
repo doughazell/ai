@@ -1873,7 +1873,13 @@ class BertForQuestionAnswering(BertPreTrainedModel):
         import huggin_utils
         huggin_utils.logWeightings(self.qa_outputs.weight)
 
-        breakpoint()
+        # 14/5/24 DH: Access custom additional API
+        from transformers import Trainer
+        epochNum = Trainer.stateAPI.global_step
+
+        # 14/5/24 DH: Without waiting at the end of the training then the graphs DO NOT get displayed from Transformers callback
+        if epochNum == 19:
+          breakpoint()
         # ---------------------------------------------------------------------------------
 
         total_loss = None

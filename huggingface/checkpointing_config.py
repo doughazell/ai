@@ -9,4 +9,7 @@
 trainer = None
 training_args = None
 
+# 14/5/24 DH: Used to save a layer weights (for later graphing)
+gWeightsFile = None
+
 # ----------------- END: Runtime Cfg ---------------

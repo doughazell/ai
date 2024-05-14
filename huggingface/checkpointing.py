@@ -16,6 +16,7 @@ def createLoggers(training_args):
 
   #sigLogger = logging.getLogger(__name__)
   
+  # -----------------------------------------------------------------------------
   sigLogger = logging.getLogger("trainer_log")
   sigLogger.setLevel(logging.DEBUG)
   fileName = "seq2seq_qa_trainer"
@@ -30,6 +31,7 @@ def createLoggers(training_args):
   # Need to remove default console handler setup in main() script, 'logging.basicConfig(..., handlers=[logging.StreamHandler(sys.stdout)] )
   sigLogger.addHandler(fileHandler)
 
+  # -----------------------------------------------------------------------------
   sigLogger = logging.getLogger("trainer_signaller")
   sigLogger.setLevel(logging.DEBUG)
   fileName = "seq2seq_qa_INtrainer"
@@ -39,7 +41,14 @@ def createLoggers(training_args):
   logFormatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
   fileHandler.setFormatter(logFormatter)
   sigLogger.addHandler(fileHandler)
-  sigLogger.info(f"PID: {os.getpid()}") 
+  sigLogger.info(f"PID: {os.getpid()}")
+
+  # -----------------------------------------------------------------------------
+  # 14/5/24 DH: Added to record the rounded weight diffs (for later graphing)
+  fileName = "weights"
+  logPath = training_args.output_dir
+
+  checkpointing_config.gWeightsFile = open(f"{logPath}/{fileName}.log", 'w')
 
 def getHighestCheckpoint():
   
