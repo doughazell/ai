@@ -361,7 +361,6 @@ def getWeightStats(weightsListIdx):
 
   if prevLen != "NONE":
     for idx in range(currLen):
-      # CURRENTLY ONLY USING '0' (ie start weights)
       currWeight = weightValMatrix[gValMatrixIdx][weightsListIdx][idx]
       prevWeight = weightValMatrix[1 - gValMatrixIdx][weightsListIdx][idx]
       #print(f"    {idx}: {currWeight} from {prevWeight}")

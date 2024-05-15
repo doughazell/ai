@@ -334,6 +334,7 @@ def graphFirstLogits(recordsDict):
   
   plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
 
+  print("NOTE: 'graphFirstLogits()' calling 'plt.show()' (ie without 'block=False') in order to see all graphs without program ending")
   plt.show()
 # -------------------------------------------------END: GRAPHING ---------------------------------------------
 
