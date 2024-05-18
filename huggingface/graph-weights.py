@@ -148,6 +148,10 @@ if __name__ == "__main__":
 
   keyNum = len(percentChgDictListDict.keys())
 
+  print(f"The shape of the graphs is similar to Bert/SQuAD training (despite this training being custom JSON)")
+  print("(See \"open file:///Users/doug/Desktop/devlogeD/2024/doc/b6-feb24.html#label-Results\")")
+  print()
+
   idx = 0
   for key in percentChgDictListDict:
     # NOTE: Last call to 'graphWeights()' needs to call 'plt.show()' (ie without 'block=False') in order to see all graphs before program ends
@@ -157,4 +161,3 @@ if __name__ == "__main__":
       graphWeights(percentChgDictListDict[key], key)
     idx += 1
 
-  

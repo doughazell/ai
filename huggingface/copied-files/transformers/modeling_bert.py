@@ -258,6 +258,13 @@ class BertSelfAttention(nn.Module):
         past_key_value: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
         output_attentions: Optional[bool] = False,
     ) -> Tuple[torch.Tensor]:
+        
+        # 16/5/24 DH:
+        print()
+        print("  ----------------------------------------------------")
+        print(f"  START: BertSelfAttention.forward() - hidden_states: {hidden_states.shape}")
+        print()
+        print(f"  query_layer: {self.query}")
         mixed_query_layer = self.query(hidden_states)
 
         # If this is instantiated as a cross-attention module, the keys
@@ -280,10 +287,21 @@ class BertSelfAttention(nn.Module):
             key_layer = torch.cat([past_key_value[0], key_layer], dim=2)
             value_layer = torch.cat([past_key_value[1], value_layer], dim=2)
         else:
+            # 15/5/24 DH:
+            print(f"  key: {self.key}")
             key_layer = self.transpose_for_scores(self.key(hidden_states))
+            # 16/5/24 DH:
+            print(f"    key_layer: {key_layer.shape}")
+
+            # 15/5/24 DH:
+            print(f"  value: {self.value}")
             value_layer = self.transpose_for_scores(self.value(hidden_states))
+            # 16/5/24 DH:
+            print(f"    value_layer: {value_layer.shape}")
 
         query_layer = self.transpose_for_scores(mixed_query_layer)
+        # 15/5/24 DH:
+        print(f"    query_layer: {query_layer.shape}")
 
         use_cache = past_key_value is not None
         if self.is_decoder:
@@ -332,6 +350,9 @@ class BertSelfAttention(nn.Module):
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
         attention_probs = self.dropout(attention_probs)
+        # 15/5/24 DH:
+        print(f"    attention_probs: {attention_probs.shape}")
+        print()
 
         # Mask heads if we want to
         if head_mask is not None:
@@ -1879,7 +1900,9 @@ class BertForQuestionAnswering(BertPreTrainedModel):
 
         # 14/5/24 DH: Without waiting at the end of the training then the graphs DO NOT get displayed from Transformers callback
         if epochNum == 19:
-          breakpoint()
+          print()
+          print("NOT CALLING: breakpoint()")
+          #breakpoint()
         # ---------------------------------------------------------------------------------
 
         total_loss = None

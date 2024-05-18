@@ -24,6 +24,11 @@ FILES="
   transformers/models/bert/modeling_bert.py
   torch/nn/modules/linear.py
   tqdm/std.py
+  tensorflow/python/util/traceback_utils.py
+  tensorflow/python/eager/polymorphic_function/monomorphic_function.py
+  tensorflow/python/eager/polymorphic_function/tracing_compiler.py
+  tensorflow/python/eager/polymorphic_function/polymorphic_function.py
+  keras/engine/training.py
 "
 
 for FILE in ${FILES}

@@ -120,7 +120,7 @@ class Linear(Module):
         F_linear_out = F.linear(input, self.weight, self.bias)
         
         Linear.fwdCnt += 1
-        #print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")
+        print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")
 
         return F_linear_out
         #return F.linear(input, self.weight, self.bias)
