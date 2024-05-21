@@ -44,11 +44,15 @@ def createLoggers(training_args):
   sigLogger.info(f"PID: {os.getpid()}")
 
   # -----------------------------------------------------------------------------
-  # 14/5/24 DH: Added to record the rounded weight diffs (for later graphing)
+  # 14/5/24 DH: Added to record the rounded weight percentage diffs (for later graphing)
   fileName = "weights"
   logPath = training_args.output_dir
 
   checkpointing_config.gWeightsFile = open(f"{logPath}/{fileName}.log", 'w')
+  # 21/5/24 DH:
+  checkpointing_config.gWeightsFile.write(f"RECORDED WEIGHT PERCENTAGE DIFFS BY NUMBERED EPOCH\n")
+  checkpointing_config.gWeightsFile.write(f"--------------------------------------------------\n")
+  checkpointing_config.gWeightsFile.write(f"\n")
 
 def getHighestCheckpoint():
   

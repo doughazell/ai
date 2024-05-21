@@ -270,6 +270,11 @@ if __name__ == "__main__":
   import signal
   signal.signal(signal.SIGINT, signal_handler)
 
+  # 20/5/24 DH: TODO: Add entry to admin table (with 1) Date, 2) HuggingFace version etc) like:
+  #             stop_trainer.py::parseTrainerStack(stackFile, sleepToInterruptSecs)
+  #               ...
+  #               populateDB(stackFile, trainingFunction, records)
+
   runRandomIntervalCapture(iterations=2000)
   sortErrorLogs()
 

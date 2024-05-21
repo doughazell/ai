@@ -771,6 +771,12 @@ def main():
         trainer.save_metrics("train", metrics)
         trainer.save_state()
 
+        # 18/5/24 DH: Currently using 'breakpoint()' to allow weight graphs to be displayed
+        print()
+        print("CALLING: breakpoint() in 'run_qa.py::main() - if training_args.do_train")
+        print()
+        breakpoint()
+
     # Evaluation
     if training_args.do_eval:
         logger.info("*** Evaluate ***")

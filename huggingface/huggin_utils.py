@@ -27,7 +27,11 @@ print_decay_parameter_names(opt_model, decay_parameters)
 
 Storing layer weighting for graphing
 ------------------------------------
+graphWeights(percentChgDictList, saveVals=True)
+getWeightStats(weightsListIdx)
+checkWeightsForAllSets()
 logWeightings(weight_tensor)
+
 
 """
 # ---------------------------------------------------------------
@@ -300,6 +304,9 @@ weightValMatrix = [[],[]]
 # Start from elem 0 after first toggle
 gValMatrixIdx = 1
 
+# 21/5/24 DH: If still set to '0' then first entry for full values graphing (for later comparison with last values graph)
+gFirstEpoch = 0
+
 # Taken from: 'ai/huggingface/graph-logits.py'
 def graphWeights(percentChgDictList, saveVals=True):
   # 4/9/23 DH: Display all graphs simultaneously with 'plt.show(block=False)' (which needs to be cascaded)
@@ -310,7 +317,11 @@ def graphWeights(percentChgDictList, saveVals=True):
   epochNum = Trainer.stateAPI.global_step
 
   # 12/5/24 DH: Providing more feedback to output stage
-  titleStr = f"Weight change by node from start/end layers for epoch {epochNum}"
+  # 21/5/24 DH: CURRENTLY the only time we set 'saveVals=False' is with full value graphs
+  if saveVals:
+    titleStr = f"Weight change by node from start/end layer for epoch {epochNum}"
+  else:
+    titleStr = f"Full weight by node from start/end layer for epoch {epochNum}"
 
   plt.title(titleStr)
   plt.xlabel("Node number")
@@ -347,7 +358,7 @@ def graphWeights(percentChgDictList, saveVals=True):
   plt.show(block=False)
 
 
-# 14/5/24 DH:
+# 14/5/24 DH: Convert full weight values to rounded weight diff
 def getWeightStats(weightsListIdx):
   global gValMatrixIdx
   #lgeChgDict = {}
@@ -392,12 +403,35 @@ def getWeightStats(weightsListIdx):
   
   return percentChgDict
 
-# 14/5/24 DH:
+# 21/5/24 DH:
+def getFullvalsDictList(weightValMatrix):
+  fullvalsDictList = []
+
+  valMatrixLen = len(weightValMatrix)
+  # start/end full values list for all 767 nodes
+  for idx in range(valMatrixLen):
+    print(f"  'getFullvalsDictList()' - {weightMapDict[idx]}")
+    fullvalsDict = {}
+
+    fullvalsListLen = len(weightValMatrix[idx])
+    for valIdx in range(fullvalsListLen):
+      fullvalsDict[valIdx] = weightValMatrix[idx][valIdx]
+
+    fullvalsDictList.append(fullvalsDict)
+
+  return fullvalsDictList
+
+# 14/5/24 DH: WRAPPER to convert full weight values to weight diff
 def checkWeightsForAllSets():
   global gValMatrixIdx
+  global gFirstEpoch
   percentChgDictList = []
 
   idx = 0
+  # Full values for start/end CURRENT values
+  # ----------------------------------------
+  # weightValMatrix[gValMatrixIdx][0]: "[0.0387488454580307, 0.030061528086662292, 0.018482686951756477, ..., 0.012040662579238415]"
+  # weightValMatrix[gValMatrixIdx][1]: "[0.007029589265584946, -0.0615961030125618, -0.028790319338440895, ..., 0.026614349335432053]"
   for iList in weightValMatrix[gValMatrixIdx]:
     weightStats = getWeightStats(idx)
     
@@ -407,7 +441,40 @@ def checkWeightsForAllSets():
     idx += 1
 
   if len(percentChgDictList) > 0:
+    # Rounded, percentage diff for start/end values FROM PREV values
+    # --------------------------------------------------------------
+    # percentChgDictList[0]: "{0: 0.012, 1: 0.011, 2: 0.025, ..., 767: 0.042}"
+    # percentChgDictList[1]: "{0: 0.046, 1: -0.002, 2: -0.008, ..., 767: 0.017}"
     graphWeights(percentChgDictList)
+  
+  # 21/5/24 DH: Graph final full weights (rather than just percentage diffs)
+  # Access custom additional API
+  from transformers import Trainer
+  epochNum = Trainer.stateAPI.global_step
+  maxEpochs = Trainer.stateAPI.max_steps
+
+  print()
+  print(f"Epoch: {epochNum} of {maxEpochs}")
+  print()
+  if gFirstEpoch == 0:
+    print("  ...that'll do donkey, that'll do...")
+    fullvalsDictList = getFullvalsDictList(weightValMatrix[gValMatrixIdx])
+    graphWeights(fullvalsDictList, saveVals=False)
+
+    # Only used for the first entry
+    gFirstEpoch = epochNum
+
+  if epochNum == maxEpochs - 1:
+    print("  Yup last one")
+    fullvalsDictList = getFullvalsDictList(weightValMatrix[gValMatrixIdx])
+    graphWeights(fullvalsDictList, saveVals=False)
+
+
+############################################################################################
+# API CALLED FROM '*ForQuestionAnswering.forward()':
+#   import huggin_utils
+#   huggin_utils.logWeightings(...) 
+############################################################################################
 
 def logWeightings(weight_tensor):
   global gValMatrixIdx
@@ -458,6 +525,7 @@ def logWeightings(weight_tensor):
   print("  ############################################")
   """
 
+  # 21/5/24 DH: Also calls: graphWeights(percentChgDictList)
   checkWeightsForAllSets()
   
 

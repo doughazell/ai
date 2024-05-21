@@ -105,12 +105,12 @@ def printCollectedDict(percentChgDictListDict):
     print()
 
 # Taken from: 'ai/huggingface/huggin_utils.py'
-def graphWeights(percentChgDictList, epochNum, lastGraph=False):
+def graphWeightsKeyed(percentChgDictList, epochNum, lastGraph=False):
   # 4/9/23 DH: Display all graphs simultaneously with 'plt.show(block=False)' (which needs to be cascaded)
   plt.figure()
 
   # 12/5/24 DH: Providing more feedback to output stage
-  titleStr = f"Weight change by node from start/end layers for epoch {epochNum}"
+  titleStr = f"Weight change by node from start/end layer for epoch {epochNum}"
 
   plt.title(titleStr)
   plt.xlabel("Node number")
@@ -130,7 +130,7 @@ def graphWeights(percentChgDictList, epochNum, lastGraph=False):
 
     idx += 1
   
-  plt.legend(loc="upper left")
+  plt.legend(loc="lower right")
 
   #legendStr = f"Start logits: Solid line\nEnd logits:   Dotted line"
   #plt.figtext(0.15, 0.2, legendStr)
@@ -154,10 +154,10 @@ if __name__ == "__main__":
 
   idx = 0
   for key in percentChgDictListDict:
-    # NOTE: Last call to 'graphWeights()' needs to call 'plt.show()' (ie without 'block=False') in order to see all graphs before program ends
+    # NOTE: Last call to 'graphWeightsKeyed()' needs to call 'plt.show()' (ie without 'block=False') in order to see all graphs before program ends
     if idx + 1 == keyNum:
-      graphWeights(percentChgDictListDict[key], key, lastGraph=True)
+      graphWeightsKeyed(percentChgDictListDict[key], key, lastGraph=True)
     else:
-      graphWeights(percentChgDictListDict[key], key)
+      graphWeightsKeyed(percentChgDictListDict[key], key)
     idx += 1
 
