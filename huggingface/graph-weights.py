@@ -11,6 +11,7 @@ import numpy as np
 from ast import literal_eval
 
 gTrainer_log = "weights.log"
+gTrainer_full_log = "weights-full.log"
 
 # 12/5/24 DH: MUTABLE variables (don't need to be accessed with 'global' to prevent local scope overlay)
 #             (a task centric version of 'hugging_utils.py::weightMapDict')
@@ -21,15 +22,8 @@ weightMapDict = {
   "End": 1,
 }
 
-def collectWeights():
+def collectWeights(weightsLog):
   percentChgDictListDict = {}
-
-  if len(sys.argv) == 2:
-    output_dir = os.path.abspath(sys.argv[1])
-    weightsLog = os.path.join(output_dir, gTrainer_log)
-  else:
-    print(f"You need to provide an 'output_dir'")
-    exit(0)
   
   try:
     with open(weightsLog) as source :
@@ -110,7 +104,10 @@ def graphWeightsKeyed(percentChgDictList, epochNum, lastGraph=False):
   plt.figure()
 
   # 12/5/24 DH: Providing more feedback to output stage
-  titleStr = f"Weight change by node from start/end layer for epoch {epochNum}"
+  if "complete" not in epochNum:
+    titleStr = f"Weight change by node from start/end layer for epoch {epochNum}"
+  else:
+    titleStr = f"Total weight change by node from start/end layer"
 
   plt.title(titleStr)
   plt.xlabel("Node number")
@@ -140,10 +137,62 @@ def graphWeightsKeyed(percentChgDictList, epochNum, lastGraph=False):
   #plt.draw()
   plt.show(block=lastGraph)
 
+# 22/5/24 DH: Taken from 'hugging_utils.py::getWeightStats(...)'
+def getWeightDiffs(percentChgDictListDict, lineType):
+  percentChgDict = {}
+
+  # CURRENTLY hard coding collected epoch keys for first and last epochs to: '0', '19'
+  #   (Elem 0 of epoch '0' is start weights)
+  firstEpochWeights = percentChgDictListDict['0'][lineType]
+  lastEpochWeights = percentChgDictListDict['19'][lineType]
+  for key in firstEpochWeights.keys():
+    currWeight = lastEpochWeights[key]
+    prevWeight = firstEpochWeights[key]
+
+    # Need percent change from previous
+    diff = currWeight - prevWeight
+    percentChgFromPrev = round(diff/prevWeight*100, 3)
+
+    """ "EXTRA EXTRA, read all about it..."
+    mTxt = f"{key} Diff:"
+    extraTxt = ""
+    if percentChgFromPrev > 100 or percentChgFromPrev < -100:
+      extraTxt = f", CURRENT: {currWeight}, PREV: {prevWeight}"
+    print(f"{mTxt:>17} {diff}, Percent from prev: {percentChgFromPrev}% {extraTxt}")
+    """
+
+    percentChgDict[key] = percentChgFromPrev
+
+  return percentChgDict
+
+# 22/5/24 DH: WRAPPER around 'getWeightDiffs()' for each line
+def calcAndGraphTrgDiffs(percentChgDictListDict):
+  percentChgLineList = []
+
+  for key in weightMapDict.keys():
+    # 'weightMapDict' = "{0: "Start", "Start": 0, ...}"
+    if isinstance(key, int):
+      lineType = key
+      print(f"CALLING: 'getWeightDiffs()' for {weightMapDict[lineType]}")
+      percentChgLine = getWeightDiffs(percentChgDictListDict, lineType)
+      percentChgLineList.append(percentChgLine)
+      
+  graphWeightsKeyed(percentChgLineList, "complete", lastGraph=True)
+
 
 if __name__ == "__main__":
+  if len(sys.argv) == 2:
+    output_dir = os.path.abspath(sys.argv[1])
+    weightsLog = os.path.join(output_dir, gTrainer_log)
+    fullweightsLog = os.path.join(output_dir, gTrainer_full_log)
+  else:
+    print(f"You need to provide an 'output_dir'")
+    exit(0)
 
-  percentChgDictListDict = collectWeights()
+  """
+  """
+  # --------------------------- PERCENTAGE DIFFS BY EPOCH ------------------------------------
+  percentChgDictListDict = collectWeights(weightsLog)
   printCollectedDict(percentChgDictListDict)
 
   keyNum = len(percentChgDictListDict.keys())
@@ -160,4 +209,16 @@ if __name__ == "__main__":
     else:
       graphWeightsKeyed(percentChgDictListDict[key], key)
     idx += 1
+  
+  # --------------------------- START/END WEIGHTS + PERCENTAGE DIFF --------------------------
+  # 22/5/24 DH: Having graphed all the rounded, percentage diffs then we need to 
+  #             calculate + graph the percentage diff between the first and last full value weights
+  percentChgDictListDict = collectWeights(fullweightsLog)
 
+  # Firstly graph the start/end full weights
+  for key in percentChgDictListDict:
+    graphWeightsKeyed(percentChgDictListDict[key], key)
+  
+  # Now calculate + graph the percentage diff
+  calcAndGraphTrgDiffs(percentChgDictListDict)
+  

@@ -11,5 +11,8 @@ training_args = None
 
 # 14/5/24 DH: Used to save a layer weights (for later graphing)
 gWeightsFile = None
+# 21/5/24 DH: Directory used to save a weights graph
+gGraphDir = None
+gFullWeightsFile = None
 
 # ----------------- END: Runtime Cfg ---------------

@@ -304,8 +304,8 @@ weightValMatrix = [[],[]]
 # Start from elem 0 after first toggle
 gValMatrixIdx = 1
 
-# 21/5/24 DH: If still set to '0' then first entry for full values graphing (for later comparison with last values graph)
-gFirstEpoch = 0
+# 21/5/24 DH: If still set to '-1' then first entry for full values graphing (for later comparison with last values graph)
+gFirstEpoch = -1
 
 # Taken from: 'ai/huggingface/graph-logits.py'
 def graphWeights(percentChgDictList, saveVals=True):
@@ -320,13 +320,14 @@ def graphWeights(percentChgDictList, saveVals=True):
   # 21/5/24 DH: CURRENTLY the only time we set 'saveVals=False' is with full value graphs
   if saveVals:
     titleStr = f"Weight change by node from start/end layer for epoch {epochNum}"
+    plt.ylim(top=20, bottom=-15)
   else:
     titleStr = f"Full weight by node from start/end layer for epoch {epochNum}"
 
   plt.title(titleStr)
   plt.xlabel("Node number")
   plt.ylabel("Weight")
-
+  
   print(f"  \"{titleStr}\"")
 
   listLen = len(percentChgDictList)
@@ -340,9 +341,15 @@ def graphWeights(percentChgDictList, saveVals=True):
       checkpointing_config.gWeightsFile.write(f"{epochNum}-{weightMapDict[idx]}: {yVals}\n")
       if idx == 1:
         checkpointing_config.gWeightsFile.write("\n")
+    
+    else: # NOTE: 'gFullWeightsFile'
+      checkpointing_config.gFullWeightsFile.write(f"{epochNum}-{weightMapDict[idx]}: {yVals}\n")
+      if idx == 1:
+        checkpointing_config.gFullWeightsFile.write("\n")
       
     lwVal = (idx + 1) / listLen
     print(f"    {weightMapDict[idx]} lwVal: {lwVal}")
+
     plt.plot(xVals, yVals, label=f"{weightMapDict[idx]}", linewidth=lwVal)
 
     idx += 1
@@ -357,6 +364,13 @@ def graphWeights(percentChgDictList, saveVals=True):
   #plt.draw()
   plt.show(block=False)
 
+  # 21/5/24 DH: CURRENTLY the only time we set 'saveVals=False' is with full value graphs
+  if saveVals:
+    graphFilename = f"{epochNum}-percentDiffs"
+  else:
+    graphFilename = f"{epochNum}-fullValues"
+  plt.savefig(f"{checkpointing_config.gGraphDir}/{graphFilename}.png")
+
 
 # 14/5/24 DH: Convert full weight values to rounded weight diff
 def getWeightStats(weightsListIdx):
@@ -366,6 +380,7 @@ def getWeightStats(weightsListIdx):
 
   currLen = len(weightValMatrix[gValMatrixIdx][weightsListIdx])
   try:
+    # NOTE: "1 - gValMatrixIdx"
     prevLen = len(weightValMatrix[1 - gValMatrixIdx][weightsListIdx])
   except IndexError:
     prevLen = "NONE"
@@ -448,6 +463,7 @@ def checkWeightsForAllSets():
     graphWeights(percentChgDictList)
   
   # 21/5/24 DH: Graph final full weights (rather than just percentage diffs)
+
   # Access custom additional API
   from transformers import Trainer
   epochNum = Trainer.stateAPI.global_step
@@ -456,7 +472,7 @@ def checkWeightsForAllSets():
   print()
   print(f"Epoch: {epochNum} of {maxEpochs}")
   print()
-  if gFirstEpoch == 0:
+  if gFirstEpoch < 0:
     print("  ...that'll do donkey, that'll do...")
     fullvalsDictList = getFullvalsDictList(weightValMatrix[gValMatrixIdx])
     graphWeights(fullvalsDictList, saveVals=False)

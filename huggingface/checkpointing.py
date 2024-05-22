@@ -1,6 +1,7 @@
 # 24/2/24 DH:
 
 import sys, os, logging
+from pathlib import Path
 from transformers import Trainer
 from transformers.trainer_utils import get_last_checkpoint
 
@@ -46,13 +47,28 @@ def createLoggers(training_args):
   # -----------------------------------------------------------------------------
   # 14/5/24 DH: Added to record the rounded weight percentage diffs (for later graphing)
   fileName = "weights"
+  # 21/5/24 DH: Probably would have been easier to assign: 
+  #             'checkpointing_config.logPath = training_args.output_dir'
+  #   (and do everything else locally to where needed, since this is having feature-creep...!)
   logPath = training_args.output_dir
+  graphDir = "graphs"
+  fileNameFull = "weights-full"
 
   checkpointing_config.gWeightsFile = open(f"{logPath}/{fileName}.log", 'w')
   # 21/5/24 DH:
   checkpointing_config.gWeightsFile.write(f"RECORDED WEIGHT PERCENTAGE DIFFS BY NUMBERED EPOCH\n")
   checkpointing_config.gWeightsFile.write(f"--------------------------------------------------\n")
   checkpointing_config.gWeightsFile.write(f"\n")
+
+  # 21/5/24 DH:
+  checkpointing_config.gGraphDir = f"{logPath}/{graphDir}"
+  Path(checkpointing_config.gGraphDir).mkdir(parents=True, exist_ok=True)
+
+  # 21/5/24 DH:
+  checkpointing_config.gFullWeightsFile = open(f"{logPath}/{fileNameFull}.log", 'w')
+  checkpointing_config.gFullWeightsFile.write(f"RECORDED FULL WEIGHT BY NUMBERED EPOCH\n")
+  checkpointing_config.gFullWeightsFile.write(f"--------------------------------------\n")
+  checkpointing_config.gFullWeightsFile.write(f"\n")
 
 def getHighestCheckpoint():
   
