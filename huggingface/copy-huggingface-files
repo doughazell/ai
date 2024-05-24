@@ -34,11 +34,14 @@ FILES="
 for FILE in ${FILES}
 do
   
-
   # Parse on '/' and save first part of path from FILES entry
-  TLD=`echo ${FILE} | awk '{split($0, array, "/"); print array[1]}'`
+  #TLD=`echo ${FILE} | awk '{split($0, array, "/"); print array[1]}'`
+
+  # 23/5/24 DH: SAME AS: awk -F/ '{print $1}'
+  TLD=`echo ${FILE} | awk -F/ '{print $1}'`
   mkdir -p ${DIR}/copied-files/${TLD}
 
+  #echo "NOT COPYING FOR DEV"
   cp ${PKGDIR}/${FILE} ${DIR}/copied-files/${TLD}
   echo "COPIED: '${FILE}'"
   echo "    TO: 'copied-files/${TLD}'"

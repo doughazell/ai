@@ -771,11 +771,13 @@ def main():
         trainer.save_metrics("train", metrics)
         trainer.save_state()
 
-        # 18/5/24 DH: Currently using 'breakpoint()' to allow weight graphs to be displayed
+        # 18/5/24 DH:
+        # 24/5/24 DH: NO LONGER using 'breakpoint()' to allow weight graphs to be displayed after training
         print()
-        print("CALLING: breakpoint() in 'run_qa.py::main() - if training_args.do_train")
+        print("NO LONGER CALLING: breakpoint() in 'run_qa.py::main() - if training_args.do_train")
+        print("  (due to 'savefig()' + being able to display graphs with 'graph-weights.py')")
         print()
-        breakpoint()
+        #breakpoint()
 
     # Evaluation
     if training_args.do_eval:

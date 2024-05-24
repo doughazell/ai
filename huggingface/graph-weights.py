@@ -9,6 +9,7 @@ import sys, os, re
 import matplotlib.pyplot as plt
 import numpy as np
 from ast import literal_eval
+from pathlib import Path
 
 gTrainer_log = "weights.log"
 gTrainer_full_log = "weights-full.log"
@@ -54,7 +55,7 @@ def collectWeights(weightsLog):
       # The easy way to parse an "[array, string]"
       weightList = np.array( literal_eval(lineSplit[1]) )
 
-      print(f"{epoch}-{lineType}: {weightList[:10]}...")
+      #print(f"{epoch}-{lineType}: {weightList[:10]}...")
       # 15/5/24 DH: This needs to be defined here because if it is defined outside this scope then the same MUTABLE type will be used
       #             for all "epoch-[start/end]" keys resulting in all having the values of "19-end"
       percentChgDict = {}
@@ -63,9 +64,7 @@ def collectWeights(weightsLog):
 
       try:
         percentChgDictListDict[epoch].append(percentChgDict)
-        print()
       except KeyError:
-        print(f"  Creating start/end list for {epoch}")
         percentChgDictListDict[epoch] = []
         percentChgDictListDict[epoch].append(percentChgDict)
       
@@ -99,13 +98,17 @@ def printCollectedDict(percentChgDictListDict):
     print()
 
 # Taken from: 'ai/huggingface/huggin_utils.py'
-def graphWeightsKeyed(percentChgDictList, epochNum, lastGraph=False):
+def graphWeightsKeyed(percentChgDictList, epochNum, weights=False, lastGraph=False):
   # 4/9/23 DH: Display all graphs simultaneously with 'plt.show(block=False)' (which needs to be cascaded)
   plt.figure()
 
   # 12/5/24 DH: Providing more feedback to output stage
   if "complete" not in epochNum:
-    titleStr = f"Weight change by node from start/end layer for epoch {epochNum}"
+    if weights:
+      titleStr = f"Weight by node from start/end layer for epoch {epochNum}"
+    else:
+      titleStr = f"Weight change by node from start/end layer for epoch {epochNum}"
+  
   else:
     titleStr = f"Total weight change by node from start/end layer"
 
@@ -113,7 +116,7 @@ def graphWeightsKeyed(percentChgDictList, epochNum, lastGraph=False):
   plt.xlabel("Node number")
   plt.ylabel("Weight")
 
-  print(f"  \"{titleStr}\"")
+  print(f"  \"{titleStr}\" (USING: 'abs(prevWeight)')")
 
   listLen = len(percentChgDictList)
   idx = 0
@@ -122,17 +125,27 @@ def graphWeightsKeyed(percentChgDictList, epochNum, lastGraph=False):
     yVals = [percentChgDictList[idx][key] for key in percentChgDictList[idx]]
       
     lwVal = (idx + 1) / listLen
-    print(f"    {weightMapDict[idx]} lwVal: {lwVal}")
+
     plt.plot(xVals, yVals, label=f"{weightMapDict[idx]}", linewidth=lwVal)
 
     idx += 1
   
-  plt.legend(loc="lower right")
+  plt.legend(loc="best")
 
   #legendStr = f"Start logits: Solid line\nEnd logits:   Dotted line"
   #plt.figtext(0.15, 0.2, legendStr)
   
   #plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
+
+  # 23/5/24 DH: The only extra graph to save is the "Total weight change by node from start/end layer"
+  print(f"    ...saving graph")
+  if "complete" in epochNum:
+    plt.savefig(f"{weightsGraphDir}/total-weight-change.png")
+  else:
+    if weights:
+      plt.savefig(f"{weightsGraphDir}/{epochNum}-fullValues.png")
+    else:
+      plt.savefig(f"{weightsGraphDir}/{epochNum}-percentDiffs.png")
 
   #plt.draw()
   plt.show(block=lastGraph)
@@ -141,17 +154,34 @@ def graphWeightsKeyed(percentChgDictList, epochNum, lastGraph=False):
 def getWeightDiffs(percentChgDictListDict, lineType):
   percentChgDict = {}
 
-  # CURRENTLY hard coding collected epoch keys for first and last epochs to: '0', '19'
-  #   (Elem 0 of epoch '0' is start weights)
-  firstEpochWeights = percentChgDictListDict['0'][lineType]
-  lastEpochWeights = percentChgDictListDict['19'][lineType]
+  # https://docs.python.org/3/library/collections.html#ordereddict-objects
+  #   "built-in dict class gained the ability to remember insertion order"
+  keyList = list(percentChgDictListDict.keys())
+  startEpoch = keyList[0]
+  # 24/5/24 DH:
+  try:
+    endEpoch = keyList[1]
+  except IndexError:
+    print()
+    print("There is no end epoch data...exiting")
+    exit(0)
+
+  firstEpochWeights = percentChgDictListDict[startEpoch][lineType]
+  lastEpochWeights = percentChgDictListDict[endEpoch][lineType]
+
+  # ORIG HARD-CODING:
+  # (Elem 0 of epoch '0' is start weights)
+  #firstEpochWeights = percentChgDictListDict['0'][lineType]
+  #lastEpochWeights = percentChgDictListDict['19'][lineType]
+
   for key in firstEpochWeights.keys():
     currWeight = lastEpochWeights[key]
     prevWeight = firstEpochWeights[key]
 
     # Need percent change from previous
+    # 22/5/24 DH: 'diff/prevWeight' needs 'abs(prevWeight)'
     diff = currWeight - prevWeight
-    percentChgFromPrev = round(diff/prevWeight*100, 3)
+    percentChgFromPrev = round(diff/ abs(prevWeight) * 100, 3)
 
     """ "EXTRA EXTRA, read all about it..."
     mTxt = f"{key} Diff:"
@@ -173,7 +203,7 @@ def calcAndGraphTrgDiffs(percentChgDictListDict):
     # 'weightMapDict' = "{0: "Start", "Start": 0, ...}"
     if isinstance(key, int):
       lineType = key
-      print(f"CALLING: 'getWeightDiffs()' for {weightMapDict[lineType]}")
+      
       percentChgLine = getWeightDiffs(percentChgDictListDict, lineType)
       percentChgLineList.append(percentChgLine)
       
@@ -185,6 +215,9 @@ if __name__ == "__main__":
     output_dir = os.path.abspath(sys.argv[1])
     weightsLog = os.path.join(output_dir, gTrainer_log)
     fullweightsLog = os.path.join(output_dir, gTrainer_full_log)
+
+    weightsGraphDir = os.path.join(output_dir, "weights-graphs")
+    Path(weightsGraphDir).mkdir(parents=True, exist_ok=True)
   else:
     print(f"You need to provide an 'output_dir'")
     exit(0)
@@ -193,7 +226,7 @@ if __name__ == "__main__":
   """
   # --------------------------- PERCENTAGE DIFFS BY EPOCH ------------------------------------
   percentChgDictListDict = collectWeights(weightsLog)
-  printCollectedDict(percentChgDictListDict)
+  #printCollectedDict(percentChgDictListDict)
 
   keyNum = len(percentChgDictListDict.keys())
 
@@ -217,7 +250,7 @@ if __name__ == "__main__":
 
   # Firstly graph the start/end full weights
   for key in percentChgDictListDict:
-    graphWeightsKeyed(percentChgDictListDict[key], key)
+    graphWeightsKeyed(percentChgDictListDict[key], key, weights=True)
   
   # Now calculate + graph the percentage diff
   calcAndGraphTrgDiffs(percentChgDictListDict)

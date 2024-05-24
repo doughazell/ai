@@ -119,8 +119,16 @@ class Linear(Module):
         # 11/5/24 DH:
         F_linear_out = F.linear(input, self.weight, self.bias)
         
+        # 24/5/24 DH:
         Linear.fwdCnt += 1
-        print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")
+        if Linear.fwdCnt == 1:
+            print()
+            print()
+            print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")
+            print( "...")
+        if Linear.fwdCnt == 73:
+            print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")
+            print()
 
         return F_linear_out
         #return F.linear(input, self.weight, self.bias)

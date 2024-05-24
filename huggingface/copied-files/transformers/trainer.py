@@ -3138,6 +3138,9 @@ class Trainer:
         Return:
             `torch.Tensor`: The tensor with training loss on this batch.
         """
+        # 18/5/24 DH: model.train = Module.train 
+        #   'torch/nn/modules/module.py(2375)train()' """Set the module in training mode."""
+
         model.train()
         inputs = self._prepare_inputs(inputs)
 
@@ -3155,9 +3158,18 @@ class Trainer:
             with amp.scale_loss(loss, self.optimizer) as scaled_loss:
                 scaled_loss.backward()
         else:
+            # 24/5/24 DH:
+            print()
+            print("Trainer.training_step() CALLING: 'accelerator.backward(loss)'")
             self.accelerator.backward(loss)
 
-        return loss.detach() / self.args.gradient_accumulation_steps
+        # 24/5/24 DH:
+        trg_step_retval = loss.detach() / self.args.gradient_accumulation_steps
+        print(f"  RETURNING: {trg_step_retval}")
+        print()
+
+        return trg_step_retval
+        #return loss.detach() / self.args.gradient_accumulation_steps
 
     def compute_loss(self, model, inputs, return_outputs=False):
         """

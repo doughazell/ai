@@ -395,13 +395,6 @@ def main():
       trust_remote_code=model_args.trust_remote_code,
   )
 
-  # 24/4/24 DH: "pip install torchinfo" (https://github.com/TylerYep/torchinfo) "(formerly torch-summary)"
-  from torchinfo import summary
-  with open('bert_qa.summary', 'w') as sys.stdout:
-    summary(model, depth=5, verbose=1)
-  # ...reset 'sys.stdout'
-  sys.stdout = sys.__stdout__
-
   # Preprocessing the datasets.
   # Preprocessing is slighlty different for training and evaluation.
   if training_args.do_train:
@@ -432,8 +425,6 @@ def main():
   
   raw_data = raw_datasets["train"][0]
   getModelOutput(raw_data, tokenizer, data_args, model_args, training_args)
-
-
 
 
 if __name__ == "__main__":

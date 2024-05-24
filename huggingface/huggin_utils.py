@@ -40,6 +40,8 @@ import sys
 import matplotlib.pyplot as plt
 from checkpointing import *
 import checkpointing_config
+# 24/5/24 DH: Needed to access 'Trainer.should_save' for end full weights saving
+from transformers import Trainer
 
 # 30/3/24 DH: ;)
 def niceWorkGoodjob():
@@ -320,7 +322,7 @@ def graphWeights(percentChgDictList, saveVals=True):
   # 21/5/24 DH: CURRENTLY the only time we set 'saveVals=False' is with full value graphs
   if saveVals:
     titleStr = f"Weight change by node from start/end layer for epoch {epochNum}"
-    plt.ylim(top=20, bottom=-15)
+    #plt.ylim(top=20, bottom=-15)
   else:
     titleStr = f"Full weight by node from start/end layer for epoch {epochNum}"
 
@@ -328,7 +330,7 @@ def graphWeights(percentChgDictList, saveVals=True):
   plt.xlabel("Node number")
   plt.ylabel("Weight")
   
-  print(f"  \"{titleStr}\"")
+  print(f"  \"{titleStr}\" (USING: 'abs(prevWeight)')")
 
   listLen = len(percentChgDictList)
   idx = 0
@@ -348,13 +350,12 @@ def graphWeights(percentChgDictList, saveVals=True):
         checkpointing_config.gFullWeightsFile.write("\n")
       
     lwVal = (idx + 1) / listLen
-    print(f"    {weightMapDict[idx]} lwVal: {lwVal}")
 
     plt.plot(xVals, yVals, label=f"{weightMapDict[idx]}", linewidth=lwVal)
 
     idx += 1
   
-  plt.legend(loc="upper left")
+  plt.legend(loc="best")
 
   #legendStr = f"Start logits: Solid line\nEnd logits:   Dotted line"
   #plt.figtext(0.15, 0.2, legendStr)
@@ -362,7 +363,10 @@ def graphWeights(percentChgDictList, saveVals=True):
   #plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
 
   #plt.draw()
-  plt.show(block=False)
+
+  # 24/5/24 DH: When called from '*QuestionAnswering.forward()' we just 'savefig()' (rather than 'show()')
+  #             which means that we can 'close()' after saving (rather than waiting to display at end of training)
+  #plt.show(block=False)
 
   # 21/5/24 DH: CURRENTLY the only time we set 'saveVals=False' is with full value graphs
   if saveVals:
@@ -371,6 +375,9 @@ def graphWeights(percentChgDictList, saveVals=True):
     graphFilename = f"{epochNum}-fullValues"
   plt.savefig(f"{checkpointing_config.gGraphDir}/{graphFilename}.png")
 
+  # 24/5/24 DH: "RuntimeWarning: More than 20 figures have been opened. Figures created through ... (`matplotlib.pyplot.figure`) are retained 
+  #              until explicitly closed and may consume too much memory.  Consider using `matplotlib.pyplot.close()"
+  plt.close()
 
 # 14/5/24 DH: Convert full weight values to rounded weight diff
 def getWeightStats(weightsListIdx):
@@ -393,7 +400,8 @@ def getWeightStats(weightsListIdx):
 
       # Need percent change from previous
       diff = currWeight - prevWeight
-      percentChgFromPrev = round(diff/prevWeight*100, 3)
+      # 22/5/24 DH: 'diff/prevWeight' needs 'abs(prevWeight)'
+      percentChgFromPrev = round(diff/ abs(prevWeight) * 100, 3)
       #mTxt = "Diff:"
       #print(f"{mTxt:>17} {diff}, Percent from prev: {percentChgFromPrev}%")
 
@@ -425,7 +433,7 @@ def getFullvalsDictList(weightValMatrix):
   valMatrixLen = len(weightValMatrix)
   # start/end full values list for all 767 nodes
   for idx in range(valMatrixLen):
-    print(f"  'getFullvalsDictList()' - {weightMapDict[idx]}")
+    #print(f"  'getFullvalsDictList()' - {weightMapDict[idx]}")
     fullvalsDict = {}
 
     fullvalsListLen = len(weightValMatrix[idx])
@@ -480,7 +488,8 @@ def checkWeightsForAllSets():
     # Only used for the first entry
     gFirstEpoch = epochNum
 
-  if epochNum == maxEpochs - 1:
+  # 24/5/24 DH: If training is stopped with'Ctrl-C' then need to access 'Trainer.should_save' flag (as well as last epoch)
+  if epochNum == maxEpochs - 1 or Trainer.should_save:
     print("  Yup last one")
     fullvalsDictList = getFullvalsDictList(weightValMatrix[gValMatrixIdx])
     graphWeights(fullvalsDictList, saveVals=False)

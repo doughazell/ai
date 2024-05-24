@@ -260,11 +260,14 @@ class BertSelfAttention(nn.Module):
     ) -> Tuple[torch.Tensor]:
         
         # 16/5/24 DH:
+        """
         print()
         print("  ----------------------------------------------------")
         print(f"  START: BertSelfAttention.forward() - hidden_states: {hidden_states.shape}")
         print()
         print(f"  query_layer: {self.query}")
+        """
+
         mixed_query_layer = self.query(hidden_states)
 
         # If this is instantiated as a cross-attention module, the keys
@@ -288,20 +291,20 @@ class BertSelfAttention(nn.Module):
             value_layer = torch.cat([past_key_value[1], value_layer], dim=2)
         else:
             # 15/5/24 DH:
-            print(f"  key: {self.key}")
+            #print(f"  key: {self.key}")
             key_layer = self.transpose_for_scores(self.key(hidden_states))
             # 16/5/24 DH:
-            print(f"    key_layer: {key_layer.shape}")
+            #print(f"    key_layer: {key_layer.shape}")
 
             # 15/5/24 DH:
-            print(f"  value: {self.value}")
+            #print(f"  value: {self.value}")
             value_layer = self.transpose_for_scores(self.value(hidden_states))
             # 16/5/24 DH:
-            print(f"    value_layer: {value_layer.shape}")
+            #print(f"    value_layer: {value_layer.shape}")
 
         query_layer = self.transpose_for_scores(mixed_query_layer)
         # 15/5/24 DH:
-        print(f"    query_layer: {query_layer.shape}")
+        #print(f"    query_layer: {query_layer.shape}")
 
         use_cache = past_key_value is not None
         if self.is_decoder:
@@ -351,8 +354,8 @@ class BertSelfAttention(nn.Module):
         # seem a bit unusual, but is taken from the original Transformer paper.
         attention_probs = self.dropout(attention_probs)
         # 15/5/24 DH:
-        print(f"    attention_probs: {attention_probs.shape}")
-        print()
+        #print(f"    attention_probs: {attention_probs.shape}")
+        #print()
 
         # Mask heads if we want to
         if head_mask is not None:
@@ -1803,9 +1806,6 @@ class BertForQuestionAnswering(BertPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    # 12/5/24 DH:
-    fwdCnt = 0
-
     @add_start_docstrings_to_model_forward(BERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_QA,
@@ -1868,15 +1868,36 @@ class BertForQuestionAnswering(BertPreTrainedModel):
         
         logitsLen = len(logits)
         print(f"Epochs in batch: {logitsLen}")
-        inputIdsEnd = (input_ids[0] == 0).nonzero()[0].item()
-        maxLogitsArray = input_ids[0].shape[0]
-        inIds = input_ids[0][:inputIdsEnd]
 
-        print(f"INPUT ('input_ids[0]'): {tokenizer.decode(inIds)}")
-        print(f"  (Input IDs: {inputIdsEnd}, so printing out 1 extra unused logit)")
-        print()
-        print(f"  {inputIdsEnd + 1} Embeddings logits (from {maxLogitsArray} max Bert logits):")
-        print(f"    {logits[0][:inputIdsEnd + 1]}")
+        # 24/5/24 DH: During a non-training calculation the batch size is 1 (rather than 'train_batch_size' for training)
+        # ALSO: 
+        #       Training:     'input_ids.shape' => [12, 384] (ie zero'd out)
+        #       Non-training: 'input_ids.shape' => [1, 176]
+        try:
+          inputIdsEnd = (input_ids[0] == 0).nonzero()[0].item()
+          maxLogitsArray = input_ids[0].shape[0]
+          inIds = input_ids[0][:inputIdsEnd]
+
+          print(f"INPUT ('input_ids[0]'): {tokenizer.decode(inIds)}")
+          print()
+          print(f"  {inputIdsEnd + 1} Embeddings logits (from {maxLogitsArray} max Bert logits):")
+          for elem in logits[0][:3].tolist():
+            print(f"    {elem}")
+          print( "    ...")
+          print( "  (last 3 logits + 1 zero'd out)")
+          for elem in logits[0][inputIdsEnd-3 : inputIdsEnd+1].tolist():
+            print(f"    {elem}")
+
+        except IndexError:
+          inIds = input_ids[0]
+        
+          print(f"INPUT ('input_ids[0]'): {tokenizer.decode(inIds)}")
+          for elem in logits[0][:3].tolist():
+            print(f"  {elem}")
+          print( "  ...")
+          for elem in logits[0][-3:].tolist():
+            print(f"  {elem}")
+        
         print()
         print( "  HOW DO EMBEDDINGS logits CORRELATE WITH 'qa_outputs' weights FOR START AND END logits ???")
         print()
@@ -1884,25 +1905,31 @@ class BertForQuestionAnswering(BertPreTrainedModel):
         # Creates 'fwdCnt' in child class and prevents access to parent variable
         #self.qa_outputs.fwdCnt = 0
 
-        fwdCnt = self.qa_outputs.fwdCnt
-        fwdCntExtra = fwdCnt - self.fwdCnt
-        print(f"Linear.fwdCnt: {fwdCnt}, extra: {fwdCntExtra}")
-        self.fwdCnt = fwdCnt
+        # 24/5/24 DH:
+        import torch.nn.modules.linear
+        torch.nn.modules.linear.Linear.fwdCnt = 0
 
         # ============================================
-        # 12/5/24 DH:
-        import huggin_utils
-        huggin_utils.logWeightings(self.qa_outputs.weight)
+        if logitsLen > 1: # ie training not non-training calc
+          # 12/5/24 DH:
+          import huggin_utils
+          huggin_utils.logWeightings(self.qa_outputs.weight)
 
-        # 14/5/24 DH: Access custom additional API
-        from transformers import Trainer
-        epochNum = Trainer.stateAPI.global_step
+          """
+          # 14/5/24 DH: Access custom additional API
+          from transformers import Trainer
+          epochNum = Trainer.stateAPI.global_step
 
-        # 14/5/24 DH: Without waiting at the end of the training then the graphs DO NOT get displayed from Transformers callback
-        if epochNum == 19:
-          print()
-          print("NOT CALLING: breakpoint()")
-          #breakpoint()
+          # 14/5/24 DH: Without waiting at the end of the training then the graphs DO NOT get displayed from Transformers callback
+          if epochNum == 19:
+            print()
+            print("*** CALLING: breakpoint() ***")
+            print()
+            breakpoint()
+          """
+        
+        
+
         # ---------------------------------------------------------------------------------
 
         total_loss = None

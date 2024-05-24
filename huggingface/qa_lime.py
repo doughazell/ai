@@ -322,14 +322,27 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args, training_args):
   )
 
   # 24/4/24 DH: "pip install torchinfo" (https://github.com/TylerYep/torchinfo) "(formerly torch-summary)"
+  print()
+  print("-----------------------------------------")
+  print("NO LONGER CALLING: torchinfo.summary()")
+  print("                   torchview.draw_graph()")
+  print("-----------------------------------------")
+  print()
+  """
   from torchinfo import summary
-  summary(model)
+  with open('bert_qa.summary', 'w') as sys.stdout:
+    summary(model, depth=5, verbose=1)
+  # ...reset 'sys.stdout'
+  sys.stdout = sys.__stdout__
+
+  # --------------------------------------------------
 
   # 26/4/24 DH: Also try: https://github.com/mert-kurttutan/torchview, "pip install torchview; pip install graphviz"
   from torchview import draw_graph
   model_graph = draw_graph(model, input_data=encoding, depth=4, expand_nested=True, hide_inner_tensors=False)
   # 29/4/24 DH: Now added to 'draw_graph()' since adding legend
   #model_graph.visual_graph.render()
+  """
 
   all_tokens = tokenizer.convert_ids_to_tokens( encoding["input_ids"][0].tolist() )
   transformerLIMEing(output, tokenizer, all_tokens)
