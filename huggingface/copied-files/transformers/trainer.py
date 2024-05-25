@@ -3163,12 +3163,28 @@ class Trainer:
             print("Trainer.training_step() CALLING: 'accelerator.backward(loss)'")
             self.accelerator.backward(loss)
 
-        # 24/5/24 DH:
+        # ------------------------------------------------------------------------
+        # 24/5/24 DH: Screen output to user during training
         trg_step_retval = loss.detach() / self.args.gradient_accumulation_steps
         print(f"  RETURNING: {trg_step_retval}")
         print()
+        # 25/5/24 DH: Now logging 'loss' for later graphing
+        epochNum = Trainer.stateAPI.global_step
+        maxEpochs = Trainer.stateAPI.max_steps
+        
+        # 25/5/24 DH: Prev added to 'trainer_signaller' WHICH GETS OVERWRITTEN by 'qa.py'
+        #import logging
+        #sigLogger = logging.getLogger("trainer_signaller")
+        #sigLogger.info(f"Epoch: {epochNum} of: {maxEpochs} = {trg_step_retval} (Grad steps: {self.args.gradient_accumulation_steps})")
+
+        import checkpointing_config
+        checkpointing_config.gLossFile.write(f"Epoch: {epochNum} of: {maxEpochs} = {trg_step_retval} (Grad steps: {self.args.gradient_accumulation_steps})\n")
+        # OMGGGGG....!!!!
+        checkpointing_config.gLossFile.flush()
 
         return trg_step_retval
+        # ------------------------------------------------------------------------
+
         #return loss.detach() / self.args.gradient_accumulation_steps
 
     def compute_loss(self, model, inputs, return_outputs=False):

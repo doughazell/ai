@@ -11,7 +11,7 @@ gStoppingFlag = False
 gCheckpointNum = 0
 
 # 9/2/24 DH:
-def createLoggers(training_args):
+def createLoggers(training_args, overwrite=True):
   # 8/2/24 DH: https://docs.python.org/3/howto/logging.html
   #            https://docs.python.org/3/library/logging.html
 
@@ -26,6 +26,7 @@ def createLoggers(training_args):
   # 15/2/24 DH: Taken from 'trainer.py:Trainer._save()'
   os.makedirs(training_args.output_dir, exist_ok=True)
 
+  # 25/5/24 DH: Opened in normal logging append mode (so NOT overwritten)
   fileHandler = logging.FileHandler(f"{logPath}/{fileName}.log")
   logFormatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
   fileHandler.setFormatter(logFormatter)
@@ -38,6 +39,7 @@ def createLoggers(training_args):
   fileName = "seq2seq_qa_INtrainer"
   logPath = training_args.output_dir
 
+  # 25/5/24 DH: mode="w" so OVERWRITTEN
   fileHandler = logging.FileHandler(f"{logPath}/{fileName}.log", mode="w")
   logFormatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
   fileHandler.setFormatter(logFormatter)
@@ -53,22 +55,32 @@ def createLoggers(training_args):
   logPath = training_args.output_dir
   graphDir = "graphs"
   fileNameFull = "weights-full"
-
-  checkpointing_config.gWeightsFile = open(f"{logPath}/{fileName}.log", 'w')
-  # 21/5/24 DH:
-  checkpointing_config.gWeightsFile.write(f"RECORDED WEIGHT PERCENTAGE DIFFS BY NUMBERED EPOCH\n")
-  checkpointing_config.gWeightsFile.write(f"--------------------------------------------------\n")
-  checkpointing_config.gWeightsFile.write(f"\n")
+  lossFilename = "loss-by-epochs"
 
   # 21/5/24 DH:
   checkpointing_config.gGraphDir = f"{logPath}/{graphDir}"
   Path(checkpointing_config.gGraphDir).mkdir(parents=True, exist_ok=True)
 
-  # 21/5/24 DH:
-  checkpointing_config.gFullWeightsFile = open(f"{logPath}/{fileNameFull}.log", 'w')
-  checkpointing_config.gFullWeightsFile.write(f"RECORDED FULL WEIGHT BY NUMBERED EPOCH\n")
-  checkpointing_config.gFullWeightsFile.write(f"--------------------------------------\n")
-  checkpointing_config.gFullWeightsFile.write(f"\n")
+  # 25/5/24 DH: Prevent 'qa.py' overwriting log files from 'run_qa.py'
+  if overwrite:
+    checkpointing_config.gWeightsFile = open(f"{logPath}/{fileName}.log", 'w')
+    # 21/5/24 DH:
+    checkpointing_config.gWeightsFile.write(f"RECORDED WEIGHT PERCENTAGE DIFFS BY NUMBERED EPOCH\n")
+    checkpointing_config.gWeightsFile.write(f"--------------------------------------------------\n")
+    checkpointing_config.gWeightsFile.write(f"\n")
+
+    # 21/5/24 DH:
+    checkpointing_config.gFullWeightsFile = open(f"{logPath}/{fileNameFull}.log", 'w')
+    checkpointing_config.gFullWeightsFile.write(f"RECORDED FULL WEIGHT BY NUMBERED EPOCH\n")
+    checkpointing_config.gFullWeightsFile.write(f"--------------------------------------\n")
+    checkpointing_config.gFullWeightsFile.write(f"\n")
+
+    # 25/5/24 DH: This needs 'flush()' if ONLY "import checkpointing_config"
+    checkpointing_config.gLossFile = open(f"{logPath}/{lossFilename}.log", 'w')
+    checkpointing_config.gLossFile.write(f"LOSS BY NUMBERED EPOCH\n")
+    checkpointing_config.gLossFile.write(f"----------------------\n")
+    checkpointing_config.gLossFile.write(f"\n")
+
 
 def getHighestCheckpoint():
   
@@ -110,8 +122,11 @@ def signal_handler(sig, frame):
   # 2nd time Ctrl-C clicked
   else:
     checkpointNum = getHighestCheckpoint()
+    
     # 13/2/24 DH: Accomodate when there is no checkpoint already (knock-3-times-and-ask-for-Alan...)
-    if checkpointNum == gCheckpointNum and not checkpointNum != 0:
+    # 25/5/24 DH: PREV: "if checkpointNum == gCheckpointNum and not checkpointNum != 0" 
+    #   (ie...double negative meant always false so exited without advancing checkpoint when "not != 0"...ffs...!!!)
+    if checkpointNum == gCheckpointNum and checkpointNum != 0:
       print()
       print(f"  {checkpointNum} is same as {gCheckpointNum}")
       print()

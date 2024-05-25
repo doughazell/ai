@@ -14,5 +14,7 @@ gWeightsFile = None
 # 21/5/24 DH: Directory used to save a weights graph
 gGraphDir = None
 gFullWeightsFile = None
+# 25/5/24 DH: Used to save the loss for each epoch (for later graphing)
+gLossFile = None
 
 # ----------------- END: Runtime Cfg ---------------

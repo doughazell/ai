@@ -157,7 +157,15 @@ def getWeightDiffs(percentChgDictListDict, lineType):
   # https://docs.python.org/3/library/collections.html#ordereddict-objects
   #   "built-in dict class gained the ability to remember insertion order"
   keyList = list(percentChgDictListDict.keys())
-  startEpoch = keyList[0]
+  
+  # 25/5/24 DH: Running 'huggingface/qa.py' after 'huggingface/run_qa.py' OVERWROTE 'weights-full.log' + 'weights.log'
+  try:
+    startEpoch = keyList[0]
+  except IndexError:
+    print()
+    print("There is no epoch data...exiting")
+    exit(0)
+  
   # 24/5/24 DH:
   try:
     endEpoch = keyList[1]
@@ -221,15 +229,18 @@ if __name__ == "__main__":
   else:
     print(f"You need to provide an 'output_dir'")
     exit(0)
-
-  """
-  """
+  
   # --------------------------- PERCENTAGE DIFFS BY EPOCH ------------------------------------
   percentChgDictListDict = collectWeights(weightsLog)
   #printCollectedDict(percentChgDictListDict)
 
   keyNum = len(percentChgDictListDict.keys())
 
+  print( "-------------------------------------------------")
+  print(f"   NOT GRAPHING PERCENTAGE DIFFS FOR {keyNum} epochs")
+  print( "-------------------------------------------------")
+
+  """
   print(f"The shape of the graphs is similar to Bert/SQuAD training (despite this training being custom JSON)")
   print("(See \"open file:///Users/doug/Desktop/devlogeD/2024/doc/b6-feb24.html#label-Results\")")
   print()
@@ -242,7 +253,7 @@ if __name__ == "__main__":
     else:
       graphWeightsKeyed(percentChgDictListDict[key], key)
     idx += 1
-  
+  """
   # --------------------------- START/END WEIGHTS + PERCENTAGE DIFF --------------------------
   # 22/5/24 DH: Having graphed all the rounded, percentage diffs then we need to 
   #             calculate + graph the percentage diff between the first and last full value weights

@@ -321,7 +321,8 @@ def main():
   # 30/3/24 DH: NOW, THE INPUT_IDS & LOGITS ARE LOGGED
   # 30/3/24 DH: Needs to be after "Detecting last checkpoint" in order to create the first checkpoint with Ctrl-C 
   #             (and prevent the need for "run/remove/rerun" involving, ' "overwrite_output_dir": "True" ')
-  createLoggers(training_args)
+  # 25/5/24 DH: 'run_qa.py' now logs weights in 'weights-full.log' + 'weights.log' so need to prevent 'qa.py' from overwriting
+  createLoggers(training_args, overwrite=False)
 
   # Set seed before initializing model.
   set_seed(training_args.seed)

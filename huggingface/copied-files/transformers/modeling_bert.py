@@ -1867,7 +1867,7 @@ class BertForQuestionAnswering(BertPreTrainedModel):
         tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
         
         logitsLen = len(logits)
-        print(f"Epochs in batch: {logitsLen}")
+        print(f"Samples in batch: {logitsLen}")
 
         # 24/5/24 DH: During a non-training calculation the batch size is 1 (rather than 'train_batch_size' for training)
         # ALSO: 
