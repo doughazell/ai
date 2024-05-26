@@ -161,6 +161,14 @@ def getWeightDiffs(percentChgDictListDict, lineType):
   # 25/5/24 DH: Running 'huggingface/qa.py' after 'huggingface/run_qa.py' OVERWROTE 'weights-full.log' + 'weights.log'
   try:
     startEpoch = keyList[0]
+
+    if "Start" in weightMapDict[lineType]:
+      print()
+      print("  Calculating total weight diffs")
+      print("  ------------------------------")
+
+    print(f"  {weightMapDict[lineType]} line")
+    print(f"    starting at epoch: {startEpoch}")
   except IndexError:
     print()
     print("There is no epoch data...exiting")
@@ -169,6 +177,10 @@ def getWeightDiffs(percentChgDictListDict, lineType):
   # 24/5/24 DH:
   try:
     endEpoch = keyList[1]
+
+    print(f"    ending at epoch: {endEpoch}")
+    if "End" in weightMapDict[lineType]:
+      print()
   except IndexError:
     print()
     print("There is no end epoch data...exiting")
@@ -207,8 +219,9 @@ def getWeightDiffs(percentChgDictListDict, lineType):
 def calcAndGraphTrgDiffs(percentChgDictListDict):
   percentChgLineList = []
 
+  # 'weightMapDict' = "{0: "Start", "Start": 0, ...}"
   for key in weightMapDict.keys():
-    # 'weightMapDict' = "{0: "Start", "Start": 0, ...}"
+    
     if isinstance(key, int):
       lineType = key
       
@@ -260,9 +273,21 @@ if __name__ == "__main__":
   percentChgDictListDict = collectWeights(fullweightsLog)
 
   # Firstly graph the start/end full weights
-  for key in percentChgDictListDict:
-    graphWeightsKeyed(percentChgDictListDict[key], key, weights=True)
-  
+  # 26/5/24 DH: During the Ctrl-C checkpointing save delay (to prevent partial saving) we sometimes get multiple end full weights
+  #             ('getWeightDiffs(...) uses "startEpoch = keyList[0]", "endEpoch = keyList[1]")
+  keyList = list(percentChgDictListDict.keys())
+  startEpoch = keyList[0]
+  endEpoch = keyList[1]
+  if len(keyList) > 2:
+    print(f"  (not graphing epochs: ", end='')
+    for key in keyList[2:]:
+      print(f"{key}, ", end='')
+    print(")")
+    print()
+
+  graphWeightsKeyed(percentChgDictListDict[startEpoch], startEpoch, weights=True)
+  graphWeightsKeyed(percentChgDictListDict[endEpoch], endEpoch, weights=True)
+
   # Now calculate + graph the percentage diff
   calcAndGraphTrgDiffs(percentChgDictListDict)
   

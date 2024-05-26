@@ -6,8 +6,11 @@
 ##############################################################################
 
 import sys, os
-import matplotlib.pyplot as plt
 from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.optimize import curve_fit
 
 gTrainerLoss_log = "loss-by-epochs.log"
 
@@ -54,9 +57,36 @@ def graphLosses(lossDict):
 
   print(f"  \"{titleStr}\"")
 
-  xVals = lossDict.keys()
+  xVals = list(lossDict.keys())
   yVals = [lossDict[key] for key in lossDict.keys()]
   plt.plot(xVals, yVals)
+
+  # 26/5/24 DH: Adding best fit line to exponential decay of loss (modulated by form of Pretrained BERT)
+  # ----------------------------------------------------------------------------------------------------
+  # find LINEAR line of best fit
+  """
+  a, b = np.polyfit(xVals, yVals, 1)
+  
+  yValsBestfit = [a*x+b for x in xVals]
+  # https://matplotlib.org/stable/gallery/color/named_colors.html
+  plt.plot(xVals, yValsBestfit, color='yellow', linestyle='--', linewidth=2)
+  """
+
+  # find EXPONENTIAL line of best fit
+  # https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.curve_fit.html
+  def func(x, a, b, c):
+    # https://docs.python.org/3/library/warnings.html#the-warnings-filter
+    # Ignore: "RuntimeWarning: overflow encountered in exp"
+    import warnings
+    warnings.filterwarnings("ignore")
+
+    return a * np.exp(-b * x) + c
+
+  popt, pcov = curve_fit(func, xVals, yVals)
+
+  yValsExpfit = [func(x, *popt) for x in xVals]
+  plt.plot(xVals, yValsExpfit, color='red', linestyle='--', linewidth=2)
+  
 
   # 25/5/24 DH: Since 'loss-by-epochs.log' is overwritten every time 'run_qa.py' is run 
   #             then prevent overwriting the graph image with an incrementing filename

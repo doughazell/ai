@@ -284,7 +284,7 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args, training_args):
   #context = context.replace('as a child, and rose to fame in the late 1990s ', '')
 
   # 14/2/24 DH:
-  index = 2 # index = (#item - 1)
+  index = 2 #index = (#item - 1)
   (question, context, answer) = getListElem(questions, contexts, answers, index)
   answer = answer['text'][0]
 
