@@ -13,10 +13,6 @@ import sys, os, random, time
 print("Importing 'transformers'")
 import transformers
 from transformers import (
-    AutoConfig,
-    AutoModelForQuestionAnswering,
-    AutoTokenizer,
-    
     HfArgumentParser,
     TrainingArguments,
     set_seed,
@@ -80,6 +76,60 @@ class DataTrainingArguments:
   doc_stride: int = field(default=128,)
 # --------------------------------------------------------------------------------------------------------------
 
+# 27/5/24 DH:
+def runRandSamples(dataOrigin, raw_datasets, data_args, model_args, iterations=3):
+  answerDictDict = {}
+
+  # Re-randomize seeded generator (previously de-randomized in 'set_seed(training_args.seed)' above)
+  random.seed(time.time())
+
+  numSamples           = raw_datasets['train'].num_rows
+  numValidationSamples = raw_datasets['validation'].num_rows
+
+  print()
+  print(f"'{dataOrigin}' has '{numSamples}' samples")
+  print(f"  (+ '{numValidationSamples}' validation samples giving total of '{numValidationSamples + numSamples}' in '{dataOrigin}')")
+  print()
+
+  # -------------------------------------------
+  # Loop for specified model non-training runs
+  # -------------------------------------------
+
+  for idx in range(iterations):
+
+    # https://en.wikipedia.org/wiki/Division_(mathematics)#Of_integers
+    # "Give the integer quotient as the answer, so 26 / 11 = 2. It is sometimes called 'integer division', and denoted by '//'."
+    datasetsIdx = int( (random.random() * numSamples * numSamples) // numSamples )
+    print(f"'{dataOrigin}' has '{numSamples}' samples and choosing IDX: '{datasetsIdx}'")
+
+    raw_data = raw_datasets["train"][datasetsIdx]
+    if idx + 1 == iterations:
+      print()
+      print(f"  Graph {idx+1} of {iterations} and last graph so sending 'True' to 'plt.show(block=True)'")
+      print()
+
+      ansDict = {}
+      #(ansDict['question'], ansDict['expAnswer'], ansDict['answer']) = getModelOutput(raw_data, data_args, model_args, printOut=False, lastGraph=True)
+      (ansDict['question'], ansDict['expAnswer'], ansDict['answer']) = getModelOutput(raw_data, data_args, model_args, printOut=False)
+    else:
+      print()
+      print(f"  Graph {idx+1} of {iterations}")
+      print()
+
+      ansDict = {}
+      (ansDict['question'], ansDict['expAnswer'], ansDict['answer']) = getModelOutput(raw_data, data_args, model_args, printOut=False)
+    
+    answerDictDict[idx+1] = ansDict
+  # END --- "for idx in range(iterations)" ---
+  return answerDictDict
+
+def displayResults(answerDictDict):
+  for key in answerDictDict:
+    print()
+    print(f"{key}) Question: {answerDictDict[key]['question']}")
+    print(f"{key}) Expected answer: {answerDictDict[key]['expAnswer']}")
+    print(f"{key}) Actual answer: {answerDictDict[key]['answer']}")
+    print()
 
 def main():
   parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
@@ -139,8 +189,10 @@ def main():
   createLoggers(training_args, overwrite=False)
 
   # Set seed before initializing model.
+  # https://github.com/huggingface/transformers/blob/main/src/transformers/trainer_utils.py#L86
   set_seed(training_args.seed)
 
+  # ------------------------------------- LOAD DATASETS ----------------------------------
   if data_args.dataset_name is not None:
     # Downloading and loading a dataset from the hub.
     print()
@@ -170,34 +222,27 @@ def main():
       cache_dir=model_args.cache_dir,
       token=model_args.token,
     )
+  # --------------------------------------------------------------------------------------
 
   print()
   print("------ Now running the trained model for Q&A ------")
 
-  # 27/5/24 DH: HARD-CODED to use first sample of datasets (which is the JSON list)
-  dataOrigin = ""
+  # 27/5/24 DH: HARD-CODED to use first sample of JSON datasets (which is the JSON list)
   if data_args.train_file:
     datasetsIdx = 0
 
+    #printDatasetInfo(raw_datasets, datasetsIdx)
+    raw_data = raw_datasets["train"][datasetsIdx]
+    getModelOutput(raw_data, data_args, model_args, printOut=False)
+
   # BUT random sample of Arrow Datasets (First entry is 0)
   elif data_args.dataset_name:
-    dataOrigin = data_args.dataset_name
-    numSamples = raw_datasets['train'].num_rows
-
-    # Re-randomize seeded generator
-    random.seed(time.time())
-    datasetsIdx = int( (random.random() * numSamples * numSamples) // numSamples )
-
+    answerDictDict = runRandSamples(data_args.dataset_name, raw_datasets, data_args, model_args)
+    displayResults(answerDictDict)
+    
     print()
-    print(f"'{dataOrigin}' has '{numSamples}' samples and choosing IDX: '{datasetsIdx}'")
-    numValidationSamples = raw_datasets['validation'].num_rows
-    print(f"  (+ '{numValidationSamples}' validation samples giving total of '{numValidationSamples + numSamples}' in '{dataOrigin}')")
-    print()
-
-  #printDatasetInfo(raw_datasets, datasetsIdx)
-  
-  raw_data = raw_datasets["train"][datasetsIdx]
-  getModelOutput(raw_data, data_args, model_args, printOut=False)
+    print("PRESS RETURN TO FINISH")
+    response = input()
 
 
 if __name__ == "__main__":

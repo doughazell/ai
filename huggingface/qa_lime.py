@@ -62,8 +62,16 @@ def printDatasetInfo(raw_datasets, datasetsIdx):
     print("---")
 
 # 19/2/24 DH: Taken from 'real_bday_paradox.py'
-def graphTokenVals(startVals, endVals, tokWordStr, tokIDStr):
-  
+# 27/5/24 DH: TODO: Decide whether to keep 'lastGraph' cascade from: 
+#                     'test-qa-efficacy.py::runRandSamples(...)'
+#                     'getModelOutput(...)'
+#                     'transformerLIMEing(...)'
+#                     'graphTokenVals(...)'
+#  (since we want to display graphs + 'answerDictDict' AT SAME TIME)
+def graphTokenVals(startVals, endVals, tokWordStr, tokIDStr, lastGraph=False):
+  # 27/5/24 DH: Create new canvas to prevent 'plt.show(block=False)' being drawn onto initial graph
+  plt.figure()
+
   # from 'lime_utils.py::displayCoefficients()'
   #plt.axhline(y=0, color='green', linestyle='-')
 
@@ -83,8 +91,15 @@ def graphTokenVals(startVals, endVals, tokWordStr, tokIDStr):
   legendStr = f"{tokWordStr}\n{tokIDStr}"
   plt.figtext(0.15, 0.2, legendStr)
 
-  plt.draw()
-  plt.show()
+  # 27/5/24 DH: Unable to change window location with 'macos' (incl "matplotlib.use('QtAgg')", "matplotlib.use('TkAgg')")
+  #             https://matplotlib.org/stable/users/explain/figure/backends.html#selecting-a-backend)
+
+  #    matplotlib.use('TkAgg')
+  #    plt.get_current_fig_manager().window.wm_geometry("+600+400") # move the window
+  #      RESULT: "Cannot load backend 'TkAgg' which requires the 'tk' interactive framework, as 'macosx' is currently running"
+
+  #plt.draw()
+  plt.show(block=lastGraph)
 
 # 7/4/24 DH: Used with custom JSON cut-down data to learn about BERT (not SQuAD)
 def getTokStrings(all_tokens, tokenIDs, tokenizer, printOut=False):
@@ -115,7 +130,7 @@ def getTokStrings(all_tokens, tokenIDs, tokenizer, printOut=False):
 
   return (tokWordStr, tokIDStrPLT)
 
-def transformerLIMEing(output, tokenizer, all_tokens, printOut=False):
+def transformerLIMEing(output, tokenizer, all_tokens, printOut=False, lastGraph=False):
   max_start_logits_idx = torch.argmax(output["start_logits"])
   max_end_logits_idx = torch.argmax(output["end_logits"])
   answer_tokens = all_tokens[max_start_logits_idx : max_end_logits_idx + 1]
@@ -197,7 +212,9 @@ def transformerLIMEing(output, tokenizer, all_tokens, printOut=False):
   print("------")
 
   #print("NOT CALLING: 'graphTokenVals()'")
-  graphTokenVals(startVals, endVals, tokWordStr, tokIDStrPLT)
+  graphTokenVals(startVals, endVals, tokWordStr, tokIDStrPLT, lastGraph)
+
+  return answer
 
 # 24/3/24 DH:
 def getCorrectModelAndTokenizer(model_name, model_args):
@@ -249,7 +266,7 @@ def getCorrectModelAndTokenizer(model_name, model_args):
   return (model, tokenizer)
 
 
-def getModelOutput(raw_data, data_args, model_args, printOut=False):
+def getModelOutput(raw_data, data_args, model_args, printOut=False, lastGraph=False):
 
   # Model needs to set here (so can easily use HuggingFace Hub model or local directory specified by 'output_dir')
   # -----------------------
@@ -299,7 +316,7 @@ def getModelOutput(raw_data, data_args, model_args, printOut=False):
 
   # 7/4/24 DH: Designed to cope with JSON data plus Arrow added list layer (using index) + normal Arrow Datasets
   (question, context, answer) = getListElem(questions, contexts, answers, index)
-  answer = answer['text'][0]
+  expAnswer = answer['text'][0]
 
   if answer == "":
     print("Params from script")
@@ -310,7 +327,7 @@ def getModelOutput(raw_data, data_args, model_args, printOut=False):
     print(f"JSON IDX: {index}")
   print("QUESTION: ", question)
   print("CONTEXT: ", context)
-  print("EXPECTED ANSWER: ", answer)
+  print("EXPECTED ANSWER: ", expAnswer)
 
   # --- DEBUG ---
   # 27/3/24 DH: Taken from "(Pdb) input_ids[0]" ('BertForQuestionAnswering.forward()' in 'transformers/models/bert/modeling_bert.py')
@@ -363,7 +380,9 @@ def getModelOutput(raw_data, data_args, model_args, printOut=False):
   """
 
   all_tokens = tokenizer.convert_ids_to_tokens( encoding["input_ids"][0].tolist() )
-  transformerLIMEing(output, tokenizer, all_tokens, printOut)
+  answer = transformerLIMEing(output, tokenizer, all_tokens, printOut, lastGraph)
+
+  return (question, expAnswer, answer)
 
   
   

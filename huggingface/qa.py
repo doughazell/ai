@@ -424,9 +424,11 @@ def main():
   print()
   print("------ Now running the trained model for Q&A ------")
 
-  printDatasetInfo(raw_datasets)
+  # 27/5/24 DH: Copy changes made in 'test-qa-efficacy.py' refactor
+  datasetsIdx = 0
+  printDatasetInfo(raw_datasets, datasetsIdx)
   
-  raw_data = raw_datasets["train"][0]
+  raw_data = raw_datasets["train"][datasetsIdx]
   getModelOutput(raw_data, data_args, model_args)
 
 

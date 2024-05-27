@@ -98,7 +98,7 @@ def printCollectedDict(percentChgDictListDict):
     print()
 
 # Taken from: 'ai/huggingface/huggin_utils.py'
-def graphWeightsKeyed(percentChgDictList, epochNum, weights=False, lastGraph=False):
+def graphWeightsKeyed(percentChgDictList, epochNum, weights=False, lastGraph=False, lastEpoch=None):
   # 4/9/23 DH: Display all graphs simultaneously with 'plt.show(block=False)' (which needs to be cascaded)
   plt.figure()
 
@@ -110,10 +110,10 @@ def graphWeightsKeyed(percentChgDictList, epochNum, weights=False, lastGraph=Fal
       titleStr = f"Weight change by node from start/end layer for epoch {epochNum}"
   
   else:
-    titleStr = f"Total weight change by node from start/end layer"
+    titleStr = f"Total weight change by node from start/end layer after {lastEpoch} epochs"
 
   plt.title(titleStr)
-  plt.xlabel("Node number")
+  plt.xlabel("Node number (NOT token ID)")
   plt.ylabel("Weight")
 
   print(f"  \"{titleStr}\" (USING: 'abs(prevWeight)')")
@@ -213,7 +213,7 @@ def getWeightDiffs(percentChgDictListDict, lineType):
 
     percentChgDict[key] = percentChgFromPrev
 
-  return percentChgDict
+  return (percentChgDict, endEpoch)
 
 # 22/5/24 DH: WRAPPER around 'getWeightDiffs()' for each line
 def calcAndGraphTrgDiffs(percentChgDictListDict):
@@ -225,10 +225,10 @@ def calcAndGraphTrgDiffs(percentChgDictListDict):
     if isinstance(key, int):
       lineType = key
       
-      percentChgLine = getWeightDiffs(percentChgDictListDict, lineType)
+      (percentChgLine, endEpoch) = getWeightDiffs(percentChgDictListDict, lineType)
       percentChgLineList.append(percentChgLine)
       
-  graphWeightsKeyed(percentChgLineList, "complete", lastGraph=True)
+  graphWeightsKeyed(percentChgLineList, "complete", lastGraph=True, lastEpoch=endEpoch)
 
 
 if __name__ == "__main__":
