@@ -359,7 +359,9 @@ def main():
       raw_datasets = load_dataset(
           extension,
           data_files=data_files,
-          field="data",
+          # 27/5/24 DH: Solving "KeyError: 'data'" for JSON datasets ONLY WHEN "Generating dataset json" (copy 'run_qa.py')
+          #             (see "2024/b3-feb12")
+          #field="data",
           cache_dir=model_args.cache_dir,
           token=model_args.token,
       )
@@ -425,7 +427,7 @@ def main():
   printDatasetInfo(raw_datasets)
   
   raw_data = raw_datasets["train"][0]
-  getModelOutput(raw_data, tokenizer, data_args, model_args, training_args)
+  getModelOutput(raw_data, data_args, model_args)
 
 
 if __name__ == "__main__":

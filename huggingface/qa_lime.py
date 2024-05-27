@@ -35,9 +35,9 @@ def getListElem(_questions, _contexts, _answers, index):
 
   return (_question, _context, _answer)
 
-def printDatasetInfo(raw_datasets):
+def printDatasetInfo(raw_datasets, datasetsIdx):
   
-  raw_data = raw_datasets["train"][0]
+  raw_data = raw_datasets["train"][datasetsIdx]
   
   # ----------------------------------------------------------
   # 'datasets.arrow_dataset.py' line 2349: def __len__(self):
@@ -48,7 +48,8 @@ def printDatasetInfo(raw_datasets):
   print()
   print("------ printDatasetInfo() ------")
   print(f"raw_datasets['train'] : {raw_datasets['train'].__class__}, num_rows: {raw_datasets['train'].num_rows}")
-  print(f"raw_data: {raw_data.__class__}, {raw_data.keys()}")
+  print(f"USING idx: '{datasetsIdx}' from 'raw_datasets = load_dataset()'")
+  print(f"  raw_data : {raw_data.__class__}, {raw_data.keys()}")
   print()
   for key in raw_data:
     if isinstance(raw_data[key], list):
@@ -86,7 +87,7 @@ def graphTokenVals(startVals, endVals, tokWordStr, tokIDStr):
   plt.show()
 
 # 7/4/24 DH: Used with custom JSON cut-down data to learn about BERT (not SQuAD)
-def getTokStrings(all_tokens, tokenIDs, tokenizer):
+def getTokStrings(all_tokens, tokenIDs, tokenizer, printOut=False):
   
   tokWordStr = ""
   tokIDStr = ""
@@ -107,13 +108,14 @@ def getTokStrings(all_tokens, tokenIDs, tokenizer):
     tokIDStr += f"{sp:>{tokWordSpace}}{i},"
     tokIDStrPLT += f"{sp:>{tokWordLenPLT}}{i},"
 
-  print(tokWordStr)
-  print(tokIDStr)
-  print()
+  if printOut:
+    print(tokWordStr)
+    print(tokIDStr)
+    print()
 
   return (tokWordStr, tokIDStrPLT)
 
-def transformerLIMEing(output, tokenizer, all_tokens):
+def transformerLIMEing(output, tokenizer, all_tokens, printOut=False):
   max_start_logits_idx = torch.argmax(output["start_logits"])
   max_end_logits_idx = torch.argmax(output["end_logits"])
   answer_tokens = all_tokens[max_start_logits_idx : max_end_logits_idx + 1]
@@ -132,26 +134,35 @@ def transformerLIMEing(output, tokenizer, all_tokens):
   end_logits_dump = np.sort(end_logits_dump[0])[-tokNum:][::-1]
   end_logits_dump = [np.round(value) for value in end_logits_dump]
 
-  print()
-  print(f"Transformer LIME'ing (printing {tokNum} from {start_logits_dumpORIG.shape})")
-  print( "--------------------")
+  if printOut:
+    print()
+    print(f"Transformer LIME'ing (printing {tokNum} from {start_logits_dumpORIG.shape})")
+    print( "--------------------")
+
   maxStartLogit = start_logits_dumpORIG[0][max_start_logits_idx]
   maxEndLogit = end_logits_dumpORIG[0][max_end_logits_idx]
 
-  print(f"start_logits max: {max_start_logits_idx}, value: {np.round(maxStartLogit)}")
-  print(f"end_logits max: {max_end_logits_idx}, value: {np.round(maxEndLogit)}")
-  print()
-  print(f"output['start_logits']: {len(output['start_logits'][0])}, {start_logits_dump}")
-  print(f"output['end_logits']:   {len(output['end_logits'][0])}, {end_logits_dump}")
-  print()
+  if printOut:
+    print(f"start_logits max: {max_start_logits_idx}, value: {np.round(maxStartLogit)}")
+    print(f"end_logits max: {max_end_logits_idx}, value: {np.round(maxEndLogit)}")
+    print()
+    print(f"output['start_logits']: {len(output['start_logits'][0])}, {start_logits_dump}")
+    print(f"output['end_logits']:   {len(output['end_logits'][0])}, {end_logits_dump}")
+    print()
+
   all_tokens_len = len(all_tokens)
-  print(f"all_tokens: {all_tokens_len}, {all_tokens.__class__}")
+  
+  if printOut:
+    print(f"all_tokens: {all_tokens_len}, {all_tokens.__class__}")
   
   tokenIDs = range(all_tokens_len)
 
   # 7/4/24 DH:
-  if all_tokens_len < 20:
-    (tokWordStr, tokIDStrPLT) = getTokStrings(all_tokens, tokenIDs, tokenizer)
+  tokDebugLen = 20
+  if all_tokens_len < tokDebugLen:
+    (tokWordStr, tokIDStrPLT) = getTokStrings(all_tokens, tokenIDs, tokenizer, printOut)
+    print(f"  (adding 'word-token' key to graph since 'all_tokens' < {tokDebugLen})")
+    print()
   else:
     tokWordStr = "" 
     tokIDStrPLT = ""
@@ -168,16 +179,18 @@ def transformerLIMEing(output, tokenizer, all_tokens):
     startVals.append(startTokVal)
     endVals.append(endTokVal)
 
-    print(f"{i:<3} {tokWord:10} {startTokVal:>5} (start) {endTokVal:>10} (end)")
+    if printOut:
+      print(f"{i:<3} {tokWord:10} {startTokVal:>5} (start) {endTokVal:>10} (end)")
   
-  print()
-  print(f"answer_tokens: {len(answer_tokens)}")
-  print(f"  '{answer_tokens}'")
-  print("")
-  print(f"  answer_tokens ids: '{tokenizer.convert_tokens_to_ids(answer_tokens)}'")
-  print("  ------------------")
-  print(f"  tokenizer.decode() ids: '{tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))}'")
-  print()
+  if printOut:
+    print()
+    print(f"answer_tokens: {len(answer_tokens)}")
+    print(f"  '{answer_tokens}'")
+    print("")
+    print(f"  answer_tokens ids: '{tokenizer.convert_tokens_to_ids(answer_tokens)}'")
+    print("  ------------------")
+    print(f"  tokenizer.decode() ids: '{tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))}'")
+    print()
 
   answer = tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))
   print("ANSWER: ", answer)
@@ -187,7 +200,7 @@ def transformerLIMEing(output, tokenizer, all_tokens):
   graphTokenVals(startVals, endVals, tokWordStr, tokIDStrPLT)
 
 # 24/3/24 DH:
-def getCorrectModelAndTokenizer(model_name, model_args, origTokenizer):
+def getCorrectModelAndTokenizer(model_name, model_args):
   print( "###################################")
   print(f"LOADING: {model_name}")
   print( "###################################")
@@ -214,11 +227,13 @@ def getCorrectModelAndTokenizer(model_name, model_args, origTokenizer):
   # --------------------------------------------------------------------------------------------
   
   else:
+    """
     print()
     print( "  *****")
     print(f"  USING: BertForQuestionAnswering.from_pretrained({model_name})")
     print( "  *****")
     print()
+    """
     model = BertForQuestionAnswering.from_pretrained(model_name)
 
   # 27/2/24 DH: Need to change the tokenizer as well...!!!
@@ -231,16 +246,10 @@ def getCorrectModelAndTokenizer(model_name, model_args, origTokenizer):
     trust_remote_code=model_args.trust_remote_code,
   )
 
-  print()
-  print("Changing Tokenizer")
-  print(f"  from: {origTokenizer.__class__}")
-  print(f"  to:   {tokenizer.__class__}")
-  print()
-
   return (model, tokenizer)
 
 
-def getModelOutput(raw_data, tokenizer, data_args, model_args, training_args):
+def getModelOutput(raw_data, data_args, model_args, printOut=False):
 
   # Model needs to set here (so can easily use HuggingFace Hub model or local directory specified by 'output_dir')
   # -----------------------
@@ -269,7 +278,7 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args, training_args):
   #model_name = "facebook/bart-base"
   
   # ----------------------------------------------------------------------------
-  (model, tokenizer) = getCorrectModelAndTokenizer(model_name, model_args, tokenizer)
+  (model, tokenizer) = getCorrectModelAndTokenizer(model_name, model_args)
 
   print()
   print("Model type in Q&A: ", model.__class__)
@@ -283,20 +292,25 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args, training_args):
   answers = raw_data['answers']
   #context = context.replace('as a child, and rose to fame in the late 1990s ', '')
 
-  # 14/2/24 DH:
+  # 14/2/24 DH: Fixed when using JSON lists
   index = 2 #index = (#item - 1)
+
+  # 27/5/24 DH: Now randomising non-training run sample
+
+  # 7/4/24 DH: Designed to cope with JSON data plus Arrow added list layer (using index) + normal Arrow Datasets
   (question, context, answer) = getListElem(questions, contexts, answers, index)
   answer = answer['text'][0]
 
-  print()
   if answer == "":
     print("Params from script")
   else:
     print(f"Params from '{data_args.dataset_name if data_args.dataset_name else data_args.train_file}'")
   print("-------------------------")
+  if data_args.train_file:
+    print(f"JSON IDX: {index}")
   print("QUESTION: ", question)
   print("CONTEXT: ", context)
-  print("ANSWER: ", answer)
+  print("EXPECTED ANSWER: ", answer)
 
   # --- DEBUG ---
   # 27/3/24 DH: Taken from "(Pdb) input_ids[0]" ('BertForQuestionAnswering.forward()' in 'transformers/models/bert/modeling_bert.py')
@@ -310,16 +324,20 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args, training_args):
   # 'transformers/tokenization_utils_base.py(2731)__call__()'
   encoding = tokenizer(question, context, return_tensors="pt")
   
-  print()
-  print("Just passing 'encoding['input_ids'] to model(): ")
-  print(f"  {encoding['input_ids'][0].tolist()}")
-  print()
+  if printOut:
+    print()
+    print("Just passing 'encoding['input_ids'] to model(): ")
+    print(f"  {encoding['input_ids'][0].tolist()}")
+    print()
   
+  print()
+  print("======================== HUGGINGFACE NON-TRAINING RUN ==========================")
   # T5ForConditionalGeneration results in: "ValueError: You have to specify either decoder_input_ids or decoder_inputs_embeds"
   output = model(
     encoding["input_ids"],
     #attention_mask=encoding["attention_mask"]
   )
+  print("------------------------ END: HUGGINGFACE NON-TRAINING RUN ---------------------")
 
   # 24/4/24 DH: "pip install torchinfo" (https://github.com/TylerYep/torchinfo) "(formerly torch-summary)"
   print()
@@ -345,7 +363,7 @@ def getModelOutput(raw_data, tokenizer, data_args, model_args, training_args):
   """
 
   all_tokens = tokenizer.convert_ids_to_tokens( encoding["input_ids"][0].tolist() )
-  transformerLIMEing(output, tokenizer, all_tokens)
+  transformerLIMEing(output, tokenizer, all_tokens, printOut)
 
   
   

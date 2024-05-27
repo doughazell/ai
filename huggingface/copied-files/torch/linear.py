@@ -121,14 +121,17 @@ class Linear(Module):
         
         # 24/5/24 DH:
         Linear.fwdCnt += 1
-        if Linear.fwdCnt == 1:
-            print()
-            print()
-            print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")
-            print( "...")
-        if Linear.fwdCnt == 73:
-            print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")
-            print()
+        try:
+          if Linear.fwdCnt == 1:
+              print()
+              print()
+              print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")
+              print( "...")
+          if Linear.fwdCnt == 73:
+              print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")
+              print()
+        except AttributeError as e:
+          print(f"AttributeError - Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {self.bias}")
 
         return F_linear_out
         #return F.linear(input, self.weight, self.bias)

@@ -2,7 +2,11 @@
 
 import sys, os, logging
 from pathlib import Path
+
+print("'checkpointing.py' importing 'Trainer'...")
 from transformers import Trainer
+print()
+print("...done")
 from transformers.trainer_utils import get_last_checkpoint
 
 import checkpointing_config
