@@ -1803,7 +1803,19 @@ class BertForQuestionAnswering(BertPreTrainedModel):
         self.bert = BertModel(config, add_pooling_layer=False)
         self.qa_outputs = nn.Linear(config.hidden_size, config.num_labels)
 
+        # (Pdb) config.num_labels
+        #   2
+        # PretrainedConfig: https://github.com/huggingface/transformers/blob/main/src/transformers/configuration_utils.py#L198
+        #
+        # (Pdb) config.hidden_size
+        #   768
+        # (Pdb) self.qa_outputs
+        #   Linear(in_features=768, out_features=2, bias=True)
+
         # Initialize weights and apply final processing
+        #
+        #   31/5/24 DH: BertPreTrainedModel(PreTrainedModel)._init_weights(self, module):
+        #                 ...
         self.post_init()
 
     @add_start_docstrings_to_model_forward(BERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
