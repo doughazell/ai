@@ -18,6 +18,8 @@ Fine-tuning the library models for question answering using a slightly adapted v
 """
 # You can also adapt this script on your own question answering task. Pointers for this are left as comments.
 
+# ORIG FROM: https://github.com/huggingface/transformers/blob/main/examples/pytorch/question-answering/run_qa.py
+
 import logging
 import os
 import sys

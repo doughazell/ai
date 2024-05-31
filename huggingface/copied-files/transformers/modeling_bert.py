@@ -1856,6 +1856,7 @@ class BertForQuestionAnswering(BertPreTrainedModel):
 
         sequence_output = outputs[0]
 
+        # 31/5/24 DH: 'logits' are used in TRAINING RUN to calc loss for optimization back-propagation
         logits = self.qa_outputs(sequence_output)
         start_logits, end_logits = logits.split(1, dim=-1)
         start_logits = start_logits.squeeze(-1).contiguous()
@@ -1874,6 +1875,8 @@ class BertForQuestionAnswering(BertPreTrainedModel):
         #       Training:     'input_ids.shape' => [12, 384] (ie zero'd out)
         #       Non-training: 'input_ids.shape' => [1, 176]
         try:
+          # TRAINING RUN
+          # ------------
           inputIdsEnd = (input_ids[0] == 0).nonzero()[0].item()
           maxLogitsArray = input_ids[0].shape[0]
           inIds = input_ids[0][:inputIdsEnd]
@@ -1889,6 +1892,8 @@ class BertForQuestionAnswering(BertPreTrainedModel):
             print(f"    {elem}")
 
         except IndexError:
+          # NON-TRAINING RUN
+          # ----------------
           inIds = input_ids[0]
         
           print(f"INPUT ('input_ids[0]'): {tokenizer.decode(inIds)}")
@@ -1927,9 +1932,6 @@ class BertForQuestionAnswering(BertPreTrainedModel):
             print()
             breakpoint()
           """
-        
-        
-
         # ---------------------------------------------------------------------------------
 
         total_loss = None

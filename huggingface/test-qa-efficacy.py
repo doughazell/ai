@@ -87,9 +87,11 @@ def runRandSamples(dataOrigin, raw_datasets, data_args, model_args, iterations=3
   numValidationSamples = raw_datasets['validation'].num_rows
 
   print()
+  print("                         RUNNING RANDOM SAMPLES")
+  print("---------------------------------------------------------------------------")
   print(f"'{dataOrigin}' has '{numSamples}' samples")
   print(f"  (+ '{numValidationSamples}' validation samples giving total of '{numValidationSamples + numSamples}' in '{dataOrigin}')")
-  print()
+  print("---------------------------------------------------------------------------")
 
   # -------------------------------------------
   # Loop for specified model non-training runs
@@ -100,21 +102,18 @@ def runRandSamples(dataOrigin, raw_datasets, data_args, model_args, iterations=3
     # https://en.wikipedia.org/wiki/Division_(mathematics)#Of_integers
     # "Give the integer quotient as the answer, so 26 / 11 = 2. It is sometimes called 'integer division', and denoted by '//'."
     datasetsIdx = int( (random.random() * numSamples * numSamples) // numSamples )
-    print(f"'{dataOrigin}' has '{numSamples}' samples and choosing IDX: '{datasetsIdx}'")
 
     raw_data = raw_datasets["train"][datasetsIdx]
     if idx + 1 == iterations:
       print()
-      print(f"  Graph {idx+1} of {iterations} and last graph so sending 'True' to 'plt.show(block=True)'")
-      print()
+      print(f"  Graph {idx+1} of {iterations} with IDX: '{datasetsIdx}' and last graph so sending 'True' to 'plt.show(block=True)'")
 
       ansDict = {}
       #(ansDict['question'], ansDict['expAnswer'], ansDict['answer']) = getModelOutput(raw_data, data_args, model_args, printOut=False, lastGraph=True)
       (ansDict['question'], ansDict['expAnswer'], ansDict['answer']) = getModelOutput(raw_data, data_args, model_args, printOut=False)
     else:
       print()
-      print(f"  Graph {idx+1} of {iterations}")
-      print()
+      print(f"  Graph {idx+1} of {iterations} with IDX: '{datasetsIdx}'")
 
       ansDict = {}
       (ansDict['question'], ansDict['expAnswer'], ansDict['answer']) = getModelOutput(raw_data, data_args, model_args, printOut=False)
@@ -167,6 +166,13 @@ def main():
   transformers.utils.logging.set_verbosity_error()
   # ---------------------------------------------------------------------------------
 
+  print("  NOT USING CHECKPOINT")
+  print()
+
+  """
+  # 29/5/24 DH: For a non-training run then we want to use the most trained version ie 'model.safetensors'
+  #             (which means the training epochs used are: 'trainer_state.json::global_step')
+  #
   # Detecting last checkpoint.
   last_checkpoint = None
   if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
@@ -180,6 +186,7 @@ def main():
       logger.info(
         f"Checkpoint detected, resuming training at {last_checkpoint}."
       )
+  """
 
   # 3/3/24 DH:  PREVIOUSLY NO NEED TO CREATE LOGGERS FOR NON-TRAINING
   # 30/3/24 DH: NOW, THE INPUT_IDS & LOGITS ARE LOGGED
@@ -224,8 +231,9 @@ def main():
     )
   # --------------------------------------------------------------------------------------
 
-  print()
-  print("------ Now running the trained model for Q&A ------")
+  #######################################################################################################
+  # 28/5/24 DH: TODO: Correlate epoch training number, loss, actual-expected answer in non-training run
+  #######################################################################################################
 
   # 27/5/24 DH: HARD-CODED to use first sample of JSON datasets (which is the JSON list)
   if data_args.train_file:
@@ -240,10 +248,9 @@ def main():
     answerDictDict = runRandSamples(data_args.dataset_name, raw_datasets, data_args, model_args)
     displayResults(answerDictDict)
     
-    print()
-    print("PRESS RETURN TO FINISH")
-    response = input()
-
+  print()
+  print("PRESS RETURN TO FINISH", end='')
+  response = input()
 
 if __name__ == "__main__":
 

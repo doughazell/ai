@@ -321,10 +321,10 @@ def graphWeights(percentChgDictList, saveVals=True):
   # 12/5/24 DH: Providing more feedback to output stage
   # 21/5/24 DH: CURRENTLY the only time we set 'saveVals=False' is with full value graphs
   if saveVals:
-    titleStr = f"Weight change by node from start/end layer for epoch {epochNum}"
+    titleStr = f"Weight change by node from 'qa_outputs' layer for epoch {epochNum}"
     #plt.ylim(top=20, bottom=-15)
   else:
-    titleStr = f"Full weight by node from start/end layer for epoch {epochNum}"
+    titleStr = f"Full weight by node from 'qa_outputs' layer for epoch {epochNum}"
 
   plt.title(titleStr)
   plt.xlabel("Node number")
@@ -431,7 +431,7 @@ def getFullvalsDictList(weightValMatrix):
   fullvalsDictList = []
 
   valMatrixLen = len(weightValMatrix)
-  # start/end full values list for all 767 nodes
+  # 'qa_outputs' full values list for all 767 nodes
   for idx in range(valMatrixLen):
     #print(f"  'getFullvalsDictList()' - {weightMapDict[idx]}")
     fullvalsDict = {}
@@ -451,7 +451,7 @@ def checkWeightsForAllSets():
   percentChgDictList = []
 
   idx = 0
-  # Full values for start/end CURRENT values
+  # Full values for 'qa_outputs' CURRENT values
   # ----------------------------------------
   # weightValMatrix[gValMatrixIdx][0]: "[0.0387488454580307, 0.030061528086662292, 0.018482686951756477, ..., 0.012040662579238415]"
   # weightValMatrix[gValMatrixIdx][1]: "[0.007029589265584946, -0.0615961030125618, -0.028790319338440895, ..., 0.026614349335432053]"
@@ -464,7 +464,7 @@ def checkWeightsForAllSets():
     idx += 1
 
   if len(percentChgDictList) > 0:
-    # Rounded, percentage diff for start/end values FROM PREV values
+    # Rounded, percentage diff for 'qa_outputs' values FROM PREV values
     # --------------------------------------------------------------
     # percentChgDictList[0]: "{0: 0.012, 1: 0.011, 2: 0.025, ..., 767: 0.042}"
     # percentChgDictList[1]: "{0: 0.046, 1: -0.002, 2: -0.008, ..., 767: 0.017}"

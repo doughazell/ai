@@ -57,7 +57,7 @@ def collectWeights(weightsLog):
 
       #print(f"{epoch}-{lineType}: {weightList[:10]}...")
       # 15/5/24 DH: This needs to be defined here because if it is defined outside this scope then the same MUTABLE type will be used
-      #             for all "epoch-[start/end]" keys resulting in all having the values of "19-end"
+      #             for all "epoch-[start | end]" keys resulting in all having the values of "19-end"
       percentChgDict = {}
       for idx in range(len(weightList)):
         percentChgDict[idx] = weightList[idx]
@@ -105,12 +105,12 @@ def graphWeightsKeyed(percentChgDictList, epochNum, weights=False, lastGraph=Fal
   # 12/5/24 DH: Providing more feedback to output stage
   if "complete" not in epochNum:
     if weights:
-      titleStr = f"Weight by node from start/end layer for epoch {epochNum}"
+      titleStr = f"Weight by node from 'qa_outputs' layer for epoch {epochNum}"
     else:
-      titleStr = f"Weight change by node from start/end layer for epoch {epochNum}"
+      titleStr = f"Weight change by node from 'qa_outputs' layer for epoch {epochNum}"
   
   else:
-    titleStr = f"Total weight change by node from start/end layer after {lastEpoch} epochs"
+    titleStr = f"Total weight change by node from 'qa_outputs' layer after {lastEpoch} epochs"
 
   plt.title(titleStr)
   plt.xlabel("Node number (NOT token ID)")
@@ -137,7 +137,7 @@ def graphWeightsKeyed(percentChgDictList, epochNum, weights=False, lastGraph=Fal
   
   #plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
 
-  # 23/5/24 DH: The only extra graph to save is the "Total weight change by node from start/end layer"
+  # 23/5/24 DH: The only extra graph to save is the "Total weight change by node from 'qa_outputs' layer"
   print(f"    ...saving graph")
   if "complete" in epochNum:
     plt.savefig(f"{weightsGraphDir}/total-weight-change.png")
@@ -267,12 +267,12 @@ if __name__ == "__main__":
       graphWeightsKeyed(percentChgDictListDict[key], key)
     idx += 1
   """
-  # --------------------------- START/END WEIGHTS + PERCENTAGE DIFF --------------------------
+  # --------------------------- 'qa_outputs' WEIGHTS + PERCENTAGE DIFF --------------------------
   # 22/5/24 DH: Having graphed all the rounded, percentage diffs then we need to 
   #             calculate + graph the percentage diff between the first and last full value weights
   percentChgDictListDict = collectWeights(fullweightsLog)
 
-  # Firstly graph the start/end full weights
+  # Firstly graph the 'qa_outputs' full weights
   # 26/5/24 DH: During the Ctrl-C checkpointing save delay (to prevent partial saving) we sometimes get multiple end full weights
   #             ('getWeightDiffs(...) uses "startEpoch = keyList[0]", "endEpoch = keyList[1]")
   keyList = list(percentChgDictListDict.keys())

@@ -123,6 +123,7 @@ class Linear(Module):
         Linear.fwdCnt += 1
         try:
           if Linear.fwdCnt == 1:
+              # 28/5/24 DH: Need 2 line spaces to get 1 spair line from TQDM line
               print()
               print()
               print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")

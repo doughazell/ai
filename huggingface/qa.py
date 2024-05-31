@@ -18,6 +18,8 @@ Fine-tuning the library models for question answering using a slightly adapted v
 """
 # You can also adapt this script on your own question answering task. Pointers for this are left as comments.
 
+# A CUTDOWN FROM: https://github.com/huggingface/transformers/blob/main/examples/pytorch/question-answering/run_qa.py
+
 import logging
 import os
 import sys
@@ -296,6 +298,13 @@ def main():
   print()
   #logger.info(f"Training/evaluation parameters {training_args}")
 
+  print("  NOT USING CHECKPOINT")
+  print()
+
+  """
+  # 29/5/24 DH: For a non-training run then we want to use the most trained version ie 'model.safetensors'
+  #             (which means the training epochs used are: 'trainer_state.json::global_step')
+  #
   # Detecting last checkpoint.
   last_checkpoint = None
   if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
@@ -304,18 +313,13 @@ def main():
           
           # 23/3/24 DH: Copying 'run_qa.py' alterations
           print(f"Output directory ({training_args.output_dir}) already exists and is not empty BUT NOT RAISING ValueError...!")
-          """
-          raise ValueError(
-              f"Output directory ({training_args.output_dir}) already exists and is not empty. "
-              "Use --overwrite_output_dir to overcome."
-          )
-          """
 
       elif last_checkpoint is not None and training_args.resume_from_checkpoint is None:
           logger.info(
               f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, change "
               "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
           )
+  """
 
   # 3/3/24 DH:  PREVIOUSLY NO NEED TO CREATE LOGGERS FOR NON-TRAINING
   # 30/3/24 DH: NOW, THE INPUT_IDS & LOGITS ARE LOGGED
