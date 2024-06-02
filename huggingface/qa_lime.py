@@ -251,7 +251,8 @@ def getCorrectModelAndTokenizer(model_name, model_args):
     print( "  *****")
     print()
     """
-    model = BertForQuestionAnswering.from_pretrained(model_name)
+    # 1/6/24 DH: Bert is Pre-trained with: '"type_vocab_size": 2' BUT CAN RUN Q&A WITH: '"type_vocab_size": 1'
+    model = BertForQuestionAnswering.from_pretrained(model_name, ignore_mismatched_sizes=True)
 
   # 27/2/24 DH: Need to change the tokenizer as well...!!!
   tokenizer = AutoTokenizer.from_pretrained(

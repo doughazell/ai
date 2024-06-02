@@ -23,6 +23,7 @@ FILES="
   transformers/trainer.py
   transformers/models/bert/modeling_bert.py
   torch/nn/modules/linear.py
+  torch/nn/functional.py
   tqdm/std.py
   tensorflow/python/util/traceback_utils.py
   tensorflow/python/eager/polymorphic_function/monomorphic_function.py

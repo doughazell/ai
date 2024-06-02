@@ -161,6 +161,15 @@ class BertEmbeddings(nn.Module):
         self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
         self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
 
+        # 31/5/24 DH:
+        print()
+        print( "========================================================================")
+        print(f"BertEmbeddings.__init__(): ")
+        print(f"  'word_embeddings': {self.word_embeddings}")
+        print(f"  'position_embeddings': {self.position_embeddings}")
+        print(f"  'token_type_embeddings': {self.token_type_embeddings}")
+        print( "========================================================================")
+
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
@@ -205,12 +214,23 @@ class BertEmbeddings(nn.Module):
 
         if inputs_embeds is None:
             inputs_embeds = self.word_embeddings(input_ids)
+        
         token_type_embeddings = self.token_type_embeddings(token_type_ids)
 
         embeddings = inputs_embeds + token_type_embeddings
         if self.position_embedding_type == "absolute":
             position_embeddings = self.position_embeddings(position_ids)
             embeddings += position_embeddings
+
+            # 31/5/24 DH: Need to accomodate + PROPAGATE 'qa_lime.py::getModelOutput(...)' printout that has no newline char (to accom TQDM)
+            print()
+            print()
+            print(f"  BertEmbeddings.forward(): SINCE '{self.position_embedding_type}' THEN 'position_embeddings' CALC from '{self.position_embeddings}'")
+            print( "                            THEREFORE NOT INPUT TO MODEL (as shown in 'torchview::legend')")
+            print()
+            print(f"                            'token_type_embeddings': {list(token_type_embeddings.shape)} (ie + OBFUSCATION LIST LAYER)")
+            print( "                            THEREFORE NO SEGMENT EMBEDDING 'A' OR 'B' FOR EACH TOKEN (like 'Next Sentence Prediction' Pre-training)", end='')
+            
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings
