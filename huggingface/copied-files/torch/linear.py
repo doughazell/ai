@@ -131,6 +131,11 @@ class Linear(Module):
           if Linear.fwdCnt == 73:
               print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")
               print()
+          
+          # 3/6/24 DH: Running "bart$ python code-translator.py" provided insight into Bart (by triggering "AttributeError")
+          if Linear.fwdCnt > 3585:
+            self.bias.shape
+          
         except AttributeError as e:
           print(f"AttributeError - Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {self.bias}")
 

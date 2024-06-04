@@ -53,6 +53,9 @@ def paragraphSummary(model, tokenizer, input_ids) -> bool:
   
   # 27/1/24 DH: Check for tokens greater than orig vocab max of '50264'
   try:
+    # 4/6/24 DH: ...I clearly needed to move onto Q&A training...
+    # Handle spaces in 'Torch.Linear.forward()' added to accom TQDM line
+    print("  'paragraphSummary(): CALLING 'model.generate(input_ids, num_beams=2, min_length=0, max_length=130)'", end='')
     summary_ids = model.generate(input_ids, num_beams=2, min_length=0, max_length=130)
 
     decodedString = tokenizer.batch_decode(summary_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
@@ -152,6 +155,8 @@ def doSummaries(bartDictList, model, tokenizer, summaryWanted):
     line = dict['text']
     input_ids = dict['input_ids']
 
+    
+
     # 24/1/24 DH: The number of the paragraph in the sequence
     num += 1
     dict['num'] = num
@@ -165,6 +170,17 @@ def doSummaries(bartDictList, model, tokenizer, summaryWanted):
         tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
         bartDictList = retokenizeParagraph(bartDictList, tokenizer)
         return doSummaries(bartDictList, model, tokenizer, summaryWanted)
+      
+      # 4/6/24 DH: Well, I'm back...don't say that I'm "half-bart'd" about NLP...
+      # -----------------------------------------------------------------------------
+      import torch.nn.modules.linear
+      print()
+      print(f"['Linear.forward()' cnt: {torch.nn.modules.linear.Linear.fwdCnt}]")
+
+      # Resetting cnt for next run
+      torch.nn.modules.linear.Linear.fwdCnt = 0
+      # -----------------------------------------------------------------------------
+
       print("############################################")
       print()
 
@@ -293,7 +309,9 @@ def runNewVocabTest(seq2seqModelData :Seq2SeqModelData, summaryWanted = False):
   """
   """
   print()
-  print("------------------- SUMMARY TEST USING OLD CODES WITH NEW VOCAB -------------------")
+  # 4/6/24 DH: Shows state of mind when doing this in Jan 2024 since NOT USING OLD CODES, just text.
+  #print("------------------- SUMMARY TEST USING OLD CODES WITH NEW VOCAB -------------------")
+  print("---------------------- SUMMARY TEST USING LENGTH OF TOKEN TYPE --------------------")
   if summaryWanted:
     filename = "new-vocab-test.txt"
     paragraphText(model, tokenizer, filename, summaryWanted=summaryWanted)

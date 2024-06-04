@@ -2238,13 +2238,12 @@ def embedding(
     # 2/6/24 DH:
     # -----------------------------------------------------------------------------------------------------
     torchEmbedding = torch.embedding(weight, input, padding_idx, scale_grad_by_freq, sparse)
-    
+
     printSize = 10
     inputElem = 0
     if weight.shape[0] == 512:
       elementID = 0
       mappingType = "\"Order\""
-      print()
       sp1 = "  "
       sp2 = " "
     elif weight.shape[0] == 30522:
@@ -2253,22 +2252,26 @@ def embedding(
       # Accom TQDM output no-newline char
       print()
       print()
+      print("  'torch.functional.embedding()': \"store word embeddings and retrieve them using indices\"")
+      print("   ----------------------------")
       sp1 = "    "
       sp2 = "   "
     
     try:
       # 2/6/24 DH: Handle converting "tensor array" to list of rounded numbers
       weightList = [round(elem.item(),4) for elem in weight[elementID][:printSize]]
-      print(f"  Weight: {list(weight.shape)}, element: '{elementID}' (first {printSize}) = {weightList}")
-      print(f"  Input '{inputElem}': {input[0][inputElem].item()} (ie mapping by {mappingType})")
+      print(f"  Input '{inputElem}' (of {input.shape[1]}): {input[0][inputElem].item()} (ie mapping by {mappingType})")
+      print(f"    Weight: {list(weight.shape)}, element: '{elementID}' (first {printSize}) = {weightList}")
       
       # 2/6/24 DH: Handle extra obfuscation list of 1
       embList = [round(elem.item(),4) for elem in torchEmbedding[0][inputElem][:printSize]]
-      print(f"  'torch.embedding'{sp1} element: '{inputElem}'{sp2}(first {printSize}) = {embList}")
+      print(f"    'torch.embedding'{sp1} element: '{inputElem}'{sp2}(first {printSize}) = {embList}")
+      print( "   ------")
+
     except UnboundLocalError:
-      print()
-      print(f"  Input: {list(input.shape)}")
-      print(f"  Weight: {list(weight.shape)}")
+      #print(f"  Input: {list(input.shape)}")
+      #print(f"  Weight: {list(weight.shape)}")
+      pass
 
     return torchEmbedding
     # -----------------------------------------------------------------------------------------------------
