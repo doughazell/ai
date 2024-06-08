@@ -1,6 +1,7 @@
 # 24/2/24 DH:
 
-import sys, os, logging
+import sys, os, logging, shutil
+from datetime import datetime
 from pathlib import Path
 
 print("'checkpointing.py' importing 'Trainer'...")
@@ -13,6 +14,36 @@ import checkpointing_config
 
 gStoppingFlag = False
 gCheckpointNum = 0
+
+# 6/6/24 DH:
+gFileName = "weights"  
+gFileNameFull = "weights-full"
+gLossFilename = "loss-by-epochs"
+# 8/6/24 DH:
+gSelectedNodeFilename = "node287-logits"
+
+# 6/6/24 DH:
+def archivePrevLogs(training_args):
+  global gFileName
+  global gFileNameFull
+  global gLossFilename
+  global gSelectedNodeFilename
+  files = [gFileName, gFileNameFull, gLossFilename, gSelectedNodeFilename]
+
+  logPath = training_args.output_dir
+
+  for logFile in files:
+    logFile = f"{logPath}/{logFile}.log"
+    if os.path.isfile(logFile):
+      # https://strftime.org/
+      today = datetime.today().strftime('%-d%b%-H%-M')
+      logFileDated = f"{logFile}{today}"
+
+      shutil.copy(logFile, logFileDated)
+
+      print(f"COPIED: '{logFile}' to '{logFileDated}'")
+    else:
+      print(f"NOT COPIED: '{logFile}'")
 
 # 9/2/24 DH:
 def createLoggers(training_args, overwrite=True):
@@ -51,39 +82,59 @@ def createLoggers(training_args, overwrite=True):
   sigLogger.info(f"PID: {os.getpid()}")
 
   # -----------------------------------------------------------------------------
-  # 14/5/24 DH: Added to record the rounded weight percentage diffs (for later graphing)
-  fileName = "weights"
+
   # 21/5/24 DH: Probably would have been easier to assign: 
   #             'checkpointing_config.logPath = training_args.output_dir'
   #   (and do everything else locally to where needed, since this is having feature-creep...!)
   logPath = training_args.output_dir
   graphDir = "graphs"
-  fileNameFull = "weights-full"
-  lossFilename = "loss-by-epochs"
+  # 8/6/24 DH:
+  weightDir = "weights"
+  weightPath = f"{logPath}/{weightDir}"
+
+  # 6/6/24 DH: Now global to archive existing logs with date
+  global gFileName
+  global gFileNameFull
+  global gLossFilename
+  # 8/6/24 DH:
+  global gSelectedNodeFilename
 
   # 21/5/24 DH:
   checkpointing_config.gGraphDir = f"{logPath}/{graphDir}"
   Path(checkpointing_config.gGraphDir).mkdir(parents=True, exist_ok=True)
 
+  # 8/6/24 DH: Not needed outside this file so not in 'checkpointing_config' 
+  #        (unlike 'gGraphDir': plt.savefig(f"{checkpointing_config.gGraphDir}/{graphFilename}.png"))
+  Path(weightPath).mkdir(parents=True, exist_ok=True)
+
   # 25/5/24 DH: Prevent 'qa.py' overwriting log files from 'run_qa.py'
   if overwrite:
-    checkpointing_config.gWeightsFile = open(f"{logPath}/{fileName}.log", 'w')
+    # 5/6/24 DH: Save prev files + date before opening for writing (and hence overwriting the contents)
+    archivePrevLogs(training_args)
+
+    checkpointing_config.gWeightsFile = open(f"{logPath}/{gFileName}.log", 'w')
     # 21/5/24 DH:
     checkpointing_config.gWeightsFile.write(f"RECORDED WEIGHT PERCENTAGE DIFFS BY NUMBERED EPOCH\n")
     checkpointing_config.gWeightsFile.write(f"--------------------------------------------------\n")
     checkpointing_config.gWeightsFile.write(f"\n")
 
     # 21/5/24 DH:
-    checkpointing_config.gFullWeightsFile = open(f"{logPath}/{fileNameFull}.log", 'w')
+    checkpointing_config.gFullWeightsFile = open(f"{logPath}/{gFileNameFull}.log", 'w')
     checkpointing_config.gFullWeightsFile.write(f"RECORDED FULL WEIGHT BY NUMBERED EPOCH\n")
     checkpointing_config.gFullWeightsFile.write(f"--------------------------------------\n")
     checkpointing_config.gFullWeightsFile.write(f"\n")
 
     # 25/5/24 DH: This needs 'flush()' if ONLY "import checkpointing_config"
-    checkpointing_config.gLossFile = open(f"{logPath}/{lossFilename}.log", 'w')
+    checkpointing_config.gLossFile = open(f"{logPath}/{gLossFilename}.log", 'w')
     checkpointing_config.gLossFile.write(f"LOSS BY NUMBERED EPOCH\n")
     checkpointing_config.gLossFile.write(f"----------------------\n")
     checkpointing_config.gLossFile.write(f"\n")
+
+    # 8/6/24 DH:
+    checkpointing_config.gSelectedNodeFilename = open(f"{weightPath}/{gSelectedNodeFilename}.log", 'w')
+    checkpointing_config.gSelectedNodeFilename.write(f"ALL QA LOGITS FROM NODE 287 IN 'BertSelfAttention'\n")
+    checkpointing_config.gSelectedNodeFilename.write(f"--------------------------------------------------\n")
+    checkpointing_config.gSelectedNodeFilename.write(f"\n")
 
 
 def getHighestCheckpoint():

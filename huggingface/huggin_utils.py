@@ -74,14 +74,19 @@ def getIDsAndLogits(batchIdx, input_ids, start_logits, end_logits, startDelta):
 
   return (inputIdsEnd, startLogitsList, endLogitsList)
 
-############################################################################################
+#################################################################################################################
 # API CALLED FROM '*ForQuestionAnswering.forward()':
 #   import huggin_utils
 #   huggin_utils.logLogits(...) 
 #
 # 30/3/24 DH: The same function can be used for a training run + model run
-############################################################################################
-def logLogits(input_ids, start_logits, end_logits, start_loss=None, end_loss=None):
+# 8/6/24 DH: Now defunct after overwriting Transformer/Torch with DeepPavlov reinstall
+#            It was used to create 'seq2seq_qa_INtrainer.log' data for '$ python graph-logits.py'
+#            (now only https://github.com/doughazell/ai/commits/main/t5/graphs/seq2seq_qa_INtrainer.log remains)
+#
+#            Superceded by 'logWeightings()' (and an artifact of HashTagger echo)
+#################################################################################################################
+def logLogitsXXX(input_ids, start_logits, end_logits, start_loss=None, end_loss=None):
   # 14/5/24 DH: TODO: Pass 'epochNum' from 'forward()' (so correlated with checkpoint number rather than just a delta)
   global epochNum
   global inputIdsWritten
@@ -338,15 +343,15 @@ def graphWeights(percentChgDictList, saveVals=True):
     xVals = percentChgDictList[idx].keys()
     yVals = [percentChgDictList[idx][key] for key in percentChgDictList[idx]]
 
-    if saveVals:
+    if saveVals: # NOTE: 'gWeightsFile'
       # Opened in 'checkpointing.py::createLoggers(training_args)' called from 'run_qa.py'
       checkpointing_config.gWeightsFile.write(f"{epochNum}-{weightMapDict[idx]}: {yVals}\n")
-      if idx == 1:
+      if idx == 1: # space after end line (ie idx 1)
         checkpointing_config.gWeightsFile.write("\n")
     
     else: # NOTE: 'gFullWeightsFile'
       checkpointing_config.gFullWeightsFile.write(f"{epochNum}-{weightMapDict[idx]}: {yVals}\n")
-      if idx == 1:
+      if idx == 1: # space after end line (ie idx 1)
         checkpointing_config.gFullWeightsFile.write("\n")
       
     lwVal = (idx + 1) / listLen
@@ -552,5 +557,27 @@ def logWeightings(weight_tensor):
 
   # 21/5/24 DH: Also calls: graphWeights(percentChgDictList)
   checkWeightsForAllSets()
-  
+
+############################################################################################
+# API CALLED FROM 'BertSelfAttention.forward()':
+#   import huggin_utils
+#   huggin_utils.logSelectedNodeLogits(...) 
+############################################################################################
+
+# 8/6/24 DH:
+def logSelectedNodeLogits(nodeForeachLogit):
+  # Copied from: 'graphWeights(percentChgDictList, saveVals=True)'
+  """
+  checkpointing_config.gFullWeightsFile.write(f"{epochNum}-{weightMapDict[idx]}: {yVals}\n")
+  if idx == 1: # space after end line (ie idx 1)
+    checkpointing_config.gFullWeightsFile.write("\n")
+  """
+
+  # Access custom additional API
+  from transformers import Trainer
+  epochNum = Trainer.stateAPI.global_step
+
+  checkpointing_config.gSelectedNodeFilename.write(f"{epochNum}: {nodeForeachLogit}\n")
+  checkpointing_config.gSelectedNodeFilename.write("\n")
+
 

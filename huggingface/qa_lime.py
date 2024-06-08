@@ -382,10 +382,10 @@ def getModelOutput(raw_data, data_args, model_args, printOut=False, lastGraph=Fa
   sys.stdout = sys.__stdout__
 
   # --------------------------------------------------
-
+  
   # 26/4/24 DH: Also try: https://github.com/mert-kurttutan/torchview, "pip install torchview; pip install graphviz"
   from torchview import draw_graph
-  model_graph = draw_graph(model, input_data=encoding, depth=4, expand_nested=True, hide_inner_tensors=False)
+  model_graph = draw_graph(model, input_data=encoding, depth=5, expand_nested=True, hide_inner_tensors=False)
   # 29/4/24 DH: Now added to 'draw_graph()' since adding legend
   #model_graph.visual_graph.render()
   """

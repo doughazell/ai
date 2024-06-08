@@ -1,16 +1,11 @@
 {
   "model_name_or_path": "google-bert/bert-base-uncased",
-  "dataset_name": "squad",
+  
+  "train_file": "data.json",
+
   "do_train": "True",
-  "do_eval": "True",
-  "per_device_train_batch_size": 12,
-  "learning_rate": 3e-5,
-  "num_train_epochs": 2,
-  "max_seq_length": 384,
-  "doc_stride": 128,
+  "num_train_epochs": 10,
   "output_dir": "previous_output_dir-Google-BERT",
 
-  "save_strategy": "epoch",
   "save_total_limit": 2
-
 }

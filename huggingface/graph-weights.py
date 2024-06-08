@@ -150,6 +150,70 @@ def graphWeightsKeyed(percentChgDictList, epochNum, weights=False, lastGraph=Fal
   #plt.draw()
   plt.show(block=lastGraph)
 
+# 7/6/24 DH:
+def displayLargestValues(startLineIdxDict, endLineIdxDict):
+  print("Start line indexes:")
+  for key in startLineIdxDict:
+    print(f"  Idx: {key} = {startLineIdxDict[key]}")
+  print()
+  print("End line indexes:")
+  for key in endLineIdxDict:
+    print(f"  Idx: {key} = {endLineIdxDict[key]}")
+  print()
+
+# 7/6/24 DH:
+def getLargestValues(percentChgLineList):
+  topListNum = 10
+  startLineIdxDict = {}
+  endLineIdxDict = {}
+
+  lineIdx = 0
+  for lineDict in percentChgLineList:
+    lineKeys = lineDict.keys()
+    sortedIdxs = sorted(range(len(lineKeys)), key=lambda i: abs(lineDict[i]), reverse=True)[:topListNum]
+
+    """
+    startStr = "Top"
+    print(f"{startStr:>10} '{topListNum}' selected")
+    startStr = "---"
+    print(f"{startStr:>10}--------------")
+    for idx in sortedIdxs:
+      print(f"{idx:>10}: {lineDict[idx]}")
+    print()
+    """
+
+    # If start logits line then save it for later comparison
+    if lineIdx == 0:
+      prevSortedIdxs = sortedIdxs
+      prevLineDict = lineDict
+
+    # Now get top values from both lines by finding whether GREATER THAN CUTOFF from largest value of both lines
+    else:
+      cutoffPercent = 0.025
+      # Find top value from each sortedIdx '0'
+      if abs(lineDict[sortedIdxs[0]]) > abs(prevLineDict[prevSortedIdxs[0]]):
+        print(f"TOP VALUE: '{weightMapDict[1]}' idx: {sortedIdxs[0]} = {lineDict[sortedIdxs[0]]}")
+        cutoff = round(abs(lineDict[sortedIdxs[0]] * cutoffPercent))
+        print(f"CUTOFF FOR INCLUSION: +- {cutoff} (at {cutoffPercent*100}%)")
+      else:
+        print(f"TOP VALUE: '{weightMapDict[0]}' idx: {prevSortedIdxs[0]} = {prevLineDict[prevSortedIdxs[0]]}")
+        cutoff = round(abs(prevLineDict[prevSortedIdxs[0]] * cutoffPercent))
+        print(f"CUTOFF FOR INCLUSION: +- {cutoff} (at {cutoffPercent*100}%)")
+      
+      for idx in sortedIdxs:
+        if abs(lineDict[idx]) > cutoff:
+          endLineIdxDict[idx] = lineDict[idx]
+      
+      for idx in prevSortedIdxs:
+        if abs(prevLineDict[idx]) > cutoff:
+          startLineIdxDict[idx] = prevLineDict[idx]
+        
+    # END: 'if lineIdx == 0: else:'
+
+    lineIdx += 1
+
+  return (startLineIdxDict, endLineIdxDict)
+
 # 22/5/24 DH: Taken from 'hugging_utils.py::getWeightStats(...)'
 def getWeightDiffs(percentChgDictListDict, lineType):
   percentChgDict = {}
@@ -227,8 +291,15 @@ def calcAndGraphTrgDiffs(percentChgDictListDict):
       
       (percentChgLine, endEpoch) = getWeightDiffs(percentChgDictListDict, lineType)
       percentChgLineList.append(percentChgLine)
-      
+  
+  # 7/6/24 DH: Now display largest +ve/-ve values from both start + end lines
+  (startLineIdxDict, endLineIdxDict) = getLargestValues(percentChgLineList)
+  displayLargestValues(startLineIdxDict, endLineIdxDict)
+  
+
   graphWeightsKeyed(percentChgLineList, "complete", lastGraph=True, lastEpoch=endEpoch)
+
+  return percentChgLineList
 
 
 if __name__ == "__main__":
@@ -290,5 +361,7 @@ if __name__ == "__main__":
   graphWeightsKeyed(percentChgDictListDict[endEpoch], endEpoch, weights=True)
 
   # Now calculate + graph the percentage diff
-  calcAndGraphTrgDiffs(percentChgDictListDict)
+  percentChgLineList = calcAndGraphTrgDiffs(percentChgDictListDict)
+
+  
   

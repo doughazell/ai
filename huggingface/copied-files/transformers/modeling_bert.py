@@ -226,7 +226,7 @@ class BertEmbeddings(nn.Module):
             # 31/5/24 DH: Need to accomodate + PROPAGATE 'qa_lime.py::getModelOutput(...)' printout that has no newline char (to accom TQDM)
             print()
             print(f"  BertEmbeddings.forward(): ['embeddings' = 'inputs_embeds' + 'token_type_embeddings' + 'position_embeddings']")
-            print(f"                                          = {list(embeddings.shape)} (ie + OBFUSCATION LIST LAYER)")
+            print(f"                                          = {list(embeddings.shape)} (ie + BATCH SIZE LAYER)")
             print(f"    'token_type_ids': {list(token_type_ids.shape)} as '0' mask of token len for EMBEDDING weight RETRIEVAL")
             print( "        [THEREFORE NO SEGMENT EMBEDDING 'A' OR 'B' FOR EACH TOKEN (like 'Next Sentence Prediction' Pre-training)]")
             print(f"    'position_ids': {list(position_ids.shape)} as 'index numbers' of token len for EMBEDDING weight RETRIEVAL", end='')
@@ -237,6 +237,9 @@ class BertEmbeddings(nn.Module):
 
 
 class BertSelfAttention(nn.Module):
+    # 7/6/24 DH:
+    cnt = 0
+
     def __init__(self, config, position_embedding_type=None):
         super().__init__()
         if config.hidden_size % config.num_attention_heads != 0 and not hasattr(config, "embedding_size"):
@@ -262,6 +265,10 @@ class BertSelfAttention(nn.Module):
             self.distance_embedding = nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
 
         self.is_decoder = config.is_decoder
+
+        # 7/6/24 DH:
+        self.config = config
+        
 
     def transpose_for_scores(self, x: torch.Tensor) -> torch.Tensor:
         new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
@@ -391,6 +398,24 @@ class BertSelfAttention(nn.Module):
 
         if self.is_decoder:
             outputs = outputs + (past_key_value,)
+
+        # 7/6/24 DH: BertEncoder::nn.ModuleList([BertLayer(config) for _ in range(config.num_hidden_layers)])
+        # -------------------------------------------------------------------------------------------------------------------
+        BertSelfAttention.cnt += 1
+        # Take last BertSelfAttention + Node 287 (ie Max change) for all 384 logits
+        if (BertSelfAttention.cnt == self.config.num_hidden_layers):
+          print(f"  {BertSelfAttention.cnt}/{self.config.num_hidden_layers} outputs[0]: {list(list(outputs)[0][0].shape)}")
+          BertSelfAttention.cnt = 0
+
+          import huggin_utils
+          #huggin_utils.logWeightings(self.qa_outputs.weight)
+
+          allLogitsAllNodes = list(outputs)[0][0]
+          logitNum = allLogitsAllNodes.shape[0]
+          nodeForeachLogit = [allLogitsAllNodes[logit][287].item() for logit in range(logitNum)]
+          huggin_utils.logSelectedNodeLogits(nodeForeachLogit)
+        # -------------------------------------------------------------------------------------------------------------------
+          
         return outputs
 
 

@@ -13,6 +13,7 @@ from ast import literal_eval
 import matplotlib.pyplot as plt
 from scipy import stats
 
+# 8/6/24 DH: Hard-coded to prevent needing to add: "HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))" code
 trainer_log = "seq2seq_qa_INtrainer.log"
 
 # 30/3/24 DH:

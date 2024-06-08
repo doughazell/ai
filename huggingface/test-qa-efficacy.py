@@ -231,6 +231,7 @@ def main():
 
   #######################################################################################################
   # 28/5/24 DH: TODO: Correlate epoch training number, loss, actual-expected answer in non-training run
+  #                   (add to SQLite DB: epoch, loss, SQuAD#, success/fail)
   #######################################################################################################
 
   # 27/5/24 DH: HARD-CODED to use first sample of JSON datasets (which is the JSON list)

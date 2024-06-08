@@ -16,5 +16,7 @@ gGraphDir = None
 gFullWeightsFile = None
 # 25/5/24 DH: Used to save the loss for each epoch (for later graphing)
 gLossFile = None
+# 8/6/24 DH: Used to save 'BertSelfAttention' 384 logits for selected Node (currently 287)
+gSelectedNodeFilename = None
 
 # ----------------- END: Runtime Cfg ---------------
