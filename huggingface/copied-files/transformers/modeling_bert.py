@@ -401,19 +401,29 @@ class BertSelfAttention(nn.Module):
 
         # 7/6/24 DH: BertEncoder::nn.ModuleList([BertLayer(config) for _ in range(config.num_hidden_layers)])
         # -------------------------------------------------------------------------------------------------------------------
-        BertSelfAttention.cnt += 1
-        # Take last BertSelfAttention + Node 287 (ie Max change) for all 384 logits
-        if (BertSelfAttention.cnt == self.config.num_hidden_layers):
-          print(f"  {BertSelfAttention.cnt}/{self.config.num_hidden_layers} outputs[0]: {list(list(outputs)[0][0].shape)}")
-          BertSelfAttention.cnt = 0
-
+        # 9/6/24 DH: Refactor to record from multiple Layers
+        def logSelectedNodeLogits(outputs):
           import huggin_utils
-          #huggin_utils.logWeightings(self.qa_outputs.weight)
+
+          print(f"  {BertSelfAttention.cnt}/{self.config.num_hidden_layers} outputs[0]: {list(list(outputs)[0][0].shape)}")
 
           allLogitsAllNodes = list(outputs)[0][0]
           logitNum = allLogitsAllNodes.shape[0]
           nodeForeachLogit = [allLogitsAllNodes[logit][287].item() for logit in range(logitNum)]
-          huggin_utils.logSelectedNodeLogits(nodeForeachLogit)
+          huggin_utils.logSelectedNodeLogits(nodeForeachLogit, BertSelfAttention.cnt)
+
+        BertSelfAttention.cnt += 1
+
+        # Take FIRST BertSelfAttention + Node 287 (ie Max change) for all 384 logits
+        if (BertSelfAttention.cnt == 1):
+          logSelectedNodeLogits(outputs)
+
+        # Take LAST BertSelfAttention + Node 287 (ie Max change) for all 384 logits
+        if (BertSelfAttention.cnt == self.config.num_hidden_layers):
+          logSelectedNodeLogits(outputs)
+
+          # Reset counter for next training/non-training run
+          BertSelfAttention.cnt = 0
         # -------------------------------------------------------------------------------------------------------------------
           
         return outputs

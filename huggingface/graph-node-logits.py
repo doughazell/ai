@@ -42,7 +42,7 @@ def collectLogits():
     # https://docs.python.org/3/library/re.html#re.split, "The solution is to use Python’s raw string notation for regular expression patterns; 
     #   backslashes are not handled in any special way in a string literal prefixed with 'r'"  
 
-    # EXAMPLE: "0: [-0.8225892782211304, -0.24359458684921265, ...]"
+    # EXAMPLE: "0-12: [-0.8225892782211304, -0.24359458684921265, ...]"
     if ":" in line:
       
       """ 'graph-logits.py'
@@ -56,9 +56,16 @@ def collectLogits():
       """
       lineSplit = re.split(r': ', line)
       if len(lineSplit) > 1:
-        epochNum = lineSplit[0]
+        """ Epoch number parsed in 'graphLogits(...)'
+        subSplit = lineSplit[0].split("-")
+        epochNum = subSplit[0]
+        bertSelfAttention_cnt = subSplit[1]
+        """
+        
+        epochLayerCnt = lineSplit[0]
         linePart = lineSplit[1]
-        recordsDict[epochNum] = np.array( literal_eval(linePart) )
+        
+        recordsDict[epochLayerCnt] = np.array( literal_eval(linePart) )
   
   return recordsDict
 
@@ -84,33 +91,40 @@ def graphLossLines(recordsDict, keyVal, xVals):
 
 
 # Taken from: 'ai/huggingface/graph-logits.py'
-def graphLogits(recordsDict):
+def graphLogitsByLayer(recordsDict, layerNum, lastGraph=False):
   # 4/9/23 DH: Display all graphs simultaneously with 'plt.show(block=False)' (which needs to be cascaded)
   plt.figure()
 
+  # 9/6/24 DH: 'recordsDict' keys are "{epoch}-{layer num}"
+  epochList = [key.split("-")[0] for key in list(recordsDict.keys())]
+  firstEpoch = epochList[0]
+  lastEpoch = epochList[-1]
+  selectedLogits = 100
+
+  epochsWanted = ['0', '19']
+  # 9/6/24 DH: Key is now "{epoch}-{layer num}"
+  for key in recordsDict:
+    
+    # Hopefully, https://en.wikipedia.org/wiki/Short-circuit_evaluation ...spookily connected with AI...
+    if any(map(key.__contains__, epochsWanted)) and int(key.split("-")[1]) == layerNum:
+      xVals = range(len(recordsDict[key]))
+      # https://numpy.org/doc/stable/reference/generated/numpy.ndarray.tolist.html
+      yVals = recordsDict[key].tolist()
+
+      #lwVal = (int(epoch) / epochListLen) / 3
+      epoch = key.split("-")[0]
+      lwVal = (int(epoch)+1) / (int(lastEpoch)+1)
+
+      plt.plot(xVals[:selectedLogits], yVals[:selectedLogits], label=f"{epoch}", linewidth=lwVal)
+
   # 12/5/24 DH: Providing more feedback to output stage
-  titleStr = "Logits by Logit ID from BertSelfAttention Node 287 by epoch"
+  titleStr = f"Logits by Logit ID from BertSelfAttention Layer {layerNum} Node 287 by epoch"
 
   plt.title(titleStr)
   plt.xlabel("Logit ID")
   plt.ylabel("Logit value")
 
   print(f"\"{titleStr}\"")
-
-  keyList = list(recordsDict.keys())
-  firstKey = keyList[0]
-  lastKey = keyList[-1]
-  selectedLogits = 100
-  for key in recordsDict:
-    if any(map(key.__contains__, ['0', '5', '10', '15', '19'])):
-      xVals = range(len(recordsDict[key]))
-      # https://numpy.org/doc/stable/reference/generated/numpy.ndarray.tolist.html
-      yVals = recordsDict[key].tolist()
-
-      #lwVal = (int(epoch) / epochListLen) / 3
-      lwVal = (int(key)+1) / (int(lastKey)+1)
-
-      plt.plot(xVals[:selectedLogits], yVals[:selectedLogits], label=f"{key}", linewidth=lwVal)
   
   plt.legend(loc="best")
 
@@ -120,7 +134,7 @@ def graphLogits(recordsDict):
   plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
 
   #plt.draw()
-  plt.show(block=True)
+  plt.show(block=lastGraph)
 
 # -------------------------------------------------END: GRAPHING ---------------------------------------------
 
@@ -129,5 +143,6 @@ if __name__ == "__main__":
   recordsDict = collectLogits()
 
   displayLogits(recordsDict)
-  graphLogits(recordsDict)
+  graphLogitsByLayer(recordsDict, layerNum=1)
+  graphLogitsByLayer(recordsDict, layerNum=12, lastGraph=True)
   

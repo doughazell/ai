@@ -23,17 +23,19 @@ gLossFilename = "loss-by-epochs"
 gSelectedNodeFilename = "node287-logits"
 
 # 6/6/24 DH:
-def archivePrevLogs(training_args):
+def archivePrevLogs(weightPath):
   global gFileName
   global gFileNameFull
   global gLossFilename
   global gSelectedNodeFilename
   files = [gFileName, gFileNameFull, gLossFilename, gSelectedNodeFilename]
 
-  logPath = training_args.output_dir
+  print()
+  print("Archiving previous logs")
+  print("-----------------------")
 
   for logFile in files:
-    logFile = f"{logPath}/{logFile}.log"
+    logFile = f"{weightPath}/{logFile}.log"
     if os.path.isfile(logFile):
       # https://strftime.org/
       today = datetime.today().strftime('%-d%b%-H%-M')
@@ -41,9 +43,11 @@ def archivePrevLogs(training_args):
 
       shutil.copy(logFile, logFileDated)
 
-      print(f"COPIED: '{logFile}' to '{logFileDated}'")
+      print(f"  COPIED: '{logFile}' to '{logFileDated}'")
     else:
-      print(f"NOT COPIED: '{logFile}'")
+      print(f"  NOT COPIED: '{logFile}'")
+    
+  print()
 
 # 9/2/24 DH:
 def createLoggers(training_args, overwrite=True):
@@ -89,8 +93,7 @@ def createLoggers(training_args, overwrite=True):
   logPath = training_args.output_dir
   graphDir = "graphs"
   # 8/6/24 DH:
-  weightDir = "weights"
-  weightPath = f"{logPath}/{weightDir}"
+  weightPath = f"{logPath}/weights"
 
   # 6/6/24 DH: Now global to archive existing logs with date
   global gFileName
@@ -110,22 +113,23 @@ def createLoggers(training_args, overwrite=True):
   # 25/5/24 DH: Prevent 'qa.py' overwriting log files from 'run_qa.py'
   if overwrite:
     # 5/6/24 DH: Save prev files + date before opening for writing (and hence overwriting the contents)
-    archivePrevLogs(training_args)
+    archivePrevLogs(weightPath)
 
-    checkpointing_config.gWeightsFile = open(f"{logPath}/{gFileName}.log", 'w')
+    # 9/6/24 DH: Changing path of ALL WEIGHT LOGS from 'logPath' to 'weightPath'
+    checkpointing_config.gWeightsFile = open(f"{weightPath}/{gFileName}.log", 'w')
     # 21/5/24 DH:
     checkpointing_config.gWeightsFile.write(f"RECORDED WEIGHT PERCENTAGE DIFFS BY NUMBERED EPOCH\n")
     checkpointing_config.gWeightsFile.write(f"--------------------------------------------------\n")
     checkpointing_config.gWeightsFile.write(f"\n")
 
     # 21/5/24 DH:
-    checkpointing_config.gFullWeightsFile = open(f"{logPath}/{gFileNameFull}.log", 'w')
+    checkpointing_config.gFullWeightsFile = open(f"{weightPath}/{gFileNameFull}.log", 'w')
     checkpointing_config.gFullWeightsFile.write(f"RECORDED FULL WEIGHT BY NUMBERED EPOCH\n")
     checkpointing_config.gFullWeightsFile.write(f"--------------------------------------\n")
     checkpointing_config.gFullWeightsFile.write(f"\n")
 
     # 25/5/24 DH: This needs 'flush()' if ONLY "import checkpointing_config"
-    checkpointing_config.gLossFile = open(f"{logPath}/{gLossFilename}.log", 'w')
+    checkpointing_config.gLossFile = open(f"{weightPath}/{gLossFilename}.log", 'w')
     checkpointing_config.gLossFile.write(f"LOSS BY NUMBERED EPOCH\n")
     checkpointing_config.gLossFile.write(f"----------------------\n")
     checkpointing_config.gLossFile.write(f"\n")

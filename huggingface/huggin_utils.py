@@ -565,7 +565,7 @@ def logWeightings(weight_tensor):
 ############################################################################################
 
 # 8/6/24 DH:
-def logSelectedNodeLogits(nodeForeachLogit):
+def logSelectedNodeLogits(nodeForeachLogit, bertSelfAttention_cnt):
   # Copied from: 'graphWeights(percentChgDictList, saveVals=True)'
   """
   checkpointing_config.gFullWeightsFile.write(f"{epochNum}-{weightMapDict[idx]}: {yVals}\n")
@@ -573,11 +573,15 @@ def logSelectedNodeLogits(nodeForeachLogit):
     checkpointing_config.gFullWeightsFile.write("\n")
   """
 
-  # Access custom additional API
+  # Access custom additional API (need to prevent: "'NoneType' object has no attribute 'global_step'")
   from transformers import Trainer
-  epochNum = Trainer.stateAPI.global_step
+  if Trainer.stateAPI:
+    epochNum = Trainer.stateAPI.global_step
+  else:
+    print("  No 'Trainer.stateAPI' so NOT SAVING logits")
+    return
 
-  checkpointing_config.gSelectedNodeFilename.write(f"{epochNum}: {nodeForeachLogit}\n")
+  checkpointing_config.gSelectedNodeFilename.write(f"{epochNum}-{bertSelfAttention_cnt}: {nodeForeachLogit}\n")
   checkpointing_config.gSelectedNodeFilename.write("\n")
 
 
