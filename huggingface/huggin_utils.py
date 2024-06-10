@@ -565,7 +565,7 @@ def logWeightings(weight_tensor):
 ############################################################################################
 
 # 8/6/24 DH:
-def logSelectedNodeLogits(nodeForeachLogit, bertSelfAttention_cnt):
+def logSelectedNodeLogits(nodeForeachLogit, bertSelfAttention_cnt, embedTokens=384):
   # Copied from: 'graphWeights(percentChgDictList, saveVals=True)'
   """
   checkpointing_config.gFullWeightsFile.write(f"{epochNum}-{weightMapDict[idx]}: {yVals}\n")
@@ -577,11 +577,15 @@ def logSelectedNodeLogits(nodeForeachLogit, bertSelfAttention_cnt):
   from transformers import Trainer
   if Trainer.stateAPI:
     epochNum = Trainer.stateAPI.global_step
+    
+    checkpointing_config.gSelectedNodeFilename.write(f"{epochNum}-{bertSelfAttention_cnt}: {nodeForeachLogit}\n")
+    checkpointing_config.gSelectedNodeFilename.write("\n")
+
   else:
-    print("  No 'Trainer.stateAPI' so NOT SAVING logits")
-    return
+    # 9/6/24 DH: Save logits for non-training run
+    #   'createLoggers(training_args, overwrite=True)' to open 'gSelectedNodeFilename' for non-training run
+    checkpointing_config.gSelectedNodeFilename.write(f"-{bertSelfAttention_cnt}-{embedTokens}: {nodeForeachLogit}\n")
+    checkpointing_config.gSelectedNodeFilename.write("\n")
 
-  checkpointing_config.gSelectedNodeFilename.write(f"{epochNum}-{bertSelfAttention_cnt}: {nodeForeachLogit}\n")
-  checkpointing_config.gSelectedNodeFilename.write("\n")
-
+  
 

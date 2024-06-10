@@ -405,12 +405,18 @@ class BertSelfAttention(nn.Module):
         def logSelectedNodeLogits(outputs):
           import huggin_utils
 
-          print(f"  {BertSelfAttention.cnt}/{self.config.num_hidden_layers} outputs[0]: {list(list(outputs)[0][0].shape)}")
+          # Using double 'list()' to de-tensor the value
+          tokenNodeMatrix = list(list(outputs)[0][0].shape)
+          tokenNum = tokenNodeMatrix[0]
+          nodeNum = tokenNodeMatrix[1]
+          print(f"  {BertSelfAttention.cnt}/{self.config.num_hidden_layers} outputs[0]: {tokenNodeMatrix}")
 
           allLogitsAllNodes = list(outputs)[0][0]
           logitNum = allLogitsAllNodes.shape[0]
           nodeForeachLogit = [allLogitsAllNodes[logit][287].item() for logit in range(logitNum)]
-          huggin_utils.logSelectedNodeLogits(nodeForeachLogit, BertSelfAttention.cnt)
+
+          # 10/6/24 DH: Now sending 'tokenNum' since in TRAINING it is ALWAYS 384 but in NON-training it is TOKEN LENGTH
+          huggin_utils.logSelectedNodeLogits(nodeForeachLogit, BertSelfAttention.cnt, tokenNum)
 
         BertSelfAttention.cnt += 1
 

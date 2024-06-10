@@ -23,12 +23,16 @@ gLossFilename = "loss-by-epochs"
 gSelectedNodeFilename = "node287-logits"
 
 # 6/6/24 DH:
-def archivePrevLogs(weightPath):
+def archivePrevLogs(weightPath, file=False):
   global gFileName
   global gFileNameFull
   global gLossFilename
   global gSelectedNodeFilename
-  files = [gFileName, gFileNameFull, gLossFilename, gSelectedNodeFilename]
+
+  if file:
+    files = [file]
+  else:
+    files = [gFileName, gFileNameFull, gLossFilename, gSelectedNodeFilename]
 
   print()
   print("Archiving previous logs")
@@ -134,7 +138,15 @@ def createLoggers(training_args, overwrite=True):
     checkpointing_config.gLossFile.write(f"----------------------\n")
     checkpointing_config.gLossFile.write(f"\n")
 
-    # 8/6/24 DH:
+    # 8/6/24 DH: Open for both training + non-training runs
+    checkpointing_config.gSelectedNodeFilename = open(f"{weightPath}/{gSelectedNodeFilename}.log", 'w')
+    checkpointing_config.gSelectedNodeFilename.write(f"ALL QA LOGITS FROM NODE 287 IN 'BertSelfAttention'\n")
+    checkpointing_config.gSelectedNodeFilename.write(f"--------------------------------------------------\n")
+    checkpointing_config.gSelectedNodeFilename.write(f"\n")
+  
+  else: # non-training run
+    archivePrevLogs(weightPath, file=gSelectedNodeFilename)
+
     checkpointing_config.gSelectedNodeFilename = open(f"{weightPath}/{gSelectedNodeFilename}.log", 'w')
     checkpointing_config.gSelectedNodeFilename.write(f"ALL QA LOGITS FROM NODE 287 IN 'BertSelfAttention'\n")
     checkpointing_config.gSelectedNodeFilename.write(f"--------------------------------------------------\n")

@@ -38,11 +38,14 @@ def collectLogits():
     print(f"Filename: {logitsLog} NOT FOUND")
     exit(0)  
   
+  # Used for non-training run when there are no epochs for a unique record key (so need to add incremented counter)
+  keyCounter = 1
   for line in textLines:
     # https://docs.python.org/3/library/re.html#re.split, "The solution is to use Python’s raw string notation for regular expression patterns; 
     #   backslashes are not handled in any special way in a string literal prefixed with 'r'"  
 
-    # EXAMPLE: "0-12: [-0.8225892782211304, -0.24359458684921265, ...]"
+    # TRAINING EXAMPLE:     "0-12: [-0.8225892782211304, -0.24359458684921265, ...]"
+    # NON-TRAINING EXAMPLE:  "-1-154: [0.0373508557677269, 0.10611902177333832, ...]"
     if ":" in line:
       
       """ 'graph-logits.py'
@@ -65,6 +68,12 @@ def collectLogits():
         epochLayerCnt = lineSplit[0]
         linePart = lineSplit[1]
         
+        # 10/6/24 DH: For a non-training run there are no epochs so multiple runs have the same key 
+        #             (with 'recordsDict' just holding the last run if not checked for existing key entry)
+        if epochLayerCnt in recordsDict:
+          keyCounter += 1
+          epochLayerCnt = f"{epochLayerCnt},{keyCounter}"
+  
         recordsDict[epochLayerCnt] = np.array( literal_eval(linePart) )
   
   return recordsDict
@@ -99,26 +108,77 @@ def graphLogitsByLayer(recordsDict, layerNum, lastGraph=False):
   epochList = [key.split("-")[0] for key in list(recordsDict.keys())]
   firstEpoch = epochList[0]
   lastEpoch = epochList[-1]
-  selectedLogits = 100
+  
+  #selectedLogits = 100
+  # Used to print out all logits for a non-training run (which are dependent on Q+Context token length)
+  selectedLogits = None
 
-  epochsWanted = ['0', '19']
-  # 9/6/24 DH: Key is now "{epoch}-{layer num}"
+  epochsWanted = [0, 18, 19]
+  # 9/6/24 DH: Key is now "{epoch}-{layer num}-{token length}"
   for key in recordsDict:
-    
+    # 10/6/24 DH: For non-training run 'keySplit[2]' will be token length, eg "-1-154"
+    keySplit = key.split("-")
+    epoch = keySplit[0]
+    layer = keySplit[1]
+
     # Hopefully, https://en.wikipedia.org/wiki/Short-circuit_evaluation ...spookily connected with AI...
-    if any(map(key.__contains__, epochsWanted)) and int(key.split("-")[1]) == layerNum:
+    # epochsWanted = ['0', '19']
+    #
+    # "__contains__" means that '0' will match '0' and '10'
+    #if any(map(key.__contains__, epochsWanted)) and int(key.split("-")[1]) == layerNum:
+
+    def plotLine(lwVal, labelStr):
       xVals = range(len(recordsDict[key]))
       # https://numpy.org/doc/stable/reference/generated/numpy.ndarray.tolist.html
       yVals = recordsDict[key].tolist()
 
-      #lwVal = (int(epoch) / epochListLen) / 3
-      epoch = key.split("-")[0]
-      lwVal = (int(epoch)+1) / (int(lastEpoch)+1)
+      # Label with epoch or token length
+      plt.plot(xVals[:selectedLogits], yVals[:selectedLogits], label=f"{labelStr}", linewidth=lwVal)
 
-      plt.plot(xVals[:selectedLogits], yVals[:selectedLogits], label=f"{epoch}", linewidth=lwVal)
+    try:
+      if any(map(int(epoch).__eq__, epochsWanted)) and int(layer) == layerNum:
+        lwVal = (int(epoch)+4) / (int(lastEpoch))
+        plotLine(lwVal, labelStr=epoch)
+        # Used in graph title (+ cmd line feedback)
+        lineType = "epoch"
+        # Used in graph title
+        layerName = f"layer {layerNum}"
+
+    # This will catch ALL LINES from non-training run (due to no epoch)
+    # EXAMPLE: "-1-154: [0.0373508557677269, 0.10611902177333832, ...]"
+    except ValueError: # "invalid literal for int() with base 10: ''" (ie non-training run)
+      if len(keySplit) > 2:
+        tokenLen = keySplit[2]
+      else:
+        print(f"NON-training run key '{key}' did not contain a token length")
+
+      # Check for non-training run KEY DUP layer eg "1,2" (prob no longer needed with "-1-154" ie with token length appended)
+      # ---------------------------------------------------------------------------------------------------------------------
+      layerSplit = layer.split(",")
+      if len(layerSplit) > 1:
+        layer = layerSplit[0]
+      # ---------------------------------------------------------------------------------------------------------------------
+
+      # https://www.statology.org/matplotlib-line-thickness/ 
+      #   "By default, the line width is 1.5 but you can adjust this to any value greater than 0."
+      if int(layer) == layerNum:
+        plotLine(lwVal=0.5, labelStr=tokenLen)
+        # Used in graph title
+        layerName = f"layer {layerNum}"
+
+      # Debug of graph line shapes by adding all lines together
+      if int(layerNum) == -1:
+        plotLine(lwVal=0.5, labelStr=tokenLen)
+        # Used in graph title
+        layerName = "all layers"
+      
+      # Used in graph title (+ cmd line feedback)
+      lineType = "token length"
+      
 
   # 12/5/24 DH: Providing more feedback to output stage
-  titleStr = f"Logits by Logit ID from BertSelfAttention Layer {layerNum} Node 287 by epoch"
+  # 10/6/24 DH: Change title based on epoch for training OR token length for non-training
+  titleStr = f"Logits from BertSelfAttention, {layerName}, node 287 by {lineType}"
 
   plt.title(titleStr)
   plt.xlabel("Logit ID")
@@ -143,6 +203,10 @@ if __name__ == "__main__":
   recordsDict = collectLogits()
 
   displayLogits(recordsDict)
+
+  # Debug of graph line shapes by adding all lines together
+  graphLogitsByLayer(recordsDict, layerNum=-1)
+
   graphLogitsByLayer(recordsDict, layerNum=1)
   graphLogitsByLayer(recordsDict, layerNum=12, lastGraph=True)
   
