@@ -140,16 +140,16 @@ def createLoggers(training_args, overwrite=True):
 
     # 8/6/24 DH: Open for both training + non-training runs
     checkpointing_config.gSelectedNodeFilename = open(f"{weightPath}/{gSelectedNodeFilename}.log", 'w')
-    checkpointing_config.gSelectedNodeFilename.write(f"ALL QA LOGITS FROM NODE 287 IN 'BertSelfAttention'\n")
-    checkpointing_config.gSelectedNodeFilename.write(f"--------------------------------------------------\n")
+    checkpointing_config.gSelectedNodeFilename.write(f"ALL LOGITS FROM NODE 287 IN A 'Bert' LAYER\n")
+    checkpointing_config.gSelectedNodeFilename.write(f"------------------------------------------\n")
     checkpointing_config.gSelectedNodeFilename.write(f"\n")
   
   else: # non-training run
     archivePrevLogs(weightPath, file=gSelectedNodeFilename)
 
     checkpointing_config.gSelectedNodeFilename = open(f"{weightPath}/{gSelectedNodeFilename}.log", 'w')
-    checkpointing_config.gSelectedNodeFilename.write(f"ALL QA LOGITS FROM NODE 287 IN 'BertSelfAttention'\n")
-    checkpointing_config.gSelectedNodeFilename.write(f"--------------------------------------------------\n")
+    checkpointing_config.gSelectedNodeFilename.write(f"ALL LOGITS FROM NODE 287 IN A 'Bert' LAYER\n")
+    checkpointing_config.gSelectedNodeFilename.write(f"------------------------------------------\n")
     checkpointing_config.gSelectedNodeFilename.write(f"\n")
 
 

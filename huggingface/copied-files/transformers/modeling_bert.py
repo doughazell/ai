@@ -78,6 +78,8 @@ _SEQ_CLASS_EXPECTED_LOSS = 0.01
 
 from ..deprecated._archive_maps import BERT_PRETRAINED_MODEL_ARCHIVE_LIST  # noqa: F401, E402
 
+# 12/6/24 DH: Used to get logits cascaded in the model for selected nodes (that significantly change)
+gSelectedNode = 287
 
 def load_tf_weights_in_bert(model, config, tf_checkpoint_path):
     """Load tf checkpoints in a pytorch model."""
@@ -413,10 +415,11 @@ class BertSelfAttention(nn.Module):
 
           allLogitsAllNodes = list(outputs)[0][0]
           logitNum = allLogitsAllNodes.shape[0]
-          nodeForeachLogit = [allLogitsAllNodes[logit][287].item() for logit in range(logitNum)]
+          # 12/6/24 DH: 'gSelectedNode' defined with the file imports
+          nodeForeachLogit = [allLogitsAllNodes[logit][gSelectedNode].item() for logit in range(logitNum)]
 
           # 10/6/24 DH: Now sending 'tokenNum' since in TRAINING it is ALWAYS 384 but in NON-training it is TOKEN LENGTH
-          huggin_utils.logSelectedNodeLogits(nodeForeachLogit, BertSelfAttention.cnt, tokenNum)
+          huggin_utils.logSelectedNodeLogits(nodeForeachLogit, BertSelfAttention.cnt, bertLayerName="self", embedTokens=tokenNum)
 
         BertSelfAttention.cnt += 1
 
@@ -428,8 +431,8 @@ class BertSelfAttention(nn.Module):
         if (BertSelfAttention.cnt == self.config.num_hidden_layers):
           logSelectedNodeLogits(outputs)
 
-          # Reset counter for next training/non-training run
-          BertSelfAttention.cnt = 0
+          # Reset counter for next training/non-training run NOW DONE IN 'BertOutput'
+          #BertSelfAttention.cnt = 0
         # -------------------------------------------------------------------------------------------------------------------
           
         return outputs
@@ -519,11 +522,31 @@ class BertOutput(nn.Module):
         self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        # 12/6/24 DH:
+        self.config = config
 
     def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
+
+        # 12/6/24 DH: Now moving 1 layer back from 'qa_outputs' to find logit bi-forkation point
+        # -----------------------------------------------------------------------------------------------
+        import huggin_utils
+
+        # Accom non-training run having only 1 ENTRY PER BATCH
+        logitNum = hidden_states[0].shape[0]
+        nodeNum = hidden_states[0].shape[1]
+        allLogitsAllNodes = hidden_states[0]
+        nodeForeachLogit = [allLogitsAllNodes[logit][gSelectedNode].item() for logit in range(logitNum)]
+
+        if (BertSelfAttention.cnt == self.config.num_hidden_layers):
+          huggin_utils.logSelectedNodeLogits(nodeForeachLogit, BertSelfAttention.cnt, bertLayerName="out", embedTokens=logitNum)
+
+          # Reset counter for next training/non-training run NOW NOT DONE IN 'BertSelfAttention'
+          BertSelfAttention.cnt = 0
+        # -----------------------------------------------------------------------------------------------
+
         return hidden_states
 
 

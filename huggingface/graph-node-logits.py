@@ -14,11 +14,21 @@ import matplotlib.pyplot as plt
 from scipy import stats
 
 # 8/6/24 DH: Hard-coded to prevent needing to add: "HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))" code
-# ORIG LOG IN 'graph-logits.py': trainer_log = "seq2seq_qa_INtrainer.log"
+# (ORIG LOG USED IN 'graph-logits.py': trainer_log = "seq2seq_qa_INtrainer.log")
 trainer_log = "weights/node287-logits.log"
+
+# 12/6/24 DH: Future-proofing the model output log (when splitting on "-")
+# 'huggin_utils.py::logSelectedNodeLogits(...)' :
+#   Training: "{epochNum}-{bert_cnt}-{bertLayerName}"
+#   Non-training:       "-{bert_cnt}-{bertLayerName}-{embedTokens}"
+gEpochIdx = 0
+gLayerIdx = 1
+gNameIdx  = 2
+gTokenIdx = 3
 
 def collectLogits():
   recordsDict = {}
+  tokenLens = []
 
   if len(sys.argv) == 2:
     output_dir = os.path.abspath(sys.argv[1])
@@ -58,25 +68,37 @@ def collectLogits():
         #lineSplit = re.split(r'[\(\)]', line)
       """
       lineSplit = re.split(r': ', line)
+
       if len(lineSplit) > 1:
-        """ Epoch number parsed in 'graphLogits(...)'
-        subSplit = lineSplit[0].split("-")
-        epochNum = subSplit[0]
-        bertSelfAttention_cnt = subSplit[1]
-        """
-        
         epochLayerCnt = lineSplit[0]
         linePart = lineSplit[1]
         
         # 10/6/24 DH: For a non-training run there are no epochs so multiple runs have the same key 
         #             (with 'recordsDict' just holding the last run if not checked for existing key entry)
+        # 11/6/24 DH: Prob no longer necessary with addition of Token Length in 'huggin_utils.py::logSelectedNodeLogits(...)'
         if epochLayerCnt in recordsDict:
           keyCounter += 1
+          print(f"{epochLayerCnt} already added")
           epochLayerCnt = f"{epochLayerCnt},{keyCounter}"
+          print(f"  so adding: {epochLayerCnt}")
   
         recordsDict[epochLayerCnt] = np.array( literal_eval(linePart) )
-  
-  return recordsDict
+
+        # 11/6/24 DH: Get number of Token Lengths used (ie from "-1-self-120")
+        keySplit = epochLayerCnt.split("-")
+        if len(keySplit) > 2:
+          try:
+            tokenLenStr = keySplit[gTokenIdx]
+            tokenLen = int(tokenLenStr)
+            # Check if Token Length already added for different BertLayer
+            if tokenLen not in tokenLens:
+              tokenLens.append(tokenLen)
+          except ValueError: # eg "invalid literal for int() with base 10: '234,2'"
+            print(f"We have a key: '{tokenLenStr}', which is a legacy from handling non-training runs (ie without 'epoch' key)")
+            print("so exiting...")
+            exit(0)
+
+  return (recordsDict, tokenLens)
 
 def displayLogits(recordsDict):
   print()
@@ -90,22 +112,14 @@ def displayLogits(recordsDict):
 
 
 # ------------------------------------------------ GRAPHING --------------------------------------------------
-def graphLossLines(recordsDict, keyVal, xVals):
-  yVals = recordsDict[keyVal].values()
-
-  if "end_loss" in keyVal:
-    plt.plot(xVals, yVals, label=f"end_loss", linestyle='dashed')
-  else:
-    plt.plot(xVals, yVals, label=f"start_loss")
-
 
 # Taken from: 'ai/huggingface/graph-logits.py'
-def graphLogitsByLayer(recordsDict, layerNum, lastGraph=False):
+def graphLogitsByLayer(recordsDict, layerNum, wantedTokenLen=None, lastGraph=False):
   # 4/9/23 DH: Display all graphs simultaneously with 'plt.show(block=False)' (which needs to be cascaded)
   plt.figure()
 
-  # 9/6/24 DH: 'recordsDict' keys are "{epoch}-{layer num}"
-  epochList = [key.split("-")[0] for key in list(recordsDict.keys())]
+  # 12/6/24 DH: 'recordsDict' TRAINING keys are: "{epochNum}-{bert_cnt}-{bertLayerName}"
+  epochList = [key.split("-")[gEpochIdx] for key in list(recordsDict.keys())]
   firstEpoch = epochList[0]
   lastEpoch = epochList[-1]
   
@@ -113,13 +127,54 @@ def graphLogitsByLayer(recordsDict, layerNum, lastGraph=False):
   # Used to print out all logits for a non-training run (which are dependent on Q+Context token length)
   selectedLogits = None
 
+  # 11/6/24 DH:
+  # --------------------------------------------------------------------------------------------------------------
+  def plotAllLayersLines(allLayerLinesList):
+    for lineDict in allLayerLinesList:
+      tokenLen = lineDict['tokenLen']
+      layer = lineDict['layer']
+      compName = lineDict['compName']
+      xVals = lineDict['xVals']
+      yVals = lineDict['yVals']
+
+      lwVal = 0.25
+      if int(layer) == 12:
+        # Now taking from multiple parts of Bert Layer 12
+        if "self" in compName:
+          lwVal = 1.0
+        elif "out" in compName:
+          lwVal = 1.5
+
+      # Add line to 'plt.figure()' declared at top of 'graphLogitsByLayer(...)'
+      # ...however we now want to have separate "all layers" graph for each token length (ie "Q+Context" output)
+      
+      # remove guide line in due course...
+      #plotLine(lwVal=lwVal, labelStr=f"{tokenLen}-Layer{layer}")
+      plt.plot(xVals[:selectedLogits], yVals[:selectedLogits], label=f"{tokenLen}-Layer{layer}-{compName}", linewidth=lwVal)
+
+    # Used in graph title
+    layerName = "all layers"
+    return layerName
+  # --------------------------------------------------------------------------------------------------------------
+
+  # Used for training run (ie 'run_qa.py' rather than 'test-qa-efficacy.py')
   epochsWanted = [0, 18, 19]
+
+  # Used for "all layers" graph (currently only populated for NON-TRAINING run log lines)
+  allLayerLinesList = []
   # 9/6/24 DH: Key is now "{epoch}-{layer num}-{token length}"
   for key in recordsDict:
-    # 10/6/24 DH: For non-training run 'keySplit[2]' will be token length, eg "-1-154"
+    # 10/6/24 DH: For NON-TRAINING run 'keySplit[gTokenIdx]' will be token length, eg "-1-out-154"
+    """ Key sections defined above
+    gEpochIdx = 0
+    gLayerIdx = 1
+    gNameIdx  = 2
+    gTokenIdx = 3
+    """
     keySplit = key.split("-")
-    epoch = keySplit[0]
-    layer = keySplit[1]
+    epoch = keySplit[gEpochIdx]
+    layer = keySplit[gLayerIdx]
+    compName = keySplit[gNameIdx]
 
     # Hopefully, https://en.wikipedia.org/wiki/Short-circuit_evaluation ...spookily connected with AI...
     # epochsWanted = ['0', '19']
@@ -127,32 +182,34 @@ def graphLogitsByLayer(recordsDict, layerNum, lastGraph=False):
     # "__contains__" means that '0' will match '0' and '10'
     #if any(map(key.__contains__, epochsWanted)) and int(key.split("-")[1]) == layerNum:
 
-    def plotLine(lwVal, labelStr):
+    # --------------------------------------------------------------------------------------------------
+    def plotInplaceLine(lwVal, labelStr):
       xVals = range(len(recordsDict[key]))
       # https://numpy.org/doc/stable/reference/generated/numpy.ndarray.tolist.html
       yVals = recordsDict[key].tolist()
 
       # Label with epoch or token length
       plt.plot(xVals[:selectedLogits], yVals[:selectedLogits], label=f"{labelStr}", linewidth=lwVal)
+    # --------------------------------------------------------------------------------------------------
 
-    try:
+    try: # Training run only
       if any(map(int(epoch).__eq__, epochsWanted)) and int(layer) == layerNum:
         lwVal = (int(epoch)+4) / (int(lastEpoch))
-        plotLine(lwVal, labelStr=epoch)
+        plotInplaceLine(lwVal, labelStr=epoch)
         # Used in graph title (+ cmd line feedback)
         lineType = "epoch"
         # Used in graph title
         layerName = f"layer {layerNum}"
 
     # This will catch ALL LINES from non-training run (due to no epoch)
-    # EXAMPLE: "-1-154: [0.0373508557677269, 0.10611902177333832, ...]"
+    # EXAMPLE: "-1-out-154: [0.0373508557677269, 0.10611902177333832, ...]"
     except ValueError: # "invalid literal for int() with base 10: ''" (ie non-training run)
-      if len(keySplit) > 2:
-        tokenLen = keySplit[2]
+      if len(keySplit) > gTokenIdx:
+        tokenLen = keySplit[gTokenIdx]
       else:
         print(f"NON-training run key '{key}' did not contain a token length")
 
-      # Check for non-training run KEY DUP layer eg "1,2" (prob no longer needed with "-1-154" ie with token length appended)
+      # Check for non-training run KEY DUP layer eg "1,2" (prob no longer needed with "-1-out-154", ie with token length appended)
       # ---------------------------------------------------------------------------------------------------------------------
       layerSplit = layer.split(",")
       if len(layerSplit) > 1:
@@ -162,26 +219,32 @@ def graphLogitsByLayer(recordsDict, layerNum, lastGraph=False):
       # https://www.statology.org/matplotlib-line-thickness/ 
       #   "By default, the line width is 1.5 but you can adjust this to any value greater than 0."
       if int(layer) == layerNum:
-        plotLine(lwVal=0.5, labelStr=tokenLen)
+        plotInplaceLine(lwVal=0.5, labelStr=tokenLen)
         # Used in graph title
         layerName = f"layer {layerNum}"
 
-      # Debug of graph line shapes by adding all lines together
+      # Debug of graph line shapes by adding all lines from same Token Length together
       if int(layerNum) == -1:
-        plotLine(lwVal=0.5, labelStr=tokenLen)
-        # Used in graph title
-        layerName = "all layers"
-      
+        if int(tokenLen) == wantedTokenLen:
+          # Added for unpacking in 'plotAllLayersLines(...)'
+          lineDict = {'tokenLen': tokenLen, 'layer': layer, 'compName': compName,'xVals': range(len(recordsDict[key])), 'yVals': recordsDict[key].tolist()}
+          allLayerLinesList.append(lineDict)
+
       # Used in graph title (+ cmd line feedback)
       lineType = "token length"
-      
+    # END: ------ "except ValueError" ------
+  # END: ------ "for key in recordsDict" ------
+
+  # 11/6/24 DH: Now plotting "all layers" graph by Token Length (with lines collected in "for key in recordsDict")
+  #             (currently only populated for NON-TRAINING run log lines, so SHOULD BE OK for TRAINING run log lines)
+  layerName = plotAllLayersLines(allLayerLinesList)
 
   # 12/5/24 DH: Providing more feedback to output stage
   # 10/6/24 DH: Change title based on epoch for training OR token length for non-training
   titleStr = f"Logits from BertSelfAttention, {layerName}, node 287 by {lineType}"
 
   plt.title(titleStr)
-  plt.xlabel("Logit ID")
+  plt.xlabel("Logit/Token ID")
   plt.ylabel("Logit value")
 
   print(f"\"{titleStr}\"")
@@ -200,13 +263,23 @@ def graphLogitsByLayer(recordsDict, layerNum, lastGraph=False):
 
 if __name__ == "__main__":
   # 'trainer_log = "weights/node287-logits.log"' centric
-  recordsDict = collectLogits()
+  (recordsDict, tokenLens) = collectLogits()
 
   displayLogits(recordsDict)
 
   # Debug of graph line shapes by adding all lines together
-  graphLogitsByLayer(recordsDict, layerNum=-1)
+  tokenLensNum = len(tokenLens)
+  cnt = 0
+  lastGraph = False
 
-  graphLogitsByLayer(recordsDict, layerNum=1)
-  graphLogitsByLayer(recordsDict, layerNum=12, lastGraph=True)
+  for tokenLen in tokenLens:
+    cnt += 1
+    if cnt == tokenLensNum:
+      lastGraph = True
+
+    graphLogitsByLayer(recordsDict, layerNum=-1, wantedTokenLen=tokenLen, lastGraph=lastGraph)
+  
+  # ...amusingly now we only want the combined lines graph...
+  #graphLogitsByLayer(recordsDict, layerNum=1)
+  #graphLogitsByLayer(recordsDict, layerNum=12, lastGraph=True)
   

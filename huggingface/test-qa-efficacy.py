@@ -104,17 +104,22 @@ def runRandSamples(dataOrigin, raw_datasets, data_args, model_args, iterations=3
     raw_data = raw_datasets["train"][datasetsIdx]
     if idx + 1 == iterations:
       print()
-      print(f"  Graph {idx+1} of {iterations} with IDX: '{datasetsIdx}' and last graph so sending 'True' to 'plt.show(block=True)'")
+      # 11/6/24 DH: See 'qa_lime.py::graphTokenVals(...)' re NO LONGER SENDING 'lastGraph=True'
+      #print(f"  Graph {idx+1} of {iterations} with IDX: '{datasetsIdx}' and last graph so sending 'True' to 'plt.show(block=True)'")
+      print(f"  Graph {idx+1} of {iterations} with IDX: '{datasetsIdx}'")
 
       ansDict = {}
       #(ansDict['question'], ansDict['expAnswer'], ansDict['answer']) = getModelOutput(raw_data, data_args, model_args, printOut=False, lastGraph=True)
-      (ansDict['question'], ansDict['expAnswer'], ansDict['answer']) = getModelOutput(raw_data, data_args, model_args, printOut=False)
+      (ansDict['tokenLen'], ansDict['question'], ansDict['expAnswer'], ansDict['answer'], ansDict['startIdx'], ansDict['endIdx']) = getModelOutput(
+        raw_data, data_args, model_args, printOut=False)
     else:
       print()
       print(f"  Graph {idx+1} of {iterations} with IDX: '{datasetsIdx}'")
 
       ansDict = {}
-      (ansDict['question'], ansDict['expAnswer'], ansDict['answer']) = getModelOutput(raw_data, data_args, model_args, printOut=False)
+      #return (question, expAnswer, answer, startIdx, endIdx)
+      (ansDict['tokenLen'], ansDict['question'], ansDict['expAnswer'], ansDict['answer'], ansDict['startIdx'], ansDict['endIdx']) = getModelOutput(
+        raw_data, data_args, model_args, printOut=False)
     
     answerDictDict[idx+1] = ansDict
   # END --- "for idx in range(iterations)" ---
@@ -124,8 +129,16 @@ def displayResults(answerDictDict):
   for key in answerDictDict:
     print()
     print(f"{key}) Question: {answerDictDict[key]['question']}")
-    print(f"{key}) Expected answer: {answerDictDict[key]['expAnswer']}")
-    print(f"{key}) Actual answer: {answerDictDict[key]['answer']}")
+    print(f"   Expected answer: {answerDictDict[key]['expAnswer']}")
+    print(f"   Actual answer: {answerDictDict[key]['answer']}")
+
+    if answerDictDict[key]['expAnswer'].casefold() == answerDictDict[key]['answer'].casefold():
+      print(f"   Token length: {answerDictDict[key]['tokenLen']}")
+      descStr = "Answer start index"
+      print(f"{descStr:>21}: {answerDictDict[key]['startIdx']}")
+      descStr = "Answer end index"
+      print(f"{descStr:>21}: {answerDictDict[key]['endIdx']}")
+    
     print()
 
 def main():
@@ -240,12 +253,17 @@ def main():
 
     #printDatasetInfo(raw_datasets, datasetsIdx)
     raw_data = raw_datasets["train"][datasetsIdx]
-    getModelOutput(raw_data, data_args, model_args, printOut=False)
+    # 12/6/24 DH: Adding in user feedback for JSON data run
+    ansDict = {}
+    (ansDict['question'], ansDict['expAnswer'], ansDict['answer']) = getModelOutput(raw_data, data_args, model_args, printOut=False)
+    answerDictDict = {}
+    answerDictDict[1] = ansDict
 
   # BUT random sample of Arrow Datasets (First entry is 0)
   elif data_args.dataset_name:
     answerDictDict = runRandSamples(data_args.dataset_name, raw_datasets, data_args, model_args)
-    displayResults(answerDictDict)
+
+  displayResults(answerDictDict)
     
   print()
   print("PRESS RETURN TO FINISH", end='')

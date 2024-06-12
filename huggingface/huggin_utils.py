@@ -565,7 +565,7 @@ def logWeightings(weight_tensor):
 ############################################################################################
 
 # 8/6/24 DH:
-def logSelectedNodeLogits(nodeForeachLogit, bertSelfAttention_cnt, embedTokens=384):
+def logSelectedNodeLogits(nodeForeachLogit, bert_cnt, bertLayerName, embedTokens=384):
   # Copied from: 'graphWeights(percentChgDictList, saveVals=True)'
   """
   checkpointing_config.gFullWeightsFile.write(f"{epochNum}-{weightMapDict[idx]}: {yVals}\n")
@@ -578,14 +578,16 @@ def logSelectedNodeLogits(nodeForeachLogit, bertSelfAttention_cnt, embedTokens=3
   if Trainer.stateAPI:
     epochNum = Trainer.stateAPI.global_step
     
-    checkpointing_config.gSelectedNodeFilename.write(f"{epochNum}-{bertSelfAttention_cnt}: {nodeForeachLogit}\n")
+    checkpointing_config.gSelectedNodeFilename.write(f"{epochNum}-{bert_cnt}-{bertLayerName}: {nodeForeachLogit}\n")
     checkpointing_config.gSelectedNodeFilename.write("\n")
 
   else:
     # 9/6/24 DH: Save logits for non-training run
     #   'createLoggers(training_args, overwrite=True)' to open 'gSelectedNodeFilename' for non-training run
-    checkpointing_config.gSelectedNodeFilename.write(f"-{bertSelfAttention_cnt}-{embedTokens}: {nodeForeachLogit}\n")
+    checkpointing_config.gSelectedNodeFilename.write(f"-{bert_cnt}-{bertLayerName}-{embedTokens}: {nodeForeachLogit}\n")
     checkpointing_config.gSelectedNodeFilename.write("\n")
+    print(f"    Saved '{bert_cnt}-{embedTokens}' to 'gSelectedNodeFilename'")
 
-  
+  # 11/6/24 DH: ..."do you flush?" (like 'Trainer.training_step()::checkpointing_config.gLossFile.flush()')
+  checkpointing_config.gSelectedNodeFilename.flush()
 

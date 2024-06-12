@@ -202,6 +202,7 @@ def transformerLIMEing(output, tokenizer, all_tokens, printOut=False, lastGraph=
     print(f"answer_tokens: {len(answer_tokens)}")
     print(f"  '{answer_tokens}'")
     print("")
+    print(f"  ANSWER from token '{max_start_logits_idx}' to '{max_end_logits_idx}'")
     print(f"  answer_tokens ids: '{tokenizer.convert_tokens_to_ids(answer_tokens)}'")
     print("  ------------------")
     print(f"  tokenizer.decode() ids: '{tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))}'")
@@ -214,7 +215,7 @@ def transformerLIMEing(output, tokenizer, all_tokens, printOut=False, lastGraph=
   #print("NOT CALLING: 'graphTokenVals()'")
   graphTokenVals(startVals, endVals, tokWordStr, tokIDStrPLT, lastGraph)
 
-  return answer
+  return (answer, max_start_logits_idx, max_end_logits_idx)
 
 # 24/3/24 DH:
 def getCorrectModelAndTokenizer(model_name, model_args):
@@ -276,6 +277,7 @@ def getModelOutput(raw_data, data_args, model_args, printOut=False, lastGraph=Fa
   #model_name = "sjrhuschlee/flan-t5-base-squad2"
   
   # 8/4/24 DH: Downloading to prevent weeks of fine-tuning work on SQuAD2
+  #         (as used by https://github.com/huggingface/transformers/blob/main/src/transformers/models/bert/modeling_bert.py#L73)
   #model_name = "deepset/bert-base-cased-squad2"
   #model_name = "deepset/bert-base-uncased-squad2"
   #model_name = "deepset/roberta-base-squad2"
@@ -391,9 +393,10 @@ def getModelOutput(raw_data, data_args, model_args, printOut=False, lastGraph=Fa
   """
 
   all_tokens = tokenizer.convert_ids_to_tokens( encoding["input_ids"][0].tolist() )
-  answer = transformerLIMEing(output, tokenizer, all_tokens, printOut, lastGraph)
+  tokenLen = len(all_tokens)
+  (answer, startIdx, endIdx) = transformerLIMEing(output, tokenizer, all_tokens, printOut, lastGraph)
 
-  return (question, expAnswer, answer)
+  return (tokenLen, question, expAnswer, answer, startIdx, endIdx)
 
   
   
