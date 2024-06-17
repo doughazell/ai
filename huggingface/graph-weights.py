@@ -23,6 +23,9 @@ weightMapDict = {
   "End": 1,
 }
 
+# 16/6/24 DH: Now wanting to just save graphs (rather than display them as default)
+gShowFlag = False
+
 def collectWeights(weightsLog):
   percentChgDictListDict = {}
   
@@ -110,7 +113,7 @@ def graphWeightsKeyed(percentChgDictList, epochNum, weights=False, lastGraph=Fal
       titleStr = f"Weight change by node from 'qa_outputs' layer for epoch {epochNum}"
   
   else:
-    titleStr = f"Total weight change by node from 'qa_outputs' layer after {lastEpoch} epochs"
+    titleStr = f"Total node weight change from 'qa_outputs' after {lastEpoch} epochs"
 
   plt.title(titleStr)
   plt.xlabel("Node number (NOT token ID)")
@@ -137,18 +140,23 @@ def graphWeightsKeyed(percentChgDictList, epochNum, weights=False, lastGraph=Fal
   
   #plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
 
-  # 23/5/24 DH: The only extra graph to save is the "Total weight change by node from 'qa_outputs' layer"
-  print(f"    ...saving graph")
+  # 15/6/24 DH: Adjust space around y-axis label to accom large axis values (eg "25000")
+  #             https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.tight_layout.html
+  plt.tight_layout()
+
+  # 16/6/24 DH: 'gWeightsGraphDir' assigned in "if __name__ == "__main__""
+  print(f"    ...saving graph (in '{gWeightsGraphDir}')")
   if "complete" in epochNum:
-    plt.savefig(f"{weightsGraphDir}/total-weight-change.png")
+    plt.savefig(f"{gWeightsGraphDir}/total-weight-change.png")
   else:
     if weights:
-      plt.savefig(f"{weightsGraphDir}/{epochNum}-fullValues.png")
+      plt.savefig(f"{gWeightsGraphDir}/{epochNum}-fullValues.png")
     else:
-      plt.savefig(f"{weightsGraphDir}/{epochNum}-percentDiffs.png")
+      plt.savefig(f"{gWeightsGraphDir}/{epochNum}-percentDiffs.png")
 
-  #plt.draw()
-  plt.show(block=lastGraph)
+  if gShowFlag:
+    #plt.draw()
+    plt.show(block=lastGraph)
 
 # 7/6/24 DH:
 def displayLargestValues(startLineIdxDict, endLineIdxDict):
@@ -296,20 +304,22 @@ def calcAndGraphTrgDiffs(percentChgDictListDict):
   (startLineIdxDict, endLineIdxDict) = getLargestValues(percentChgLineList)
   displayLargestValues(startLineIdxDict, endLineIdxDict)
   
-
   graphWeightsKeyed(percentChgLineList, "complete", lastGraph=True, lastEpoch=endEpoch)
 
   return percentChgLineList
 
-
+# 16/6/24 DH: https://docs.python.org/3/faq/programming.html#what-are-the-rules-for-local-and-global-variables-in-python
+#  "If a variable is assigned a value anywhere within the function’s body, it’s assumed to be a local unless explicitly declared as global."
+# HOWEVER: this "main" is NOT A FUNCTION SO ALL VARIABLES ARE GLOBAL 
+#          (and leads to "SyntaxError: name ??? is assigned to before global declaration" if used (prob due to python compiler/loader))
 if __name__ == "__main__":
-  if len(sys.argv) == 2:
+  if len(sys.argv) > 1:
     output_dir = os.path.abspath(sys.argv[1])
     weightsLog = os.path.join(output_dir, gTrainer_log)
     fullweightsLog = os.path.join(output_dir, gTrainer_full_log)
 
-    weightsGraphDir = os.path.join(output_dir, "weights-graphs")
-    Path(weightsGraphDir).mkdir(parents=True, exist_ok=True)
+    gWeightsGraphDir = os.path.join(output_dir, "weights-graphs")
+    Path(gWeightsGraphDir).mkdir(parents=True, exist_ok=True)
   else:
     print(f"You need to provide an 'output_dir'")
     exit(0)
@@ -319,7 +329,6 @@ if __name__ == "__main__":
   #printCollectedDict(percentChgDictListDict)
 
   keyNum = len(percentChgDictListDict.keys())
-
   
   print( "-------------------------------------------------")
   print(f"   NOT GRAPHING PERCENTAGE DIFFS FOR {keyNum} epochs")
@@ -356,6 +365,11 @@ if __name__ == "__main__":
       print(f"{key}, ", end='')
     print(")")
     print()
+
+  # 16/6/24 DH: "show" cmd line arg (like 'graph-node-logits.py') is needed in 'graphWeightsKeyed(...)'
+  #             (which is called from 'calcAndGraphTrgDiffs(...)' wrapper)
+  if len(sys.argv) > 2 and "show" in sys.argv[2]:
+    gShowFlag = True
 
   graphWeightsKeyed(percentChgDictListDict[startEpoch], startEpoch, weights=True)
   graphWeightsKeyed(percentChgDictListDict[endEpoch], endEpoch, weights=True)

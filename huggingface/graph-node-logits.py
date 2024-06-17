@@ -15,7 +15,8 @@ from scipy import stats
 
 # 8/6/24 DH: Hard-coded to prevent needing to add: "HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))" code
 # (ORIG LOG USED IN 'graph-logits.py': trainer_log = "seq2seq_qa_INtrainer.log")
-trainer_log = "weights/node287-logits.log"
+gTrainer_log = "weights/node287-logits.log"
+gOutputDir = None
 
 # 12/6/24 DH: Future-proofing the model output log (when splitting on "-")
 # 'huggin_utils.py::logSelectedNodeLogits(...)' :
@@ -26,13 +27,18 @@ gLayerIdx = 1
 gNameIdx  = 2
 gTokenIdx = 3
 
+# 16/6/24 DH: Now wanting to just save graphs (rather than display them as default)
+gShowFlag = False
+
 def collectLogits():
   recordsDict = {}
   tokenLens = []
 
-  if len(sys.argv) == 2:
-    output_dir = os.path.abspath(sys.argv[1])
-    logitsLog = os.path.join(output_dir, trainer_log)
+  # 16/6/24 DH: Changed from "if len(sys.argv) == 2" due to having cmd line arg to prevent displaying graphs (in order to use the saved versions)
+  if len(sys.argv) > 1:
+    global gOutputDir
+    gOutputDir = os.path.abspath(sys.argv[1])
+    logitsLog = os.path.join(gOutputDir, gTrainer_log)
   else:
     print(f"You need to provide an 'output_dir'")
     exit(0)
@@ -116,7 +122,14 @@ def displayLogits(recordsDict):
 # Taken from: 'ai/huggingface/graph-logits.py'
 def graphLogitsByLayer(recordsDict, layerNum, wantedTokenLen=None, lastGraph=False):
   # 4/9/23 DH: Display all graphs simultaneously with 'plt.show(block=False)' (which needs to be cascaded)
-  plt.figure()
+  fig = plt.figure()
+
+  # 15/6/24 DH: https://matplotlib.org/stable/api/figure_api.html#figure-geometry
+  # This just the canvas size (rather than scale the image like "Preview_Tools_Adjust size...")
+  #(figWidth, figHeight) = fig.get_size_inches()
+  #
+  # Setting 'fig.dpi' adjusts image size
+  #fig.set_dpi(fig.dpi * 0.7)
 
   # 12/6/24 DH: 'recordsDict' TRAINING keys are: "{epochNum}-{bert_cnt}-{bertLayerName}"
   epochList = [key.split("-")[gEpochIdx] for key in list(recordsDict.keys())]
@@ -227,7 +240,7 @@ def graphLogitsByLayer(recordsDict, layerNum, wantedTokenLen=None, lastGraph=Fal
       if int(layerNum) == -1:
         if int(tokenLen) == wantedTokenLen:
           # Added for unpacking in 'plotAllLayersLines(...)'
-          lineDict = {'tokenLen': tokenLen, 'layer': layer, 'compName': compName,'xVals': range(len(recordsDict[key])), 'yVals': recordsDict[key].tolist()}
+          lineDict = {'tokenLen': int(tokenLen), 'layer': layer, 'compName': compName,'xVals': range(len(recordsDict[key])), 'yVals': recordsDict[key].tolist()}
           allLayerLinesList.append(lineDict)
 
       # Used in graph title (+ cmd line feedback)
@@ -256,8 +269,19 @@ def graphLogitsByLayer(recordsDict, layerNum, wantedTokenLen=None, lastGraph=Fal
   
   plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
 
-  #plt.draw()
-  plt.show(block=lastGraph)
+  print(f"    ...saving graph (in '{gOutputDir}/gv-graphs')")
+  # 'tokenLen' at this point (ie after "for key in recordsDict" will ALWAYS CONTAIN THE LAST RUN TOKEN LEN)
+  # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+  if lastGraph: # have mechanism to change saved image size (for later graphviz'ing)
+    figDpi = fig.dpi * 0.5
+  else:
+    figDpi = fig.dpi
+
+  plt.savefig(f"{gOutputDir}/gv-graphs/all_layers-287-{wantedTokenLen}.png", dpi=figDpi)
+
+  if gShowFlag:
+    #plt.draw()
+    plt.show(block=lastGraph)
 
 # -------------------------------------------------END: GRAPHING ---------------------------------------------
 
@@ -277,9 +301,15 @@ if __name__ == "__main__":
     if cnt == tokenLensNum:
       lastGraph = True
 
+    # 16/6/24 DH:
+    if len(sys.argv) > 2 and "show" in sys.argv[2]:
+      gShowFlag = True
+
     graphLogitsByLayer(recordsDict, layerNum=-1, wantedTokenLen=tokenLen, lastGraph=lastGraph)
   
   # ...amusingly now we only want the combined lines graph...
   #graphLogitsByLayer(recordsDict, layerNum=1)
   #graphLogitsByLayer(recordsDict, layerNum=12, lastGraph=True)
+
   
+

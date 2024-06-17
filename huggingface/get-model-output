@@ -1,0 +1,56 @@
+#! /bin/bash
+
+####################################################################################
+#
+#                                      Huggin API
+#
+####################################################################################
+
+CFGDIR="/Users/doug/src/ai/t5"
+HFOUTDIR="previous_output_dir-Google-BERT"
+
+# TODO: Decide if this should be hard-coded across mutliple files (as currently is)
+GRAPHDIR="${CFGDIR}/${HFOUTDIR}/gv-graphs"
+
+SCRIPTDIR=$(dirname "$0")
+SCRIPTNAME=$(basename "$0")
+counter=0
+
+mkdir -p ${GRAPHDIR}
+
+# ((expression)) The "expression" is evaluated according to the rules described under ARITHMETIC EVALUATION.
+#                This is exactly equivalent to let "expression".
+
+let counter++
+echo "${counter}) graph-weights.py"
+echo "-------------------"
+# Append cmd with "&" to "background" process
+#python ${SCRIPTDIR}/graph-weights.py ${CFGDIR}/${HFOUTDIR}/old-logs/ show
+
+echo "ONLY saving graphs (not showing them)"
+#python ${SCRIPTDIR}/graph-weights.py ${CFGDIR}/${HFOUTDIR}/old-logs/
+
+echo
+echo "Returned to '${SCRIPTNAME}'"
+echo
+
+let counter++
+echo "${counter}) graph-node-logits.py"
+echo "-----------------------"
+#python ${SCRIPTDIR}/graph-node-logits.py ${CFGDIR}/${HFOUTDIR} show
+
+echo "ONLY saving graphs (not showing them)"
+#python ${SCRIPTDIR}/graph-node-logits.py ${CFGDIR}/${HFOUTDIR}
+
+echo
+echo "Returned to '${SCRIPTNAME}'"
+echo
+echo "NOTE: We need to be able to save images in order to 'gv' them"
+echo
+
+let counter++
+echo "${counter}) create-gv-output.py"
+echo "----------------------"
+python ${SCRIPTDIR}/create-gv-output.py ${GRAPHDIR}
+
+echo
