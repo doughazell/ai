@@ -6,51 +6,73 @@
 #
 ####################################################################################
 
+# TODO: Decide if this should be hard-coded across mutliple files (as currently is)
 CFGDIR="/Users/doug/src/ai/t5"
 HFOUTDIR="previous_output_dir-Google-BERT"
 
-# TODO: Decide if this should be hard-coded across mutliple files (as currently is)
-GRAPHDIR="${CFGDIR}/${HFOUTDIR}/gv-graphs"
+TLD=${CFGDIR}/${HFOUTDIR}
 
 SCRIPTDIR=$(dirname "$0")
 SCRIPTNAME=$(basename "$0")
 counter=0
 
-mkdir -p ${GRAPHDIR}
+mkdir -p ${TLD}/gv-graphs
 
 # ((expression)) The "expression" is evaluated according to the rules described under ARITHMETIC EVALUATION.
 #                This is exactly equivalent to let "expression".
 
+# ======================================= INDIV SCRIPTS ================================================
+# ---------------------------------
+let counter++
+echo "${counter}) test-qa-efficacy.py"
+echo "----------------------"
+#python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/qa_train-Google-BERT.json show
+python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/qa_train-Google-BERT.json
+
+# ---------------------------------
 let counter++
 echo "${counter}) graph-weights.py"
 echo "-------------------"
 # Append cmd with "&" to "background" process
-#python ${SCRIPTDIR}/graph-weights.py ${CFGDIR}/${HFOUTDIR}/old-logs/ show
+echo "   CURRENTLY USING: '${TLD}/old-logs' (for Pre-trained state + training run node change)"
+#python ${SCRIPTDIR}/graph-weights.py ${TLD}/old-logs show
 
 echo "ONLY saving graphs (not showing them)"
-#python ${SCRIPTDIR}/graph-weights.py ${CFGDIR}/${HFOUTDIR}/old-logs/
+python ${SCRIPTDIR}/graph-weights.py ${TLD}/old-logs
 
 echo
 echo "Returned to '${SCRIPTNAME}'"
 echo
 
+# ---------------------------------
 let counter++
 echo "${counter}) graph-node-logits.py"
 echo "-----------------------"
-#python ${SCRIPTDIR}/graph-node-logits.py ${CFGDIR}/${HFOUTDIR} show
+#python ${SCRIPTDIR}/graph-node-logits.py ${TLD} show
 
 echo "ONLY saving graphs (not showing them)"
-#python ${SCRIPTDIR}/graph-node-logits.py ${CFGDIR}/${HFOUTDIR}
+python ${SCRIPTDIR}/graph-node-logits.py ${TLD}
 
 echo
 echo "Returned to '${SCRIPTNAME}'"
 echo
-echo "NOTE: We need to be able to save images in order to 'gv' them"
+echo "[NOTE: We need to be able to save images in order to 'gv' them]"
 echo
 
+# Where graphs get saved:
+# -----------------------
+# graph-weights.py     = ${TLD}/old-logs/weights-graphs
+#                          0-fullValues.png, 1025-fullValues.png, total-weight-change.png
+# graph-node-logits.py = ${TLD}/gv-graphs
+#                          all_layers-287-<token len>.png
+# test-qa-efficacy.py  = ${TLD}/graphs
+#                        (via 'qa_lime.py::graphTokenVals(...)')
+#                          logits-by-token-<token len>.png
+
+# ---------------------------------
 let counter++
 echo "${counter}) create-gv-output.py"
 echo "----------------------"
-python ${SCRIPTDIR}/create-gv-output.py ${GRAPHDIR}
+python ${SCRIPTDIR}/create-gv-output.py ${TLD}
 
 echo

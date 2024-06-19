@@ -311,5 +311,10 @@ if __name__ == "__main__":
   #graphLogitsByLayer(recordsDict, layerNum=1)
   #graphLogitsByLayer(recordsDict, layerNum=12, lastGraph=True)
 
+  if not gShowFlag:
+    print()
+    print("NOT SHOWING images (please add 'show' to cmd line args if images wanted)")
+    print()
+
   
 

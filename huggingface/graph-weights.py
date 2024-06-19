@@ -370,12 +370,17 @@ if __name__ == "__main__":
   #             (which is called from 'calcAndGraphTrgDiffs(...)' wrapper)
   if len(sys.argv) > 2 and "show" in sys.argv[2]:
     gShowFlag = True
-
+  
   graphWeightsKeyed(percentChgDictListDict[startEpoch], startEpoch, weights=True)
   graphWeightsKeyed(percentChgDictListDict[endEpoch], endEpoch, weights=True)
 
   # Now calculate + graph the percentage diff
   percentChgLineList = calcAndGraphTrgDiffs(percentChgDictListDict)
+
+  if not gShowFlag:
+    print()
+    print("NOT SHOWING images (please add 'show' to cmd line args if images wanted)")
+    print()
 
   
   

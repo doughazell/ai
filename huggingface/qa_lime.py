@@ -11,6 +11,9 @@ from transformers import (
 )
 import matplotlib.pyplot as plt
 
+# 19/6/24 DH: Now using same package global variable mechanism like 'checkpointing.py/checkpointing_config.py'
+import qa_lime_config
+
 def getListElem(_questions, _contexts, _answers, index):
   if isinstance(_questions, list):
     _question = _questions[index]
@@ -81,7 +84,9 @@ def graphTokenVals(startVals, endVals, tokWordStr, tokIDStr, lastGraph=False):
   plt.ylim(ymin=-10, ymax=10)
   plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
 
-  plt.title("Logits by token ID")
+  tokenLen = len(startVals)
+
+  plt.title(f"Logits by token ID for {tokenLen} tokens")
   plt.xlabel("Token ID")
   plt.ylabel("Logit value")
 
@@ -98,8 +103,13 @@ def graphTokenVals(startVals, endVals, tokWordStr, tokIDStr, lastGraph=False):
   #    plt.get_current_fig_manager().window.wm_geometry("+600+400") # move the window
   #      RESULT: "Cannot load backend 'TkAgg' which requires the 'tk' interactive framework, as 'macosx' is currently running"
 
-  #plt.draw()
-  plt.show(block=lastGraph)
+  # 17/6/24 DH: Need to save  figure + scale DPI (like 'graph-weights.py' + 'graph-node-logits.py')
+  import checkpointing_config
+  plt.savefig(f"{checkpointing_config.gGraphDir}/logits-by-token-{tokenLen}.png")
+
+  if qa_lime_config.gShowFlag:
+    #plt.draw()
+    plt.show(block=lastGraph)
 
 # 7/4/24 DH: Used with custom JSON cut-down data to learn about BERT (not SQuAD)
 def getTokStrings(all_tokens, tokenIDs, tokenizer, printOut=False):
@@ -396,7 +406,7 @@ def getModelOutput(raw_data, data_args, model_args, printOut=False, lastGraph=Fa
   tokenLen = len(all_tokens)
   (answer, startIdx, endIdx) = transformerLIMEing(output, tokenizer, all_tokens, printOut, lastGraph)
 
-  return (tokenLen, question, expAnswer, answer, startIdx, endIdx)
+  return (tokenLen, question, context, expAnswer, answer, startIdx, endIdx)
 
   
   

@@ -9,6 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 import sys, os, random, time
+from datetime import datetime
 
 print("Importing 'transformers'")
 import transformers
@@ -25,9 +26,13 @@ from datasets import load_dataset
 
 # 27/2/24 DH:
 from qa_lime import *
+# 19/6/24 DH:
+import qa_lime_config
 
 # 30/3/24 DH:
 from checkpointing import *
+# 18/6/24 DH: Added to id file of 'createLoggers(...)'
+import checkpointing
 
 # --------------------------------------------------------------------------------------------------------------
 from dataclasses import dataclass, field
@@ -109,47 +114,98 @@ def runRandSamples(dataOrigin, raw_datasets, data_args, model_args, iterations=3
       print(f"  Graph {idx+1} of {iterations} with IDX: '{datasetsIdx}'")
 
       ansDict = {}
+      # 'lastGraph=True' legacy
       #(ansDict['question'], ansDict['expAnswer'], ansDict['answer']) = getModelOutput(raw_data, data_args, model_args, printOut=False, lastGraph=True)
-      (ansDict['tokenLen'], ansDict['question'], ansDict['expAnswer'], ansDict['answer'], ansDict['startIdx'], ansDict['endIdx']) = getModelOutput(
-        raw_data, data_args, model_args, printOut=False)
+
+      (ansDict['tokenLen'], ansDict['question'], ansDict['context'], ansDict['expAnswer'], 
+       ansDict['answer'], ansDict['startIdx'], ansDict['endIdx']) = getModelOutput(raw_data, data_args, model_args, printOut=False)
     else:
       print()
       print(f"  Graph {idx+1} of {iterations} with IDX: '{datasetsIdx}'")
 
       ansDict = {}
       #return (question, expAnswer, answer, startIdx, endIdx)
-      (ansDict['tokenLen'], ansDict['question'], ansDict['expAnswer'], ansDict['answer'], ansDict['startIdx'], ansDict['endIdx']) = getModelOutput(
-        raw_data, data_args, model_args, printOut=False)
+      (ansDict['tokenLen'], ansDict['question'], ansDict['context'], ansDict['expAnswer'],
+       ansDict['answer'], ansDict['startIdx'], ansDict['endIdx']) = getModelOutput(raw_data, data_args, model_args, printOut=False)
     
     answerDictDict[idx+1] = ansDict
   # END --- "for idx in range(iterations)" ---
   return answerDictDict
 
-def displayResults(answerDictDict):
+# 18/6/24 DH: Create (+ archive old versions) like 'checkpointing.py::archivePrevLogs(...)'
+def createLogFile(training_args):
+
+  # Question-Context-Answer
+  qcaFile = os.path.join(training_args.output_dir, "gv-graphs", "qca.log")
+
+  print()
+  if os.path.isfile(qcaFile):
+    # https://strftime.org/
+    today = datetime.today().strftime('%-d%b%-H%-M')
+    qcaFileDated = f"{qcaFile}{today}"
+
+    shutil.copy(qcaFile, qcaFileDated)
+
+    print(f"  COPIED: '{qcaFile}' to '{qcaFileDated}'")
+  else:
+    print(f"  NOT COPIED: '{qcaFile}'")
+  
+  outFile = open(qcaFile, "w")
+  return outFile
+
+# 17/6/24 DH: Need to log correct actual answer sets by {key}-Token Len (in order to add details to 'qa-output-<date>.gv.pdf')
+def displayResults(answerDictDict, training_args):
+  qcaFileOpen = False
+
   for key in answerDictDict:
     print()
     print(f"{key}) Question: {answerDictDict[key]['question']}")
+    print(f"   Context: {answerDictDict[key]['context']}")
+    print()
     print(f"   Expected answer: {answerDictDict[key]['expAnswer']}")
     print(f"   Actual answer: {answerDictDict[key]['answer']}")
 
+    # Additional output for correct answers
     if answerDictDict[key]['expAnswer'].casefold() == answerDictDict[key]['answer'].casefold():
       print(f"   Token length: {answerDictDict[key]['tokenLen']}")
       descStr = "Answer start index"
       print(f"{descStr:>21}: {answerDictDict[key]['startIdx']}")
       descStr = "Answer end index"
       print(f"{descStr:>21}: {answerDictDict[key]['endIdx']}")
+
+      # If it already exists from a previous key then just append it
+      if not qcaFileOpen:
+        outFile = createLogFile(training_args)
+        qcaFileOpen = True
+        
+      outFile.write(f"{key}-{answerDictDict[key]['tokenLen']}: Q={answerDictDict[key]['question']}\n")
+      outFile.write(f"{key}-{answerDictDict[key]['tokenLen']}: C={answerDictDict[key]['context']}\n")
+      outFile.write(f"{key}-{answerDictDict[key]['tokenLen']}: A={answerDictDict[key]['answer']}\n")
+      outFile.write(f"{key}-{answerDictDict[key]['tokenLen']}: START INDEX={answerDictDict[key]['startIdx']}\n")
+      outFile.write(f"{key}-{answerDictDict[key]['tokenLen']}: END INDEX={answerDictDict[key]['endIdx']}\n")
+      outFile.write(f"{key}-{answerDictDict[key]['tokenLen']}: TOKEN LEN={answerDictDict[key]['tokenLen']}\n")
+      outFile.write("\n")
     
     print()
+  # END: ------ "for key in answerDictDict" ------
+  try: # Handle case when not open due to no correct answers
+    outFile.close() # since not using "with ..."
+  except UnboundLocalError:
+    pass
 
 def main():
   parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
-  if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
+  if len(sys.argv) > 1 and sys.argv[1].endswith(".json"):
     jsonFile = os.path.abspath(sys.argv[1])
     print()
     print(f"Parsing: {jsonFile}")
     model_args, data_args, training_args = parser.parse_json_file(json_file=jsonFile)
   else:
     print("You need to provide a JSON config")
+
+  # 19/6/24 DH: "show" cmd line arg (like 'graph-weights.py') is needed in 'qa_lime.py::graphTokenVals(...)'
+  if len(sys.argv) > 2 and "show" in sys.argv[2]:
+    qa_lime_config.gShowFlag = True
   
   # ----------------------------- LOGGING -------------------------------------------
   # Setup logging
@@ -204,7 +260,7 @@ def main():
   # 30/3/24 DH: Needs to be after "Detecting last checkpoint" in order to create the first checkpoint with Ctrl-C 
   #             (and prevent the need for "run/remove/rerun" involving, ' "overwrite_output_dir": "True" ')
   # 25/5/24 DH: 'run_qa.py' now logs weights in 'weights-full.log' + 'weights.log' so need to prevent 'qa.py' from overwriting
-  createLoggers(training_args, overwrite=False)
+  checkpointing.createLoggers(training_args, overwrite=False)
 
   # Set seed before initializing model.
   # https://github.com/huggingface/transformers/blob/main/src/transformers/trainer_utils.py#L86
@@ -255,7 +311,8 @@ def main():
     raw_data = raw_datasets["train"][datasetsIdx]
     # 12/6/24 DH: Adding in user feedback for JSON data run
     ansDict = {}
-    (ansDict['question'], ansDict['expAnswer'], ansDict['answer']) = getModelOutput(raw_data, data_args, model_args, printOut=False)
+    (ansDict['tokenLen'], ansDict['question'], ansDict['context'], ansDict['expAnswer'], 
+     ansDict['answer'], ansDict['startIdx'], ansDict['endIdx']) = getModelOutput(raw_data, data_args, model_args, printOut=False)
     answerDictDict = {}
     answerDictDict[1] = ansDict
 
@@ -263,11 +320,12 @@ def main():
   elif data_args.dataset_name:
     answerDictDict = runRandSamples(data_args.dataset_name, raw_datasets, data_args, model_args)
 
-  displayResults(answerDictDict)
-    
-  print()
-  print("PRESS RETURN TO FINISH", end='')
-  response = input()
+  displayResults(answerDictDict, training_args)
+  
+  if qa_lime_config.gShowFlag == True:
+    print()
+    print("PRESS RETURN TO FINISH", end='')
+    response = input()
 
 if __name__ == "__main__":
 
