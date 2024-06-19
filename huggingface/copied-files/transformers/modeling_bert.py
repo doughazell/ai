@@ -164,6 +164,7 @@ class BertEmbeddings(nn.Module):
         self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
 
         # 31/5/24 DH:
+        """
         print()
         print( "========================================================================")
         print(f"BertEmbeddings.__init__(): ")
@@ -171,6 +172,7 @@ class BertEmbeddings(nn.Module):
         print(f"  'position_embeddings': {self.position_embeddings}")
         print(f"  'token_type_embeddings': {self.token_type_embeddings}")
         print( "========================================================================")
+        """
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
@@ -226,12 +228,14 @@ class BertEmbeddings(nn.Module):
             embeddings += position_embeddings
 
             # 31/5/24 DH: Need to accomodate + PROPAGATE 'qa_lime.py::getModelOutput(...)' printout that has no newline char (to accom TQDM)
+            """
             print()
             print(f"  BertEmbeddings.forward(): ['embeddings' = 'inputs_embeds' + 'token_type_embeddings' + 'position_embeddings']")
             print(f"                                          = {list(embeddings.shape)} (ie + BATCH SIZE LAYER)")
             print(f"    'token_type_ids': {list(token_type_ids.shape)} as '0' mask of token len for EMBEDDING weight RETRIEVAL")
             print( "        [THEREFORE NO SEGMENT EMBEDDING 'A' OR 'B' FOR EACH TOKEN (like 'Next Sentence Prediction' Pre-training)]")
             print(f"    'position_ids': {list(position_ids.shape)} as 'index numbers' of token len for EMBEDDING weight RETRIEVAL", end='')
+            """
 
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
@@ -1970,6 +1974,7 @@ class BertForQuestionAnswering(BertPreTrainedModel):
         # ALSO: 
         #       Training:     'input_ids.shape' => [12, 384] (ie zero'd out)
         #       Non-training: 'input_ids.shape' => [1, 176]
+        """
         try:
           # TRAINING RUN
           # ------------
@@ -1998,6 +2003,7 @@ class BertForQuestionAnswering(BertPreTrainedModel):
           print( "  ...")
           for elem in logits[0][-3:].tolist():
             print(f"  {elem}")
+        """
         
         print()
         print( "  HOW DO EMBEDDINGS logits CORRELATE WITH 'qa_outputs' weights FOR START AND END logits ???")

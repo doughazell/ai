@@ -73,6 +73,8 @@ echo
 # test-qa-efficacy.py  = ${TLD}/graphs
 #                        (via 'qa_lime.py::graphTokenVals(...)')
 #                          logits-by-token-<token len>.png
+#
+# (SEE 'graph-weights.py', 'graph-losses.py' for '~/weights' dir (containing '~/weights/weights-graphs'))
 
 # ---------------------------------
 let counter++
@@ -82,5 +84,5 @@ python ${SCRIPTDIR}/create-gv-output.py ${TLD}
 
 # 19/6/24 DH: ...and finally we have our HuggingFace/Bert Q&A output...
 #             (from "DeepPavlov ODQA pipe", Dec 23, 2023, that has no 'qa_outputs' layer...!) 
-open $(more gv_filename.txt)
+open $(cat gv_filename.txt)
 

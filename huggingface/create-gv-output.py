@@ -49,9 +49,9 @@ strict digraph qaOutput {{
   </TABLE>
   >]
 
-  qcaTable [label=<{qcaTableTxt}> fontsize=40 fontcolor="red" fillcolor="skyblue"]
+  qcaTable [label=<{qcaTableTxt}> fontsize=30 fontcolor="red" fillcolor="skyblue"]
 
-  context [label="{contextLabel}" fontsize=40 fontcolor="red" fillcolor="skyblue"]
+  context [label="{contextLabel}" fontsize=30 fontcolor="red" fillcolor="skyblue"]
 
   image2 -> image3
   table1 -> image2
@@ -198,20 +198,23 @@ def createDotFile(tld):
   #
   #img3 = "/Users/doug/src/ai/t5/graphs/logits-by-token-by-epoch.png"
 
-  weightsDir = "old-logs/weights-graphs"
-  huggin_utilsDir = "graphs"
+  oldDir = "old-logs/weights-graphs"
+  h_utilsDir = "graphs"
   nodeGraphsDir = "gv-graphs"
+  h_utilsWGDir = "weights/weights-graphs"
 
-  img1a = f"{tld}/{weightsDir}/0-fullValues.png"
-  img1b = f"{tld}/{weightsDir}/total-weight-change.png"
+  img1a = f"{tld}/{oldDir}/0-fullValues.png"
+  img1b = f"{tld}/{oldDir}/total-weight-change.png"
+
   # Prev work path (no longer active)
-  img1c = f"{tld}/../{huggin_utilsDir}/loss-by-epoch-scaled.png"
+  #img1c = f"{tld}/../{h_utilsDir}/loss-by-epoch-scaled.png"
+  img1c = f"{tld}/{h_utilsWGDir}/losses-by-epochs-1026.png"
 
   # 19/6/24 DH: Correlate graphs (from Q+Context token length) with key chosen from 'qcaDict' in 'getQCATableTxt(...)'
   (qcaTableTxt, contextLabel, graphTokenLen) = getQCATableTxt(gvDir)
 
   img2 = f"{tld}/{nodeGraphsDir}/all_layers-287-{graphTokenLen}.png"
-  img3 = f"{tld}/{huggin_utilsDir}/logits-by-token-{graphTokenLen}.png"
+  img3 = f"{tld}/{h_utilsDir}/logits-by-token-{graphTokenLen}.png"
 
   with open(dotFile, "w") as outFile:
     dotTxt = getDotTxt(img1a, img1b, img1c, img2, img3, qcaTableTxt, contextLabel)

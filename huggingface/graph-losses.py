@@ -104,6 +104,8 @@ def graphLosses(lossDict):
 
 if __name__ == "__main__":
   if len(sys.argv) == 2:
+    # 19/6/24 DH: 'output_dir' now is 'previous_output_dir-Google-BERT/weights' (FROM: checkpointing.py::weightPath = f"{logPath}/weights")
+    #             GIVING: '~/weights/weights-graphs'
     output_dir = os.path.abspath(sys.argv[1])
     lossLog = os.path.join(output_dir, gTrainerLoss_log)
 

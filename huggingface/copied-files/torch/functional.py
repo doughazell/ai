@@ -2236,6 +2236,7 @@ def embedding(
         _no_grad_embedding_renorm_(weight, input, max_norm, norm_type)
     
     # 2/6/24 DH:
+    """
     # -----------------------------------------------------------------------------------------------------
     torchEmbedding = torch.embedding(weight, input, padding_idx, scale_grad_by_freq, sparse)
 
@@ -2275,8 +2276,9 @@ def embedding(
 
     return torchEmbedding
     # -----------------------------------------------------------------------------------------------------
+    """
 
-    #return torch.embedding(weight, input, padding_idx, scale_grad_by_freq, sparse)
+    return torch.embedding(weight, input, padding_idx, scale_grad_by_freq, sparse)
 
 
 def embedding_bag(

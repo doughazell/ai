@@ -218,13 +218,14 @@ def transformerLIMEing(output, tokenizer, all_tokens, printOut=False, lastGraph=
     print(f"  tokenizer.decode() ids: '{tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))}'")
     print()
 
-  answer = tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))
-  print("ANSWER: ", answer)
-  print("------")
+    answer = tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))
+    print("ANSWER: ", answer)
+    print("------")
 
   #print("NOT CALLING: 'graphTokenVals()'")
   graphTokenVals(startVals, endVals, tokWordStr, tokIDStrPLT, lastGraph)
 
+  answer = tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))
   return (answer, max_start_logits_idx, max_end_logits_idx)
 
 # 24/3/24 DH:
@@ -337,12 +338,15 @@ def getModelOutput(raw_data, data_args, model_args, printOut=False, lastGraph=Fa
     print("Params from script")
   else:
     print(f"Params from '{data_args.dataset_name if data_args.dataset_name else data_args.train_file}'")
-  print("-------------------------")
-  if data_args.train_file:
-    print(f"JSON IDX: {index}")
-  print("QUESTION: ", question)
-  print("CONTEXT: ", context)
-  print("EXPECTED ANSWER: ", expAnswer)
+  
+  # 20/6/24 DH:
+  if printOut:
+    print("-------------------------")
+    if data_args.train_file:
+      print(f"JSON IDX: {index}")
+    print("QUESTION: ", question)
+    print("CONTEXT: ", context)
+    print("EXPECTED ANSWER: ", expAnswer)
 
   # --- DEBUG ---
   # 27/3/24 DH: Taken from "(Pdb) input_ids[0]" ('BertForQuestionAnswering.forward()' in 'transformers/models/bert/modeling_bert.py')
@@ -380,12 +384,6 @@ def getModelOutput(raw_data, data_args, model_args, printOut=False, lastGraph=Fa
   print("------------------------ END: HUGGINGFACE NON-TRAINING RUN ---------------------")
 
   # 24/4/24 DH: "pip install torchinfo" (https://github.com/TylerYep/torchinfo) "(formerly torch-summary)"
-  print()
-  print("-----------------------------------------")
-  print("NO LONGER CALLING: torchinfo.summary()")
-  print("                   torchview.draw_graph()")
-  print("-----------------------------------------")
-  print()
   """
   from torchinfo import summary
   with open('bert_qa.summary', 'w') as sys.stdout:

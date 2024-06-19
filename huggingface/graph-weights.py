@@ -314,6 +314,8 @@ def calcAndGraphTrgDiffs(percentChgDictListDict):
 #          (and leads to "SyntaxError: name ??? is assigned to before global declaration" if used (prob due to python compiler/loader))
 if __name__ == "__main__":
   if len(sys.argv) > 1:
+    # 19/6/24 DH: 'output_dir' now is 'previous_output_dir-Google-BERT/weights' (FROM: checkpointing.py::weightPath = f"{logPath}/weights")
+    #             GIVING: '~/weights/weights-graphs'
     output_dir = os.path.abspath(sys.argv[1])
     weightsLog = os.path.join(output_dir, gTrainer_log)
     fullweightsLog = os.path.join(output_dir, gTrainer_full_log)
