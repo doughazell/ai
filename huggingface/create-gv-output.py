@@ -15,7 +15,7 @@ import graphviz
 gScriptDir = os.path.dirname(os.path.realpath(__file__))
 gFilename = "qa-output.gv"
 
-def getDotTxt(img1, img2, img3, img4, qcaTableTxt, contextLabel):
+def getDotTxt(img1a, img1b, img1c, img2, img3, qcaTableTxt, contextLabel):
   # Escape the '{' with '{{'
   # Escape the '}' with '}}'
   # NOTE: Currently using hard-coded, scaled graphs
@@ -36,14 +36,15 @@ strict digraph qaOutput {{
     </TABLE>
   > fillcolor=darkseagreen1]
 
+  image2 [image="{img2}" label=""]
   image3 [image="{img3}" label=""]
-  image4 [image="{img4}" label=""]
   
   table1 [label=<
   <TABLE BORDER="1"  BGCOLOR="white">
     <TR>
-      <TD BORDER="0"><IMG SRC="{img1}"/></TD>
-      <TD BORDER="0"><IMG SRC="{img2}"/></TD>
+      <TD BORDER="0"><IMG SRC="{img1a}"/></TD>
+      <TD BORDER="0"><IMG SRC="{img1b}"/></TD>
+      <TD BORDER="0"><IMG SRC="{img1c}"/></TD>
     </TR>
   </TABLE>
   >]
@@ -52,8 +53,8 @@ strict digraph qaOutput {{
 
   context [label="{contextLabel}" fontsize=40 fontcolor="red" fillcolor="skyblue"]
 
-  image4 -> image3
-  table1 -> image4
+  image2 -> image3
+  table1 -> image2
   table1 -> context [color="lightcoral" style="dashed"]
   context -> qcaTable [color="lightcoral" style="dashed" fontcolor="red" fontsize=50 label=<
                          <table border="0"><tr><td border="1">CONTEXT + QUESTION</td></tr></table>
@@ -201,29 +202,36 @@ def createDotFile(tld):
   huggin_utilsDir = "graphs"
   nodeGraphsDir = "gv-graphs"
 
-  img1 = f"{tld}/{weightsDir}/0-fullValues.png"
-  img2 = f"{tld}/{weightsDir}/total-weight-change.png"
+  img1a = f"{tld}/{weightsDir}/0-fullValues.png"
+  img1b = f"{tld}/{weightsDir}/total-weight-change.png"
+  # Prev work path (no longer active)
+  img1c = f"{tld}/../{huggin_utilsDir}/loss-by-epoch-scaled.png"
 
   # 19/6/24 DH: Correlate graphs (from Q+Context token length) with key chosen from 'qcaDict' in 'getQCATableTxt(...)'
   (qcaTableTxt, contextLabel, graphTokenLen) = getQCATableTxt(gvDir)
 
+  img2 = f"{tld}/{nodeGraphsDir}/all_layers-287-{graphTokenLen}.png"
   img3 = f"{tld}/{huggin_utilsDir}/logits-by-token-{graphTokenLen}.png"
-  img4 = f"{tld}/{nodeGraphsDir}/all_layers-287-{graphTokenLen}.png"
 
   with open(dotFile, "w") as outFile:
-    dotTxt = getDotTxt(img1, img2, img3, img4, qcaTableTxt, contextLabel)
+    dotTxt = getDotTxt(img1a, img1b, img1c, img2, img3, qcaTableTxt, contextLabel)
     outFile.write(dotTxt)
 
   return dotFile
 
 def createOutput(filename):
+  dotFilePDF = None
+
   try:
     #fp = os.path.join(scriptDir, filename)
     graphviz.render('dot', 'pdf', filename).replace('\\', '/')
-    print(f"Created: '{filename}.pdf'")
+    dotFilePDF = f"{filename}.pdf"
+    print(f"Created: '{dotFilePDF}'")
   except Exception as e:
     print(f"ERROR MSG:")
     print(f"  {e}")
+  
+  return dotFilePDF
 
 if __name__ == "__main__":
   if len(sys.argv) > 1:
@@ -234,5 +242,9 @@ if __name__ == "__main__":
   print(f"Using:   '{tld}'")
   
   dotFile = createDotFile(tld)
-  createOutput(dotFile)
+  dotFilePDF = createOutput(dotFile)
+
+  with open("gv_filename.txt", "w") as outFile:
+    outFile.write(dotFilePDF)
+
   

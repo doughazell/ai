@@ -254,7 +254,7 @@ def graphLogitsByLayer(recordsDict, layerNum, wantedTokenLen=None, lastGraph=Fal
 
   # 12/5/24 DH: Providing more feedback to output stage
   # 10/6/24 DH: Change title based on epoch for training OR token length for non-training
-  titleStr = f"Logits from BertSelfAttention, {layerName}, node 287 by {lineType}"
+  titleStr = f"Logits from Bert Model, {layerName}, node 287 by {lineType}"
 
   plt.title(titleStr)
   plt.xlabel("Logit/Token ID")

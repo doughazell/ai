@@ -190,8 +190,12 @@ def displayResults(answerDictDict, training_args):
   # END: ------ "for key in answerDictDict" ------
   try: # Handle case when not open due to no correct answers
     outFile.close() # since not using "with ..."
+    return True
   except UnboundLocalError:
-    pass
+    print()
+    print("No correct answers found")
+    print()
+    return False
 
 def main():
   parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
@@ -320,13 +324,21 @@ def main():
   elif data_args.dataset_name:
     answerDictDict = runRandSamples(data_args.dataset_name, raw_datasets, data_args, model_args)
 
-  displayResults(answerDictDict, training_args)
+  someCorrectFlag = displayResults(answerDictDict, training_args)
   
   if qa_lime_config.gShowFlag == True:
     print()
     print("PRESS RETURN TO FINISH", end='')
     response = input()
+  
+  return someCorrectFlag
 
 if __name__ == "__main__":
 
-  main()
+  someCorrectFlag = main()
+  if someCorrectFlag:
+    # https://docs.python.org/3/library/sys.html#sys.exit
+    # "zero is considered “successful termination” and any nonzero value is considered “abnormal termination” by shells"
+    sys.exit(0)
+  else:
+    sys.exit(1)

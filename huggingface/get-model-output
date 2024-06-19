@@ -28,6 +28,11 @@ echo "${counter}) test-qa-efficacy.py"
 echo "----------------------"
 #python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/qa_train-Google-BERT.json show
 python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/qa_train-Google-BERT.json
+while [ $? -ne 0 ]
+do
+  echo "No correct answers found so rerunning..."
+  python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/qa_train-Google-BERT.json
+done
 
 # ---------------------------------
 let counter++
@@ -75,4 +80,7 @@ echo "${counter}) create-gv-output.py"
 echo "----------------------"
 python ${SCRIPTDIR}/create-gv-output.py ${TLD}
 
-echo
+# 19/6/24 DH: ...and finally we have our HuggingFace/Bert Q&A output...
+#             (from "DeepPavlov ODQA pipe", Dec 23, 2023, that has no 'qa_outputs' layer...!) 
+open $(more gv_filename.txt)
+
