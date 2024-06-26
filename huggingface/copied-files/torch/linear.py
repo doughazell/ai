@@ -91,6 +91,8 @@ class Linear(Module):
 
     # 12/5/24 DH:
     fwdCnt = 0
+    # 25/6/24 DH:
+    showDebug = True
 
     def __init__(self, in_features: int, out_features: int, bias: bool = True,
                  device=None, dtype=None) -> None:
@@ -121,23 +123,24 @@ class Linear(Module):
         
         # 24/5/24 DH:
         Linear.fwdCnt += 1
-        try:
-          if Linear.fwdCnt == 1:
-              # 28/5/24 DH: Need 2 line spaces to get 1 spair line from TQDM line
-              print()
-              print()
-              print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")
-              print( "...")
-          if Linear.fwdCnt == 73:
-              print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")
-              print()
-          
-          # 3/6/24 DH: Running "bart$ python code-translator.py" provided insight into Bart (by triggering "AttributeError")
-          if Linear.fwdCnt > 3585:
-            self.bias.shape
-          
-        except AttributeError as e:
-          print(f"AttributeError - Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {self.bias}")
+        if Linear.showDebug:
+          try:
+            if Linear.fwdCnt == 1:
+                # 28/5/24 DH: Need 2 line spaces to get 1 spair line from TQDM line
+                print()
+                print()
+                print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")
+                print( "...")
+            if Linear.fwdCnt == 73:
+                print(f"Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {list(self.bias.shape)}")
+                print()
+            
+            # 3/6/24 DH: Running "bart$ python code-translator.py" provided insight into Bart (by triggering "AttributeError")
+            if Linear.fwdCnt > 3585:
+              self.bias.shape
+            
+          except AttributeError as e:
+            print(f"AttributeError - Linear.forward(): {Linear.fwdCnt} of Input: {list(input.shape)}, Weight: {list(self.weight.shape)}, Bias: {self.bias}")
 
         return F_linear_out
         #return F.linear(input, self.weight, self.bias)

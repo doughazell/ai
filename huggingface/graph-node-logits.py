@@ -54,8 +54,6 @@ def collectLogits():
     print(f"Filename: {logitsLog} NOT FOUND")
     exit(0)  
   
-  # Used for non-training run when there are no epochs for a unique record key (so need to add incremented counter)
-  keyCounter = 1
   for line in textLines:
     # https://docs.python.org/3/library/re.html#re.split, "The solution is to use Python’s raw string notation for regular expression patterns; 
     #   backslashes are not handled in any special way in a string literal prefixed with 'r'"  
@@ -76,16 +74,18 @@ def collectLogits():
       lineSplit = re.split(r': ', line)
 
       if len(lineSplit) > 1:
+        # 20/6/24 DH: 'epochLayerCnt' now contains Token Len for non-training run so "Epoch-LayerCnt-TokenLen"
         epochLayerCnt = lineSplit[0]
         linePart = lineSplit[1]
         
         # 10/6/24 DH: For a non-training run there are no epochs so multiple runs have the same key 
         #             (with 'recordsDict' just holding the last run if not checked for existing key entry)
         # 11/6/24 DH: Prob no longer necessary with addition of Token Length in 'huggin_utils.py::logSelectedNodeLogits(...)'
+        # 20/6/24 DH: There are some SQuAD entries with same token len (eg 127)
         if epochLayerCnt in recordsDict:
-          keyCounter += 1
           print(f"{epochLayerCnt} already added")
-          epochLayerCnt = f"{epochLayerCnt},{keyCounter}"
+          # Repeated key clashes will result in "token len.2.2" (which may then cause probs below with 'float()')
+          epochLayerCnt = f"{epochLayerCnt}.2"
           print(f"  so adding: {epochLayerCnt}")
   
         recordsDict[epochLayerCnt] = np.array( literal_eval(linePart) )
@@ -93,16 +93,16 @@ def collectLogits():
         # 11/6/24 DH: Get number of Token Lengths used (ie from "-1-self-120")
         keySplit = epochLayerCnt.split("-")
         if len(keySplit) > 2:
+          tokenLenStr = keySplit[gTokenIdx]
           try:
-            tokenLenStr = keySplit[gTokenIdx]
             tokenLen = int(tokenLenStr)
-            # Check if Token Length already added for different BertLayer
-            if tokenLen not in tokenLens:
-              tokenLens.append(tokenLen)
-          except ValueError: # eg "invalid literal for int() with base 10: '234,2'"
-            print(f"We have a key: '{tokenLenStr}', which is a legacy from handling non-training runs (ie without 'epoch' key)")
-            print("so exiting...")
-            exit(0)
+          except ValueError:
+            # 20/6/24 DH: For when ".2" is appended to 'epochLayerCnt' (above)
+            tokenLen = float(tokenLenStr)
+
+          # Check if Token Length already added for different BertLayer
+          if tokenLen not in tokenLens:
+            tokenLens.append(tokenLen)
 
   return (recordsDict, tokenLens)
 
@@ -238,9 +238,20 @@ def graphLogitsByLayer(recordsDict, layerNum, wantedTokenLen=None, lastGraph=Fal
 
       # Debug of graph line shapes by adding all lines from same Token Length together
       if int(layerNum) == -1:
-        if int(tokenLen) == wantedTokenLen:
+        # 20/6/24 DH: Need to handle multiple token len keys since SQuAD contains multiple 127 entries (+ others prob)
+        wanted = False
+        try:
+          if int(tokenLen) == wantedTokenLen:
+            wanted = True
+            tokenLenNum = int(tokenLen)
+        except ValueError: # eg "invalid literal for int() with base 10: '127.2'"
+          if float(tokenLen) == wantedTokenLen:
+            wanted = True
+            tokenLenNum = float(tokenLen)
+
+        if wanted:
           # Added for unpacking in 'plotAllLayersLines(...)'
-          lineDict = {'tokenLen': int(tokenLen), 'layer': layer, 'compName': compName,'xVals': range(len(recordsDict[key])), 'yVals': recordsDict[key].tolist()}
+          lineDict = {'tokenLen': tokenLenNum, 'layer': layer, 'compName': compName,'xVals': range(len(recordsDict[key])), 'yVals': recordsDict[key].tolist()}
           allLayerLinesList.append(lineDict)
 
       # Used in graph title (+ cmd line feedback)

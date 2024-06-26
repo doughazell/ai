@@ -56,6 +56,7 @@ def paragraphSummary(model, tokenizer, input_ids) -> bool:
     # 4/6/24 DH: ...I clearly needed to move onto Q&A training...
     # Handle spaces in 'Torch.Linear.forward()' added to accom TQDM line
     print("  'paragraphSummary(): CALLING 'model.generate(input_ids, num_beams=2, min_length=0, max_length=130)'", end='')
+    # 24/6/24 DH: USES: https://github.com/huggingface/transformers/blob/main/src/transformers/generation/utils.py#L1552
     summary_ids = model.generate(input_ids, num_beams=2, min_length=0, max_length=130)
 
     decodedString = tokenizer.batch_decode(summary_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
@@ -154,8 +155,6 @@ def doSummaries(bartDictList, model, tokenizer, summaryWanted):
   for dict in bartDictList:
     line = dict['text']
     input_ids = dict['input_ids']
-
-    
 
     # 24/1/24 DH: The number of the paragraph in the sequence
     num += 1
@@ -284,6 +283,7 @@ def runNewVocabTest(seq2seqModelData :Seq2SeqModelData, summaryWanted = False):
   if seq2seqModelData and seq2seqModelData.bart_for_conditional_generation :
     model = seq2seqModelData.bart_for_conditional_generation
   else:
+    # 24/6/24 DH: https://huggingface.co/facebook/bart-large-cnn "BART model pre-trained on English language, and fine-tuned on CNN Daily Mail."
     model = BartForConditionalGeneration.from_pretrained("facebook/bart-large-cnn")
 
   if seq2seqModelData and seq2seqModelData.bart_tokenizer_fast :

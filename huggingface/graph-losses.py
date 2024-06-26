@@ -13,6 +13,8 @@ import numpy as np
 from scipy.optimize import curve_fit
 
 gTrainerLoss_log = "loss-by-epochs.log"
+# 21/6/24 DH: Now wanting to just save graphs (rather than display them as default)
+gShowFlag = False
 
 def collectLosses(lossLog):
   lossDict = {}
@@ -100,10 +102,11 @@ def graphLosses(lossDict):
   
   plt.savefig(graphFilename)
 
-  plt.show(block=True)
+  if gShowFlag:
+    plt.show(block=True)
 
 if __name__ == "__main__":
-  if len(sys.argv) == 2:
+  if len(sys.argv) > 1:
     # 19/6/24 DH: 'output_dir' now is 'previous_output_dir-Google-BERT/weights' (FROM: checkpointing.py::weightPath = f"{logPath}/weights")
     #             GIVING: '~/weights/weights-graphs'
     output_dir = os.path.abspath(sys.argv[1])
@@ -116,5 +119,14 @@ if __name__ == "__main__":
     exit(0)
   
   lossDict = collectLosses(lossLog)
+
+  # 21/6/24 DH: Copying 'graph-weights.py'
+  if len(sys.argv) > 2 and "show" in sys.argv[2]:
+    gShowFlag = True
   
   graphLosses(lossDict)
+
+  if not gShowFlag:
+    print()
+    print("NOT SHOWING images (please add 'show' to cmd line args if images wanted)")
+    print()

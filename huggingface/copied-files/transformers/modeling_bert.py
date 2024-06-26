@@ -234,6 +234,9 @@ class BertEmbeddings(nn.Module):
             print(f"                                          = {list(embeddings.shape)} (ie + BATCH SIZE LAYER)")
             print(f"    'token_type_ids': {list(token_type_ids.shape)} as '0' mask of token len for EMBEDDING weight RETRIEVAL")
             print( "        [THEREFORE NO SEGMENT EMBEDDING 'A' OR 'B' FOR EACH TOKEN (like 'Next Sentence Prediction' Pre-training)]")
+
+            # 22/6/24 DH: See 'tokenization_bert_fast.py::create_token_type_ids_from_sequences(...)'
+            
             print(f"    'position_ids': {list(position_ids.shape)} as 'index numbers' of token len for EMBEDDING weight RETRIEVAL", end='')
             """
 
