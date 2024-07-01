@@ -54,7 +54,7 @@ def printGeneratedIDs(tokenizer, generated_ids):
   
   print()
 
-# Taken from 'code-translator.py'
+# Taken from 'ai/bart/code-translator.py'
 def bartSummary(model_name, txtInclNewlines):
   # Create: BartForConditionalGeneration
   model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
@@ -71,8 +71,16 @@ def bartSummary(model_name, txtInclNewlines):
 
   #PREV: inputs = tokenizer(line, max_length=1024, return_tensors="pt")
   input_ids = tokenizer.encode(txtInclNewlines, return_tensors="pt", add_special_tokens=True)
-  generated_ids = model.generate(input_ids, num_beams=10, min_length=0, max_length=500)
+  startIds = [elem.item() for elem in input_ids[0][:5]]
+  endIds = [elem.item() for elem in input_ids[0][-5:]]
+  print(f"'input_ids': len = {len(input_ids[0])}, tokens = {startIds}...{endIds}")
 
+  # https://github.com/huggingface/transformers/blob/main/src/transformers/generation/utils.py#L1612
+  generated_ids = model.generate(input_ids, num_beams=10, min_length=0, max_length=500)
+  printGeneratedIDs(tokenizer, generated_ids)
+
+  print("No 'min_length=0'")
+  generated_ids = model.generate(input_ids, num_beams=10, max_length=500)
   printGeneratedIDs(tokenizer, generated_ids)
 
 def t5Summary(model_name, txtInclNewlines):
@@ -87,16 +95,35 @@ def t5Summary(model_name, txtInclNewlines):
   # Resetting cnt for next run (only necessary for multiple runs)
   torch.nn.modules.linear.Linear.fwdCnt = 0
   # Prevent Torch debug
+  #print("NOT turning off 'torch.Linear' debug")
   torch.nn.modules.linear.Linear.showDebug = False
 
   # 25/6/24 DH: Works same without "summarize: "
+  # Pre-trained/Fine-tuned obfuscation from: https://github.com/huggingface/transformers/blob/main/examples/pytorch/summarization/run_summarization.py#L363
   #input_ids = tokenizer.encode("summarize: " + abstract, return_tensors="pt", add_special_tokens=True)
 
   input_ids = tokenizer.encode(txtInclNewlines, return_tensors="pt", add_special_tokens=True)
+  startIds = [elem.item() for elem in input_ids[0][:5]]
+  endIds = [elem.item() for elem in input_ids[0][-5:]]
+  print(f"'input_ids': len = {len(input_ids[0])}, tokens = {startIds}...{endIds}")
 
-  generated_ids = model.generate(input_ids=input_ids, num_beams=10, max_length=500, repetition_penalty=2.5,
-                                length_penalty=1, early_stopping=True, num_return_sequences=1)
-  
+  # "kwargs": https://github.com/huggingface/transformers/blob/main/src/transformers/generation/utils.py#L1615
+
+  # FROM: https://huggingface.co/snrspeaks/t5-one-line-summary
+  #generated_ids = model.generate(input_ids=input_ids, num_beams=10, max_length=500, repetition_penalty=2.5,
+  #                              length_penalty=1, early_stopping=True, num_return_sequences=1)
+
+  generated_ids = model.generate(input_ids=input_ids, num_beams=10, max_length=500)
+  printGeneratedIDs(tokenizer, generated_ids)
+
+  return
+
+  print("Only 'num_breams=10', 'max_length=23', 'early_stopping=True'")
+  generated_ids = model.generate(input_ids=input_ids, num_beams=10, max_length=23, early_stopping=True)
+  printGeneratedIDs(tokenizer, generated_ids)
+
+  print("Only 'num_breams=10', 'max_length=24', 'early_stopping=True'")
+  generated_ids = model.generate(input_ids=input_ids, num_beams=10, max_length=24, early_stopping=True)
   printGeneratedIDs(tokenizer, generated_ids)
 
 if __name__ == '__main__':
@@ -107,9 +134,10 @@ if __name__ == '__main__':
   # https://strftime.org/
   #nowStr = datetime.today().strftime('%-H:%-M:%-S')
 
+  """
   # 26/6/24 DH: Now timing diff models
   before = datetime.now()
-  # Prev summary model in 'code-translator.py'
+  # Prev summary model in 'ai/bart/code-translator.py'
   model_name = "facebook/bart-large-cnn"
   bartSummary(model_name, txtInclNewlines)
   after = datetime.now()
@@ -117,6 +145,7 @@ if __name__ == '__main__':
   timeDiff = round((after - before).total_seconds(), 1)
   print(f"  {timeDiff} secs")
   print()
+  """
 
   before = datetime.now()
   # https://huggingface.co/snrspeaks/t5-one-line-summary

@@ -86,6 +86,10 @@ echo "----------------------"
 python ${SCRIPTDIR}/create-gv-output.py ${TLD}
 
 # 19/6/24 DH: ...and finally we have our HuggingFace/Bert Q&A output...
-#             (from "DeepPavlov ODQA pipe", Dec 23, 2023, that has no 'qa_outputs' layer...!) 
+#             (from "DeepPavlov ODQA pipe", Dec 23, 2023, that has no 'qa_outputs' layer...!)
+
+# 1/7/24 DH: Remove 'quaratine' file extended attribute
+xattr -c $(cat gv_filename.txt)
+
 open $(cat gv_filename.txt)
 
