@@ -96,6 +96,7 @@ def createLoggers(training_args, overwrite=True):
   #   (and do everything else locally to where needed, since this is having feature-creep...!)
   logPath = training_args.output_dir
   graphDir = "graphs"
+  checkpointing_config.gGraphDir = f"{logPath}/{graphDir}"
   # 8/6/24 DH:
   weightPath = f"{logPath}/weights"
 
@@ -106,13 +107,16 @@ def createLoggers(training_args, overwrite=True):
   # 8/6/24 DH:
   global gSelectedNodeFilename
 
-  # 21/5/24 DH:
-  checkpointing_config.gGraphDir = f"{logPath}/{graphDir}"
+  # 21/5/24 DH: https://docs.python.org/3/library/pathlib.html#concrete-paths
   Path(checkpointing_config.gGraphDir).mkdir(parents=True, exist_ok=True)
+
+  cwd = Path.cwd()
+  print(f"CREATED: '{checkpointing_config.gGraphDir}' IN: '{cwd}'")
 
   # 8/6/24 DH: Not needed outside this file so not in 'checkpointing_config' 
   #        (unlike 'gGraphDir': plt.savefig(f"{checkpointing_config.gGraphDir}/{graphFilename}.png"))
   Path(weightPath).mkdir(parents=True, exist_ok=True)
+  print(f"CREATED: '{weightPath}' IN: '{cwd}'")
 
   # 25/5/24 DH: Prevent 'qa.py' overwriting log files from 'run_qa.py'
   if overwrite:

@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 import sys, os, random, time
 from datetime import datetime
+from pathlib import Path
 
 print("Importing 'transformers'")
 import transformers
@@ -136,7 +137,20 @@ def runRandSamples(dataOrigin, raw_datasets, data_args, model_args, iterations=3
 def createLogFile(training_args):
 
   # Question-Context-Answer
-  qcaFile = os.path.join(training_args.output_dir, "gv-graphs", "qca.log")
+  """
+  # 7/7/24 DH: Path refactor work :
+  if qa_lime_config.gTLD:
+    qcaFile = os.path.join(qa_lime_config.gTLD, "gv-graphs", "qca.log")
+  else:
+    qcaFile = os.path.join(training_args.output_dir, "gv-graphs", "qca.log")
+  """
+  # 8/7/24 DH: Get absolute path so that it can be run from any dir (not just dir containing Huggingface JSON)
+
+  cwd = Path.cwd()
+
+  qcaFile = os.path.join(cwd, "gv-graphs", "qca.log")
+  print()
+  print(f"  QCA file: '{qcaFile}'")
 
   print()
   if os.path.isfile(qcaFile):
@@ -197,20 +211,41 @@ def displayResults(answerDictDict, training_args):
     print()
     return False
 
-def main():
-  parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
+# 7/7/24 DH:
+def getCmdArgs():
   if len(sys.argv) > 1 and sys.argv[1].endswith(".json"):
     jsonFile = os.path.abspath(sys.argv[1])
-    print()
-    print(f"Parsing: {jsonFile}")
-    model_args, data_args, training_args = parser.parse_json_file(json_file=jsonFile)
   else:
     print("You need to provide a JSON config")
-
+    exit(1)
+  
   # 19/6/24 DH: "show" cmd line arg (like 'graph-weights.py') is needed in 'qa_lime.py::graphTokenVals(...)'
   if len(sys.argv) > 2 and "show" in sys.argv[2]:
     qa_lime_config.gShowFlag = True
-  
+
+  #if os.path.isfile("tld.txt"):
+  try:
+    tldFile = "tld.txt"
+    with open(tldFile) as source:
+      textLines = [line.strip() for line in source.readlines() if line.strip()]
+      qa_lime_config.gTLD = textLines[0]
+      print()
+      print(f"TLD: {qa_lime_config.gTLD}")
+  except FileNotFoundError as e:
+    print()
+    print(f"{tldFile} not found")
+
+  return jsonFile
+
+def main():
+  # 7/7/24 DH:
+  jsonFile = getCmdArgs()
+
+  print()
+  print(f"Parsing: {jsonFile}")
+  parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
+  model_args, data_args, training_args = parser.parse_json_file(json_file=jsonFile)  
+
   # ----------------------------- LOGGING -------------------------------------------
   # Setup logging
   logging.basicConfig(
@@ -335,6 +370,10 @@ def main():
 
 if __name__ == "__main__":
 
+  # main() :
+  # "sys.argv[1]" used for JSON
+  # "sys.argv[2]" used for 'show'
+  # "tld.txt" stores path of HFDIR
   someCorrectFlag = main()
   if someCorrectFlag:
     # https://docs.python.org/3/library/sys.html#sys.exit

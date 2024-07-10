@@ -6,17 +6,56 @@
 #
 ####################################################################################
 
+# 8/7/24 DH: TODO: Create Python auto test system
+
+# -------------------------------------------------------------------------
+# Path cascade for various utils
+# ------------------------------
+# MAKE:
+# -----
+# 'test-qa-efficacy.py'
+#   => 'checkpointing.createLoggers()'
+#     => 'CWD/JSON::output_dir'
+#       => 'graphs'
+#       => 'weights'
+#
+# 'SCRIPTDIR/gv-graphs'
+#   => FILES: qca.log, pdf
+#
+# USE:
+# ----
+# 'graph-weights.py'
+#   => 'CFGDIR/JSON::output_dir/old-logs'
+#
+# 'graph-losses.py'
+#   => 'CFGDIR/JSON::output_dir/weights'
+#
+# 'graph-node-logits.py'
+#   => 'SCRIPTDIR/JSON::output_dir/gv-graphs'
+#
+# 'create-gv-output.py'
+#   => 'CFGDIR', 'JSON::output_dir'
+#   => FILES: graphs for pdf
+# -------------------------------------------------------------------------
+
+SCRIPTDIR=$(dirname "$0")
+SCRIPTNAME=$(basename "$0")
+CWD=$(pwd)
+
 # TODO: Decide if this should be hard-coded across mutliple files (as currently is)
 CFGDIR="/Users/doug/src/ai/t5"
 HFOUTDIR="previous_output_dir-Google-BERT"
 
-TLD=${CFGDIR}/${HFOUTDIR}
+TLD="${CFGDIR}/${HFOUTDIR}"
+# 9/7/24 DH: Now moving from SCRIPTDIR to CWD
+QArunTLD="${CWD}/${HFOUTDIR}"
 
-SCRIPTDIR=$(dirname "$0")
-SCRIPTNAME=$(basename "$0")
+# 9/7/24 DH: Prev used SCRIPTDIR but better to use 'cwd' (which gets propagated)
+mkdir -p ${CWD}/gv-graphs
+echo "CREATED: 'gv-graphs' IN: '${CWD}'"
+echo
+
 counter=0
-
-mkdir -p ${TLD}/gv-graphs
 
 # ((expression)) The "expression" is evaluated according to the rules described under ARITHMETIC EVALUATION.
 #                This is exactly equivalent to let "expression".
@@ -26,12 +65,26 @@ mkdir -p ${TLD}/gv-graphs
 let counter++
 echo "${counter}) test-qa-efficacy.py"
 echo "----------------------"
+
+# 7/7/24 DH: Pass TLD (so script can be run from any dir NOT JUST FROM 'CFGDIR')
+echo ${TLD} > tld.txt
+
 #python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/qa_train-Google-BERT.json show
 python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/qa_train-Google-BERT.json
-while [ $? -ne 0 ]
+# 8/7/24 DH: Save "$?" since it changes after the conditional "test"
+retVal=$?
+
+while [ ${retVal} -ne 0 ]
 do
+  # 8/7/24 DH: 126 stops normal cycle that may never end in dev (https://tldp.org/LDP/abs/html/exitcodes.html)
+  if [ ${retVal} -eq 126 ]; then
+    echo "'126' returned so exiting..."
+    exit
+  fi
+
   echo "No correct answers found so rerunning..."
   python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/qa_train-Google-BERT.json
+  retVal=$?
 done
 
 # --------------------------------- GRAPH TRAINING WEIGHTS + LOSSES -------------------------------
@@ -59,12 +112,13 @@ python ${SCRIPTDIR}/graph-losses.py ${TLD}/weights
 let counter++
 echo "${counter}) graph-node-logits.py"
 echo "-----------------------"
-#python ${SCRIPTDIR}/graph-node-logits.py ${TLD} show
 
 echo "ONLY saving graphs (not showing them)"
-python ${SCRIPTDIR}/graph-node-logits.py ${TLD}
+# 8/7/24 DH: When using 'tld.txt' (see above) then we need to use SAME RELATIVE PATHS as used in 'checkpointing.py::createLoggers(...)'
+#            ie NOT '${TLD}'
+python ${SCRIPTDIR}/graph-node-logits.py ${QArunTLD}
 
-# Where graphs get saved:
+# Where graphs get saved: (before path refactor)
 # -----------------------
 # test-qa-efficacy.py  = ${TLD}/graphs
 #                        (via 'qa_lime.py::graphTokenVals(...)')
@@ -83,12 +137,20 @@ python ${SCRIPTDIR}/graph-node-logits.py ${TLD}
 let counter++
 echo "${counter}) create-gv-output.py"
 echo "----------------------"
-python ${SCRIPTDIR}/create-gv-output.py ${TLD}
+# 8/7/24 DH: PREV: python ${SCRIPTDIR}/create-gv-output.py ${TLD}
+python ${SCRIPTDIR}/create-gv-output.py ${CFGDIR} ${HFOUTDIR}
+retVal=$?
+if [ ${retVal} -ne 0 ]; then
+  echo
+  echo "Error in 'create-gv-output.py' so exiting..."
+  echo
+  exit
+fi
 
 # 19/6/24 DH: ...and finally we have our HuggingFace/Bert Q&A output...
 #             (from "DeepPavlov ODQA pipe", Dec 23, 2023, that has no 'qa_outputs' layer...!)
 
-# 1/7/24 DH: Remove 'quaratine' file extended attribute
+# 1/7/24 DH: Remove 'quarantine' file extended attribute
 xattr -c $(cat gv_filename.txt)
 
 open $(cat gv_filename.txt)

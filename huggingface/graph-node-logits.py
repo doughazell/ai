@@ -12,11 +12,14 @@ from ast import literal_eval
 # https://matplotlib.org/stable/api/pyplot_summary.html
 import matplotlib.pyplot as plt
 from scipy import stats
+from pathlib import Path
 
 # 8/6/24 DH: Hard-coded to prevent needing to add: "HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))" code
 # (ORIG LOG USED IN 'graph-logits.py': trainer_log = "seq2seq_qa_INtrainer.log")
 gTrainer_log = "weights/node287-logits.log"
 gOutputDir = None
+# 9/7/24 DH: Path refactor so can be run from any dir
+gCWD = Path.cwd()
 
 # 12/6/24 DH: Future-proofing the model output log (when splitting on "-")
 # 'huggin_utils.py::logSelectedNodeLogits(...)' :
@@ -34,7 +37,7 @@ def collectLogits():
   recordsDict = {}
   tokenLens = []
 
-  # 16/6/24 DH: Changed from "if len(sys.argv) == 2" due to having cmd line arg to prevent displaying graphs (in order to use the saved versions)
+  # 16/6/24 DH: Changed from "if len(sys.argv) == 2" due to having cmd line arg to "show" graphs (in order to use the saved versions)
   if len(sys.argv) > 1:
     global gOutputDir
     gOutputDir = os.path.abspath(sys.argv[1])
@@ -280,7 +283,6 @@ def graphLogitsByLayer(recordsDict, layerNum, wantedTokenLen=None, lastGraph=Fal
   
   plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
 
-  print(f"    ...saving graph (in '{gOutputDir}/gv-graphs')")
   # 'tokenLen' at this point (ie after "for key in recordsDict" will ALWAYS CONTAIN THE LAST RUN TOKEN LEN)
   # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
   if lastGraph: # have mechanism to change saved image size (for later graphviz'ing)
@@ -288,7 +290,14 @@ def graphLogitsByLayer(recordsDict, layerNum, wantedTokenLen=None, lastGraph=Fal
   else:
     figDpi = fig.dpi
 
-  plt.savefig(f"{gOutputDir}/gv-graphs/all_layers-287-{wantedTokenLen}.png", dpi=figDpi)
+  # 7/7/24 DH: Tracking down error when running from any dir (ie '~/ai/huggingface' rather than '~/ai/t5')
+  # 9/7/24 DH: Path refactor work when 'gv-graphs' is CWD subdir
+  #allLayersImgName = f"{gOutputDir}/gv-graphs/all_layers-287-{wantedTokenLen}.png"
+
+  allLayersImgName = f"{gCWD}/gv-graphs/all_layers-287-{wantedTokenLen}.png"
+  print(f"   SAVING: {allLayersImgName}")
+  print()
+  plt.savefig(allLayersImgName, dpi=figDpi)
 
   if gShowFlag:
     #plt.draw()

@@ -11,8 +11,11 @@
 import os, sys
 from datetime import datetime
 import graphviz
+from pathlib import Path
 
 gScriptDir = os.path.dirname(os.path.realpath(__file__))
+# 9/7/24 DH: Path refactor so can be run from any dir
+gCWD = Path.cwd()
 gFilename = "qa-output.gv"
 
 def getDotTxt(img1a, img1b, img1c, img2, img3, qcaTableTxt, contextLabel):
@@ -74,7 +77,7 @@ def get_qcaDict(gvDir):
       textLines = [line.strip() for line in source.readlines() if line.strip()]
   except FileNotFoundError:
     print(f"Filename: {qcaLog} NOT FOUND")
-    exit(0)
+    exit(1)
   
   for line in textLines:
     # EXAMPLE: 
@@ -142,7 +145,7 @@ def getQCATableTxt(gvDir):
   qcaDict = get_qcaDict(gvDir)
   display_qcaDict(qcaDict)
 
-  # TODO: Use QCA entry matching the token length graphs (currently createDotFile(...): 'img3', 'img4')
+  # Use QCA entry matching the token length graphs (currently createDotFile(...): 'img3', 'img4')
   keyList = list(qcaDict.keys())
   firstKey = keyList[0]
   # Key contains "{sample number}-{sample token length}" eg "3-284"
@@ -185,18 +188,19 @@ def getQCATableTxt(gvDir):
 
   return (qcaTableTxt, contextLabel, tokenLen)
 
-def createDotFile(tld):
-  gvDir = os.path.join(tld, "gv-graphs")
+def createDotFile(tld, hfDir):
+  # 8/7/24 DH: PREV before refactor of TLD
+  #gvDir = os.path.join(tld, "gv-graphs")
+  # 9/7/24 DH: Path refactor
+  #gvDir = os.path.join(gScriptDir, "gv-graphs")
+
+  gvDir = os.path.join(gCWD, "gv-graphs")
+  print(f"Using 'gvDir':   '{gvDir}' (in 'createDotFile()')")
 
   # See 'checkpointing.py::archivePrevLogs(...)' for "today = datetime.today().strftime('%-d%b%-H%-M')"
   today = datetime.today().strftime('%-d%b')
   dotFile = f"qa-output-{today}.gv"
   dotFile = os.path.join(gvDir, dotFile)
-
-  #img1 = "/Users/doug/src/ai/t5/graphs/loss-by-epoch-scaled.png"
-  #img2 = "/Users/doug/src/ai/t5/graphs/bert_num_train_epochs=11-scaled.png"
-  #
-  #img3 = "/Users/doug/src/ai/t5/graphs/logits-by-token-by-epoch.png"
 
   oldDir = "old-logs/weights-graphs"
   h_utilsDir = "graphs"
@@ -213,8 +217,27 @@ def createDotFile(tld):
   # 19/6/24 DH: Correlate graphs (from Q+Context token length) with key chosen from 'qcaDict' in 'getQCATableTxt(...)'
   (qcaTableTxt, contextLabel, graphTokenLen) = getQCATableTxt(gvDir)
 
-  img2 = f"{tld}/{nodeGraphsDir}/all_layers-287-{graphTokenLen}.png"
-  img3 = f"{tld}/{h_utilsDir}/logits-by-token-{graphTokenLen}.png"
+  # 8/7/24 DH: PREV prior to TLD refactor
+  #img2 = f"{tld}/{nodeGraphsDir}/all_layers-287-{graphTokenLen}.png"
+  #img3 = f"{tld}/{h_utilsDir}/logits-by-token-{graphTokenLen}.png"
+
+  # 9/7/24 DH: Path refactor
+  #img2 = f"{gScriptDir}/{hfDir}/{nodeGraphsDir}/all_layers-287-{graphTokenLen}.png"
+  #img3 = f"{gScriptDir}/{hfDir}/{h_utilsDir}/logits-by-token-{graphTokenLen}.png"
+
+  img2 = f"{gCWD}/{nodeGraphsDir}/all_layers-287-{graphTokenLen}.png"
+  img3 = f"{gCWD}/{hfDir}/{h_utilsDir}/logits-by-token-{graphTokenLen}.png"
+
+  # 8/7/24 DH: Debug of TLD refactor
+  print("USING")
+  print("-----")
+  print(f"Full weights graph:            {img1a}")
+  print(f"Weight change graph:           {img1b}")
+  print(f"Loss by epoch graph:           {img1c}")
+  print()
+  print(f"  All Layers for node 287 graph: {img2}")
+  print(f"  Logits by token graph:         {img3}")
+  print()
 
   with open(dotFile, "w") as outFile:
     dotTxt = getDotTxt(img1a, img1b, img1c, img2, img3, qcaTableTxt, contextLabel)
@@ -237,16 +260,20 @@ def createOutput(filename):
   return dotFilePDF
 
 if __name__ == "__main__":
-  if len(sys.argv) > 1:
-    tld = sys.argv[1]
+
+  if len(sys.argv) > 2:
+    cfgDir = sys.argv[1]
+    hfDir = sys.argv[2]
+
+    tld = os.path.join(cfgDir, hfDir)
   else:
-    tld = gScriptDir
+    print("INCORRECT cmd args, need JSON cfg dir + 'JSON::output_dir'")
+    exit(1)
   
-  print(f"Using:   '{tld}'")
-  
-  dotFile = createDotFile(tld)
+  dotFile = createDotFile(tld, hfDir)
   dotFilePDF = createOutput(dotFile)
 
+  # Save path of 'pdf' for it to be opened by 'get-model-output'
   with open("gv_filename.txt", "w") as outFile:
     outFile.write(dotFilePDF)
 

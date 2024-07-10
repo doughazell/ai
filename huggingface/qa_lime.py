@@ -263,6 +263,10 @@ def getCorrectModelAndTokenizer(model_name, model_args):
     print( "  *****")
     print()
     """
+    # 7/7/24 DH:
+    if qa_lime_config.gTLD:
+      model_name = qa_lime_config.gTLD
+
     # 1/6/24 DH: Bert is Pre-trained with: '"type_vocab_size": 2' BUT CAN RUN Q&A WITH: '"type_vocab_size": 1'
     model = BertForQuestionAnswering.from_pretrained(model_name, ignore_mismatched_sizes=True)
 
