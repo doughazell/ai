@@ -112,7 +112,7 @@ def runRandSamples(dataOrigin, raw_datasets, data_args, model_args, iterations=3
       print()
       # 11/6/24 DH: See 'qa_lime.py::graphTokenVals(...)' re NO LONGER SENDING 'lastGraph=True'
       #print(f"  Graph {idx+1} of {iterations} with IDX: '{datasetsIdx}' and last graph so sending 'True' to 'plt.show(block=True)'")
-      print(f"  Graph {idx+1} of {iterations} with IDX: '{datasetsIdx}'")
+      print(f"*** Graph {idx+1} of {iterations} with IDX: '{datasetsIdx}' ***")
 
       ansDict = {}
       # 'lastGraph=True' legacy
@@ -120,14 +120,16 @@ def runRandSamples(dataOrigin, raw_datasets, data_args, model_args, iterations=3
 
       (ansDict['tokenLen'], ansDict['question'], ansDict['context'], ansDict['expAnswer'], 
        ansDict['answer'], ansDict['startIdx'], ansDict['endIdx']) = getModelOutput(raw_data, data_args, model_args, printOut=False)
+      print(f"*** END Graph {idx+1} ***")
     else:
       print()
-      print(f"  Graph {idx+1} of {iterations} with IDX: '{datasetsIdx}'")
+      print(f"*** Graph {idx+1} of {iterations} with IDX: '{datasetsIdx}' ***")
 
       ansDict = {}
       #return (question, expAnswer, answer, startIdx, endIdx)
       (ansDict['tokenLen'], ansDict['question'], ansDict['context'], ansDict['expAnswer'],
        ansDict['answer'], ansDict['startIdx'], ansDict['endIdx']) = getModelOutput(raw_data, data_args, model_args, printOut=False)
+      print(f"*** END Graph {idx+1} ***")
     
     answerDictDict[idx+1] = ansDict
   # END --- "for idx in range(iterations)" ---

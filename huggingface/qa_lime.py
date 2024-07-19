@@ -14,6 +14,10 @@ import matplotlib.pyplot as plt
 # 19/6/24 DH: Now using same package global variable mechanism like 'checkpointing.py/checkpointing_config.py'
 import qa_lime_config
 
+# 10/7/24 DH:
+from pathlib import Path
+gCWD = Path.cwd()
+
 def getListElem(_questions, _contexts, _answers, index):
   if isinstance(_questions, list):
     _question = _questions[index]
@@ -105,7 +109,9 @@ def graphTokenVals(startVals, endVals, tokWordStr, tokIDStr, lastGraph=False):
 
   # 17/6/24 DH: Need to save  figure + scale DPI (like 'graph-weights.py' + 'graph-node-logits.py')
   import checkpointing_config
-  plt.savefig(f"{checkpointing_config.gGraphDir}/logits-by-token-{tokenLen}.png")
+  logitsByTokenFilename = f"{checkpointing_config.gGraphDir}/logits-by-token-{tokenLen}.png"
+  print(f"  SAVING: {gCWD}/{logitsByTokenFilename}")
+  plt.savefig(logitsByTokenFilename)
 
   if qa_lime_config.gShowFlag:
     #plt.draw()
@@ -116,6 +122,7 @@ def getTokStrings(all_tokens, tokenIDs, tokenizer, printOut=False):
   
   tokWordStr = ""
   tokIDStr = ""
+  # 'plt.draw()' render string
   tokIDStrPLT = ""
   
   for i in tokenIDs:
@@ -185,6 +192,7 @@ def transformerLIMEing(output, tokenizer, all_tokens, printOut=False, lastGraph=
   # 7/4/24 DH:
   tokDebugLen = 20
   if all_tokens_len < tokDebugLen:
+    # 'plt.draw()' render string
     (tokWordStr, tokIDStrPLT) = getTokStrings(all_tokens, tokenIDs, tokenizer, printOut)
     print(f"  (adding 'word-token' key to graph since 'all_tokens' < {tokDebugLen})")
     print()
@@ -194,9 +202,14 @@ def transformerLIMEing(output, tokenizer, all_tokens, printOut=False, lastGraph=
 
   startVals = []
   endVals = []
-  for i in tokenIDs:
-    # 2 layers of decoding: tok -> id -> syllable/word
-    tokWord = tokenizer.decode( tokenizer.convert_tokens_to_ids(all_tokens[i]) )
+
+  # 11/7/24 DH: TODO: Find way to get non-token node logits (in order to get sense of Fine-Tuning from "Primordial Soup")
+  #                   'output' comes from 'getModelOutput(...)::model()' and ONLY CONTAINS TOKEN VALUES
+  #            ('graph-logits.py' graphs values from "seq2seq_qa_INtrainer.log" added via 'huggin_utils.py::logLogits(...)')
+  #
+  #   The non-token logits were ONLY AVAILABLE during training run: 
+  #     https://github.com/doughazell/ai/blob/main/huggingface/copied-files/transformers/modeling_bert.py#L1977
+  for i in range(all_tokens_len):
     startTokVal = np.round(start_logits_dumpORIG[0][i])
     endTokVal = np.round(end_logits_dumpORIG[0][i])
 
@@ -205,6 +218,11 @@ def transformerLIMEing(output, tokenizer, all_tokens, printOut=False, lastGraph=
     endVals.append(endTokVal)
 
     if printOut:
+      # 2 layers of decoding: tok -> id -> syllable/word
+      try:
+        tokWord = tokenizer.decode( tokenizer.convert_tokens_to_ids(all_tokens[i]) )
+      except IndexError:
+        tokWord = None
       print(f"{i:<3} {tokWord:10} {startTokVal:>5} (start) {endTokVal:>10} (end)")
   
   if printOut:
@@ -222,7 +240,7 @@ def transformerLIMEing(output, tokenizer, all_tokens, printOut=False, lastGraph=
     print("ANSWER: ", answer)
     print("------")
 
-  #print("NOT CALLING: 'graphTokenVals()'")
+  # 'tokIDStrPLT' is 'plt.draw()' render string
   graphTokenVals(startVals, endVals, tokWordStr, tokIDStrPLT, lastGraph)
 
   answer = tokenizer.decode(tokenizer.convert_tokens_to_ids(answer_tokens))

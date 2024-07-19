@@ -86,15 +86,18 @@ def collectLogits():
     # https://docs.python.org/3/library/re.html#re.split, "The solution is to use Python’s raw string notation for regular expression patterns; 
     #   backslashes are not handled in any special way in a string literal prefixed with 'r'"  
 
-    # EXAMPLE: 
+    # OLD EXAMPLE: 
     # "2024-03-29 12:45:50,085 [INFO] input_ids[0]: tensor([ 101, 2043, 2079, 8220, 2707, 1029,  102, 8220, 2707, 2044, 4970,  102])"
+    # NEW EXAMPLE (date in example):
+    # "2024-07-18 23:02:42,508 [INFO] input_ids[0]: [101, 2043, 2003, 4970, 1029, 102, 4970, 2003, 2012, 1022, 3286, 102]"
     if "input_ids" in line:
-      
+
       # [Regex not GLOB]
-      #lineSplit = re.split(r'input_ids\[.*\]: ', line)
+      lineSplit = re.split(r'input_ids\[.*\]: ', line)
 
       # Split with either "(" or ")" with each needing to be escaped in a "[]" set (SADLY WRITE-ONLY CODE IS REQUIRED)
-      lineSplit = re.split(r'[\(\)]', line)
+      # 18/7/24 DH: This was necessary when line had, "...tensor([...])" BUT NOW '.tolist()' USED ON tensor IN 'huggin_utils.py::logLogits(...)'
+      #lineSplit = re.split(r'[\(\)]', line)
 
       if len(lineSplit) > 1:
         linePart = lineSplit[1]
@@ -149,6 +152,8 @@ def displayLogits(recordsDict):
   print( "-----------")
 
 # 30/3/24 DH: There is an A & B order to data with B being consistently different in a proportion of the epochs
+# 19/7/24 DH: Actually the order of samples in the batches is randomised BUT ONLY APPARENT WITH SOME DUE TO GRAMMATICAL SIMULARITY
+#             (This is now prevented in 'huggin_utils::logLogits(...)' by searching for first sample of first batch used in training) 
 def pruneLogits(recordsDict):
   print()
   print("Pruning:")
@@ -185,7 +190,7 @@ def pruneLogits(recordsDict):
           print(f"Unable to delete KEY: {key}, ITEM: {item}")
     
   # END: --- for key in recordsDict ---
-print("-------")
+  print("-------")
 
 # ------------------------------------------------ GRAPHING --------------------------------------------------
 def graphLossLines(recordsDict, keyVal, xVals):
@@ -235,7 +240,12 @@ def graphLogitLines(recordsDict, keyVal, xVals, firstOnly=False):
   firstEnd = True
   firstStart = True
   for epoch in epochList:
-    lwVal = (int(epoch) / epochListLen) / 3
+    # 19/7/24 DH: After upgrade to 'huggin_utils::logLogits(...)' to only use correct, randomized sample then 
+    #             the first entry was epoch '0' (which causes "linestyle='dashed'" to throw error preventing other lines being drawn)
+    if int(epoch) == 0:
+      lwVal = 0.4
+    else:
+      lwVal = (int(epoch) / epochListLen) / 6
 
     yVals = recordsDict[keyVal][epoch]
     
@@ -250,6 +260,7 @@ def graphLogitLines(recordsDict, keyVal, xVals, firstOnly=False):
           firstEnd = False
         
         plt.plot(xVals, yVals, label=f"{firstTitle}#{epoch}", linestyle='dashed', linewidth=lwVal)
+
       else:
         if firstStart:
           firstTitle = "Start "
@@ -290,13 +301,15 @@ def graphLogits(recordsDict):
   plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
 
   #plt.draw()
+  
   plt.show(block=False)
 
 # 30/3/24 DH: Add the {start_loss + end_loss} line graph
 def graphLosses(recordsDict):
   plt.figure()
 
-  plt.title("Losses from different training epochs")
+  titleStr = "Losses from different training epochs"
+  plt.title(titleStr)
   plt.xlabel("Training epoch")
   plt.ylabel("Loss value")
 
@@ -304,12 +317,22 @@ def graphLosses(recordsDict):
   # Convert key strings into integers
   xVals = [int(item) for item in xVals]
 
+  # 19/7/24 DH: Added to prevent "n.5" epoch intervals (which are meaningless) like 'graph-losses.py'
+  plt.xticks(np.arange(0, max(xVals), step=2))
+
+  print(f"\"{titleStr}\"")
+  print("  Adding start loss line")
   graphLossLines(recordsDict, "start_loss", xVals)
+  print("  Adding end loss line")
   graphLossLines(recordsDict, "end_loss", xVals)
+  print()
+
   #plt.xticks(np.arange(0, 11, step=1))
   plt.legend(loc="upper right")
 
-  plt.show(block=False)
+  # 18/7/24 DH: Now no longer calling: 'graphFirstLogits(recordsDict)'
+  #plt.show(block=False)
+  plt.show()
 
 def graphFirstLogits(recordsDict):
   plt.figure()
@@ -325,7 +348,6 @@ def graphFirstLogits(recordsDict):
   xVals = range(xValNum + 2)
 
   print(f"\"{titleStr}\"")
-  print("  (This reuses 'graphLogitLines()')")
   print("  Adding start logits line")
   graphLogitLines(recordsDict, "start_logits", xVals, firstOnly=True)
   print("  Adding end logits line")
@@ -348,4 +370,4 @@ if __name__ == "__main__":
   
   graphLogits(recordsDict)
   graphLosses(recordsDict)
-  graphFirstLogits(recordsDict)
+  #graphFirstLogits(recordsDict)

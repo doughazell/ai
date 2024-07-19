@@ -50,21 +50,23 @@ def niceWorkGoodjob():
   print()
 
 # 30/3/24 DH:
-inputIdsWritten = False
-epochNum = 0
+gInputIdsWritten = False
+gEpochNum = 0
+# 19/7/24 DH:
+gInput_idsEntry = None
 
 # ---------------------------------------------------------------
 # Q&A Logits
 # ---------------------------------------------------------------
 
-def getIDsAndLogits(batchIdx, input_ids, start_logits, end_logits, startDelta):
+def getIDsAndLogits(batchIdx, input_ids, start_logits, end_logits, extraDelta):
   
   try:
     inputIdsEnd = (input_ids[batchIdx] == 0).nonzero()[0]
   except IndexError:
     inputIdsEnd = input_ids[batchIdx].shape[0]
 
-  idxEnd = inputIdsEnd + startDelta
+  idxEnd = inputIdsEnd + extraDelta
 
   startLogitsList = (start_logits[batchIdx][0:idxEnd]).tolist()
   startLogitsList = [round(value,2) for value in startLogitsList]
@@ -73,6 +75,26 @@ def getIDsAndLogits(batchIdx, input_ids, start_logits, end_logits, startDelta):
   endLogitsList = [round(value,2) for value in endLogitsList]
 
   return (inputIdsEnd, startLogitsList, endLogitsList)
+
+# 19/7/24 DH: Now searching for randomized first entry of first batch
+def findSampleInBatch(input_ids):
+  idx = -1
+
+  # Previously assigned to first entry of first batch
+  global gInput_idsEntry
+
+  batchNum = input_ids.shape[0]
+  for num in range(batchNum):
+    # Firstly need to remove "zero padding" (like 'getIDsAndLogits(...)')
+    try:
+      inputIdEnd = (input_ids[num] == 0).nonzero()[0]
+      inputId = input_ids[num][0:inputIdEnd].tolist()
+      if inputId == gInput_idsEntry:
+        return num
+    except IndexError:
+      return idx
+
+  return idx
 
 #################################################################################################################
 # API CALLED FROM '*ForQuestionAnswering.forward()':
@@ -86,47 +108,74 @@ def getIDsAndLogits(batchIdx, input_ids, start_logits, end_logits, startDelta):
 #
 #            Superceded by 'logWeightings()' (and an artifact of HashTagger echo)
 #################################################################################################################
-def logLogitsXXX(input_ids, start_logits, end_logits, start_loss=None, end_loss=None):
-  # 14/5/24 DH: TODO: Pass 'epochNum' from 'forward()' (so correlated with checkpoint number rather than just a delta)
-  global epochNum
-  global inputIdsWritten
+def logLogits(tokenizer, input_ids, start_logits, end_logits, start_loss=None, end_loss=None):
+  # 14/5/24 DH: PREV: Pass 'epochNum' from 'forward()' (so correlated with checkpoint number rather than just a delta)
+  # 19/7/24 DH: NOW: 'epochNum = Trainer.stateAPI.global_step'
+  global gEpochNum
+  global gInputIdsWritten
+  global gInput_idsEntry
 
   # Append logits after the token logits (to measure the shift in the Q+Context field)
   extraDelta = 2
 
-  # Take the first item in the batch (which currently is the 2 overflow batch)
-  batchIdx = 0
+  print()
+  print( "  Logging logits")
+  print( "  --------------")
+  print()
   
-  (inputIdsEnd, startLogitsList, endLogitsList) = getIDsAndLogits(batchIdx, input_ids, start_logits, end_logits, extraDelta)
-
-  # Model run only gets called once
+  """ 19/7/24 DH: Maybe no longer necessary
+  # Model run only gets called once (for non-training run ???)
   # -------------------------------
   if start_loss == None:
     import logging
     sigLogger = logging.getLogger("trainer_signaller")
 
-    sigLogger.info(f"input_ids[{batchIdx}]: {input_ids[batchIdx][0:inputIdsEnd]}")
+    sigLogger.info(f"input_ids[0]: {input_ids[0][0:inputIdsEnd]}")
+
     sigLogger.info(f"startLogitsList (+{extraDelta}): {startLogitsList}")
     sigLogger.info(f"endLogitsList (+{extraDelta}): {endLogitsList}")
 
   # -------------------------------
+  """
+  if start_loss == None:
+    print()
+    print("REMOVED CODE THOUGHT UNNECESSARY in 'huggin_utils::logLogits(...)'")
+    print()
 
   # 28/3/24 DH: Use Python logging rather than 'transformers.utils.logging'
   #
   # (DURING TRAINING: Take first entry of overflow batch from Dataset #10 with batch size #8
   #  THEREFORE the model has already been trained by batch size (8) reps over un-trained model that only "knows language")
-  if start_logits.shape[0] == 2:
   
-    epochNum += 1
+  # Access custom additional API assigned in 'Trainer.compute_loss(...)' SO ONLY AVAILABLE IN TRAINING
+  from transformers import Trainer
+  epochNum = Trainer.stateAPI.global_step
+  
+  # 19/7/24 DH: Use first entry of first batch + search for it in later epochs
+  if Trainer.stateAPI.epoch == 0:
+    idx = 0
+    (inputIdsEnd, startLogitsList, endLogitsList) = getIDsAndLogits(idx, input_ids, start_logits, end_logits, extraDelta)
+    gInput_idsEntry = input_ids[idx][0:inputIdsEnd].tolist()
+  else:
+    idx = findSampleInBatch(input_ids)
+    
+  if idx != -1:
+  
+    gEpochNum += 1
     
     import logging
     sigLogger = logging.getLogger("trainer_signaller")
 
+    (inputIdsEnd, startLogitsList, endLogitsList) = getIDsAndLogits(idx, input_ids, start_logits, end_logits, extraDelta)
+
     # Need to add in 'input_ids[batchIdx]' on first time using global 'inputIdsWritten'
     # 30/3/24 DH: However it looks like there is randomisation of the dataset between epochs...!
-    if not inputIdsWritten:
-      inputIdsWritten = True
-      sigLogger.info(f"input_ids[{batchIdx}]: {input_ids[batchIdx][0:inputIdsEnd]}")
+    if not gInputIdsWritten:
+      #gInputIdsWritten = True
+      sigLogger.info(f"input_ids[{idx}]: {gInput_idsEntry}")
+
+      # 18/7/24 DH: Detokenize 'input_ids' (like 'qa_lime.py::getTokStrings(...)')
+      sigLogger.info(f"  {tokenizer.decode(gInput_idsEntry)}")
 
     # DEDUG OF REMAINING (384-TOKEN LOGITS)
     # -------------------------------------

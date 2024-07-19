@@ -118,9 +118,9 @@ echo "ONLY saving graphs (not showing them)"
 #            ie NOT '${TLD}'
 python ${SCRIPTDIR}/graph-node-logits.py ${QArunTLD}
 
-# Where graphs get saved: (before path refactor)
+# Where graphs get saved: (updated after path refactor)
 # -----------------------
-# test-qa-efficacy.py  = ${TLD}/graphs
+# test-qa-efficacy.py  = ${QArunTLD}/graphs
 #                        (via 'qa_lime.py::graphTokenVals(...)')
 #                          logits-by-token-<token len>.png
 #
@@ -128,10 +128,9 @@ python ${SCRIPTDIR}/graph-node-logits.py ${QArunTLD}
 #                          0-fullValues.png, 1025-fullValues.png, total-weight-change.png
 # graph-losses.py      = ${TLD}/weights/weights-graphs
 #                          losses-by-epochs<cnt>.png
-# graph-node-logits.py = ${TLD}/gv-graphs
+# graph-node-logits.py = ${CWD}/gv-graphs
 #                          all_layers-287-<token len>.png
 #
-# (SEE 'graph-weights.py', 'graph-losses.py' for '~/weights' dir [OR <dir> cmd line arg] (creating '~/weights/weights-graphs'))
 
 # --------------------------------- PRODUCE GRAPHVIZ PDF -------------------------------
 let counter++

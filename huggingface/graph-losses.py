@@ -61,6 +61,9 @@ def graphLosses(lossDict):
 
   xVals = list(lossDict.keys())
   yVals = [lossDict[key] for key in lossDict.keys()]
+
+  # 18/7/24 DH: Added to prevent "n.5" epoch intervals (which are meaningless)
+  plt.xticks(np.arange(0, len(xVals), step=2))
   plt.plot(xVals, yVals)
 
   # 26/5/24 DH: Adding best fit line to exponential decay of loss (modulated by form of Pretrained BERT)

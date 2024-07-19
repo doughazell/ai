@@ -145,14 +145,21 @@ def graphWeightsKeyed(percentChgDictList, epochNum, weights=False, lastGraph=Fal
   plt.tight_layout()
 
   # 16/6/24 DH: 'gWeightsGraphDir' assigned in "if __name__ == "__main__""
-  print(f"    ...saving graph (in '{gWeightsGraphDir}')")
+
   if "complete" in epochNum:
-    plt.savefig(f"{gWeightsGraphDir}/total-weight-change.png")
+    totalWeightChgFilename = f"{gWeightsGraphDir}/total-weight-change.png"
+    print(f"    SAVING: {totalWeightChgFilename}")
+    plt.savefig(totalWeightChgFilename)
   else:
     if weights:
-      plt.savefig(f"{gWeightsGraphDir}/{epochNum}-fullValues.png")
+      fullValsFilename = f"{gWeightsGraphDir}/{epochNum}-fullValues.png"
+      print(f"    SAVING: {fullValsFilename}")
+      plt.savefig(fullValsFilename)
     else:
-      plt.savefig(f"{gWeightsGraphDir}/{epochNum}-percentDiffs.png")
+      percentDiffsFilename = f"{gWeightsGraphDir}/{epochNum}-percentDiffs.png"
+      print(f"    SAVING: {percentDiffsFilename}")
+      plt.savefig(percentDiffsFilename)
+  print()
 
   if gShowFlag:
     #plt.draw()
@@ -323,7 +330,7 @@ if __name__ == "__main__":
     gWeightsGraphDir = os.path.join(output_dir, "weights-graphs")
     Path(gWeightsGraphDir).mkdir(parents=True, exist_ok=True)
   else:
-    print(f"You need to provide an 'output_dir'")
+    print(f"You need to provide an '\"output_dir\"/weights' path")
     exit(0)
   
   # --------------------------- PERCENTAGE DIFFS BY EPOCH ------------------------------------

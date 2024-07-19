@@ -1995,7 +1995,7 @@ class BertForQuestionAnswering(BertPreTrainedModel):
           for elem in logits[0][inputIdsEnd-3 : inputIdsEnd+1].tolist():
             print(f"    {elem}")
 
-        except IndexError:
+        except IndexError: # SEE: 'huggin_utils::getIDsAndLogits(...)' for same training/non-training exception...
           # NON-TRAINING RUN
           # ----------------
           inIds = input_ids[0]
@@ -2055,6 +2055,9 @@ class BertForQuestionAnswering(BertPreTrainedModel):
             start_loss = loss_fct(start_logits, start_positions)
             end_loss = loss_fct(end_logits, end_positions)
             total_loss = (start_loss + end_loss) / 2
+
+            # 18/7/24 DH: Repairing what was lost when reinstalled DeepPavlov (ONLY DURING TRAINING)
+            huggin_utils.logLogits(tokenizer, input_ids, start_logits, end_logits, start_loss, end_loss)
 
         if not return_dict:
             output = (start_logits, end_logits) + outputs[2:]

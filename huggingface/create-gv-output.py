@@ -18,7 +18,7 @@ gScriptDir = os.path.dirname(os.path.realpath(__file__))
 gCWD = Path.cwd()
 gFilename = "qa-output.gv"
 
-def getDotTxt(img1a, img1b, img1c, img2, img3, qcaTableTxt, contextLabel):
+def getDotTxt(img1a, img1b, img1c, img1d, img1e, img2, img3, qcaTableTxt, contextLabel):
   # Escape the '{' with '{{'
   # Escape the '}' with '}}'
   # NOTE: Currently using hard-coded, scaled graphs
@@ -39,9 +39,6 @@ strict digraph qaOutput {{
     </TABLE>
   > fillcolor=darkseagreen1]
 
-  image2 [image="{img2}" label=""]
-  image3 [image="{img3}" label=""]
-  
   table1 [label=<
   <TABLE BORDER="1"  BGCOLOR="white">
     <TR>
@@ -52,12 +49,21 @@ strict digraph qaOutput {{
   </TABLE>
   >]
 
+  image1d [image="{img1d}" label=""]
+  image1e [image="{img1e}" label=""]
+  image2 [image="{img2}" label=""]
+  image3 [image="{img3}" label=""]
+
   qcaTable [label=<{qcaTableTxt}> fontsize=30 fontcolor="red" fillcolor="skyblue"]
 
   context [label="{contextLabel}" fontsize=30 fontcolor="red" fillcolor="skyblue"]
 
-  image2 -> image3
+  table1 -> image1d
+  image1d -> image1e [label="NOTE: Nodes without tokens DURING TRAINING\n+ NO Context ONLY focus" fontsize=20 fontcolor="red"]
+  
   table1 -> image2
+  image2 -> image3
+
   table1 -> context [color="lightcoral" style="dashed"]
   context -> qcaTable [color="lightcoral" style="dashed" fontcolor="red" fontsize=50 label=<
                          <table border="0"><tr><td border="1">CONTEXT + QUESTION</td></tr></table>
@@ -188,7 +194,7 @@ def getQCATableTxt(gvDir):
 
   return (qcaTableTxt, contextLabel, tokenLen)
 
-def createDotFile(tld, hfDir):
+def createDotFile(cfgDir, hfDir):
   # 8/7/24 DH: PREV before refactor of TLD
   #gvDir = os.path.join(tld, "gv-graphs")
   # 9/7/24 DH: Path refactor
@@ -207,12 +213,14 @@ def createDotFile(tld, hfDir):
   nodeGraphsDir = "gv-graphs"
   h_utilsWGDir = "weights/weights-graphs"
 
-  img1a = f"{tld}/{oldDir}/0-fullValues.png"
-  img1b = f"{tld}/{oldDir}/total-weight-change.png"
+  img1a = f"{cfgDir}/{hfDir}/{oldDir}/0-fullValues.png"
+  img1b = f"{cfgDir}/{hfDir}/{oldDir}/total-weight-change.png"
 
-  # Prev work path (no longer active)
-  #img1c = f"{tld}/../{h_utilsDir}/loss-by-epoch-scaled.png"
-  img1c = f"{tld}/{h_utilsWGDir}/losses-by-epochs-1026.png"
+  img1c = f"{cfgDir}/{hfDir}/{h_utilsWGDir}/losses-by-epochs-1026.png"
+
+  # 10/7/24 DH: Adding in reminder of nodes without tokens
+  img1d = f"{cfgDir}/graphs/logits-by-token-by-epoch-scaled.png"
+  img1e = f"{cfgDir}/graphs/bert_num_train_epochs=1-scaled.png"
 
   # 19/6/24 DH: Correlate graphs (from Q+Context token length) with key chosen from 'qcaDict' in 'getQCATableTxt(...)'
   (qcaTableTxt, contextLabel, graphTokenLen) = getQCATableTxt(gvDir)
@@ -240,7 +248,7 @@ def createDotFile(tld, hfDir):
   print()
 
   with open(dotFile, "w") as outFile:
-    dotTxt = getDotTxt(img1a, img1b, img1c, img2, img3, qcaTableTxt, contextLabel)
+    dotTxt = getDotTxt(img1a, img1b, img1c, img1d, img1e, img2, img3, qcaTableTxt, contextLabel)
     outFile.write(dotTxt)
 
   return dotFile
@@ -264,13 +272,12 @@ if __name__ == "__main__":
   if len(sys.argv) > 2:
     cfgDir = sys.argv[1]
     hfDir = sys.argv[2]
-
-    tld = os.path.join(cfgDir, hfDir)
+    #tld = os.path.join(cfgDir, hfDir)
   else:
     print("INCORRECT cmd args, need JSON cfg dir + 'JSON::output_dir'")
     exit(1)
   
-  dotFile = createDotFile(tld, hfDir)
+  dotFile = createDotFile(cfgDir, hfDir)
   dotFilePDF = createOutput(dotFile)
 
   # Save path of 'pdf' for it to be opened by 'get-model-output'

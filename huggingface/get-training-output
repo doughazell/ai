@@ -1,0 +1,77 @@
+#! /bin/bash
+
+####################################################################################
+#
+#                                      Huggin API
+#
+####################################################################################
+
+#############
+# 12/7/24 DH: Get output of training (incl non-token logits unavailable in non-training run)
+#############
+
+# 16/7/24 DH: Copy from 'get-model-output'
+SCRIPTDIR=$(dirname "$0")
+SCRIPTNAME=$(basename "$0")
+CWD=$(pwd)
+
+# TODO: Decide if this should be hard-coded across mutliple files (as currently is)
+CFGDIR="/Users/doug/src/ai/t5"
+HFOUTDIR="previous_output_dir-Google-BERT"
+
+# 9/7/24 DH: Now moving from SCRIPTDIR to CWD
+QArunTLD="${CWD}/${HFOUTDIR}"
+WEIGHTSDIR="${QArunTLD}/weights"
+
+# 9/7/24 DH: Prev used SCRIPTDIR but better to use 'cwd' (which gets propagated)
+mkdir -p ${CWD}/gv-graphs
+echo "CREATED: 'gv-graphs' IN: '${CWD}'"
+echo
+
+# 7/7/24 DH: Pass TLD (so script can be run from any dir NOT JUST FROM 'CFGDIR')
+echo ${TLD} > tld.txt
+
+counter=0
+
+# ======================================= INDIV SCRIPTS ================================================
+# --------------------------------- TRAINING RUN -------------------------------
+let counter++
+echo "${counter}) run_qa.py"
+echo "----------------------"
+
+echo "NOT RUNNING DURING DEV..."
+#python ${SCRIPTDIR}/run_qa.py ${CFGDIR}/qa_train-Google-BERT.json
+# 8/7/24 DH: Save "$?" since it changes after the conditional "test"
+retVal=$?
+
+echo
+
+# --------------------------------- GRAPH TRAINING WEIGHTS + LOSSES -------------------------------
+let counter++
+echo "${counter}) graph-weights.py"
+echo "-------------------"
+
+echo "NOT RUNNING DURING DEV..."
+#python ${SCRIPTDIR}/graph-weights.py ${WEIGHTSDIR} show &
+echo
+
+# 21/6/24 DH: Add 'graph-losses.py'
+let counter++
+echo "${counter}) graph-losses.py"
+echo "-------------------"
+
+echo "NOT RUNNING DURING DEV..."
+#python ${SCRIPTDIR}/graph-losses.py ${WEIGHTSDIR} show &
+echo
+
+# --------------------------------- GRAPH TRAINING LOGITS -----------------------------
+# 18/7/24 DH: Readded 'huggin_utils::logLogits(...)' to 'BertForQuestionAnswering.forward()'
+#             (as commented in 'huggin_utils::logLogits(...)')
+#             (to get non-token logits unavailable in non-training run)
+let counter++
+echo "${counter}) graph-logits.py"
+echo "-------------------"
+
+#echo "NOT RUNNING DURING DEV..."
+python ${SCRIPTDIR}/graph-logits.py ${QArunTLD}
+echo
