@@ -48,19 +48,19 @@ def collectLosses(lossLog):
   return lossDict
 
 def graphLosses(lossDict):
+  xVals = list(lossDict.keys())
+  yVals = [lossDict[key] for key in lossDict.keys()]
+
   # 4/9/23 DH: Display all graphs simultaneously with 'plt.show(block=False)' (which needs to be cascaded)
   plt.figure()
 
-  titleStr = f"Loss from each training epoch"
+  titleStr = f"Loss from all {len(xVals)} epochs"
 
   plt.title(titleStr)
   plt.xlabel("Epoch")
   plt.ylabel("Loss")
 
   print(f"  \"{titleStr}\"")
-
-  xVals = list(lossDict.keys())
-  yVals = [lossDict[key] for key in lossDict.keys()]
 
   # 18/7/24 DH: Added to prevent "n.5" epoch intervals (which are meaningless)
   plt.xticks(np.arange(0, len(xVals), step=2))
@@ -95,14 +95,18 @@ def graphLosses(lossDict):
 
   # 25/5/24 DH: Since 'loss-by-epochs.log' is overwritten every time 'run_qa.py' is run 
   #             then prevent overwriting the graph image with an incrementing filename
+  # 22/7/24 DH: No longer necessary due to 'checkpointing::archivePrevLogs(...)'
+  """
   graphNum = ""
-  graphFilename = f"{weightsGraphDir}/losses-by-epochs{graphNum}.png"
+  graphFilename = f"{gWeightsGraphDir}/losses-by-epochs{graphNum}.png"
   num = 0
   while os.path.isfile(graphFilename):
     num += 1
     graphNum = num
-    graphFilename = f"{weightsGraphDir}/losses-by-epochs{graphNum}.png"
+    graphFilename = f"{gWeightsGraphDir}/losses-by-epochs{graphNum}.png"
+  """
   
+  graphFilename = f"{gWeightsGraphDir}/losses-by-epochs.png"
   plt.savefig(graphFilename)
 
   if gShowFlag:
@@ -115,8 +119,8 @@ if __name__ == "__main__":
     output_dir = os.path.abspath(sys.argv[1])
     lossLog = os.path.join(output_dir, gTrainerLoss_log)
 
-    weightsGraphDir = os.path.join(output_dir, "weights-graphs")
-    Path(weightsGraphDir).mkdir(parents=True, exist_ok=True)
+    gWeightsGraphDir = os.path.join(output_dir, "weights-graphs")
+    Path(gWeightsGraphDir).mkdir(parents=True, exist_ok=True)
   else:
     print(f"You need to provide an 'output_dir'")
     exit(0)

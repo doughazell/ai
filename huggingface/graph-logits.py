@@ -14,7 +14,12 @@ import matplotlib.pyplot as plt
 from scipy import stats
 
 # 8/6/24 DH: Hard-coded to prevent needing to add: "HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))" code
-trainer_log = "seq2seq_qa_INtrainer.log"
+gTrainer_log = "seq2seq_qa_INtrainer.log"
+
+# 22/7/24 DH: Now wanting to just save graphs (rather than display them as default)
+gOutput_dir = None
+gTLD = None
+gShowFlag = False
 
 # 30/3/24 DH:
 def getLoss(recordsDict, line, lossName, lossType):
@@ -55,6 +60,7 @@ def getLogits(recordsDict, line, logitsName, logitsType):
 
       recordsDict[logitsType][epochNum] = logitsArray
     except KeyError as e:
+      # From 'ai/huggingface/sort_error_logs.py'
       #strDict[searchStr] = []
       #strDict[searchStr].append(line)
 
@@ -62,11 +68,16 @@ def getLogits(recordsDict, line, logitsName, logitsType):
       recordsDict[logitsType][epochNum] = logitsArray
 
 def collectLogits():
+  global gOutput_dir
+  global gTLD
   recordsDict = {}
 
-  if len(sys.argv) == 2:
-    output_dir = os.path.abspath(sys.argv[1])
-    logitsLog = os.path.join(output_dir, trainer_log)
+  if len(sys.argv) > 1:
+    gOutput_dir = os.path.abspath(sys.argv[1])
+    # https://docs.python.org/3/library/os.html#os.pardir
+    gTLD = os.path.abspath(os.path.join(gOutput_dir, os.pardir)) 
+    
+    logitsLog = os.path.join(gOutput_dir, gTrainer_log)
   else:
     print(f"You need to provide an 'output_dir'")
     exit(0)
@@ -158,18 +169,18 @@ def pruneLogits(recordsDict):
   print()
   print("Pruning:")
   print("-------")
+  print("(legacy of when 'logLogits(...)' took the first entry of .5 epoch batch with randomized samples)")
+  print("(logits would have been collected from DIFF SAMPLES with same token length BUT SAME GRAMMAR with custom JSON)")
 
   try:
     tokenLen = len(recordsDict['input_ids'])
   except KeyError:
-    print(f"There are no 'input_ids' so check '{trainer_log}'")
+    print(f"There are no 'input_ids' so check '{gTrainer_log}'")
     exit(0)
 
   deleteList = []
   for key in recordsDict:
     if "logits" in key:
-      print(f"{key}:")
-      
       for epochKey in recordsDict[key]:
         logitsLen = len(recordsDict[key][epochKey])
         if logitsLen != tokenLen + 2:
@@ -182,7 +193,7 @@ def pruneLogits(recordsDict):
     deleteSet = set(deleteList)
     
     if "logits" in key or "loss" in key:
-      print(f"Deleting '{key}' keys ({deleteSet.__class__}): {deleteSet}")
+      #print(f"Deleting '{key}' keys ({deleteSet.__class__}): {deleteSet}")
       for item in deleteSet:
         try:
           del recordsDict[key][item]
@@ -300,22 +311,28 @@ def graphLogits(recordsDict):
   
   plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
 
-  #plt.draw()
-  
-  plt.show(block=False)
+  # 22/7/24 DH:
+  graphFilename = f"{gTLD}/gv-graphs/logits-by-epoch.png"
+  plt.savefig(graphFilename)
+
+  if gShowFlag:
+    #plt.draw()
+    plt.show(block=False)
 
 # 30/3/24 DH: Add the {start_loss + end_loss} line graph
 def graphLosses(recordsDict):
-  plt.figure()
-
-  titleStr = "Losses from different training epochs"
-  plt.title(titleStr)
-  plt.xlabel("Training epoch")
-  plt.ylabel("Loss value")
+  global gTLD
 
   xVals = recordsDict["start_loss"].keys()
   # Convert key strings into integers
   xVals = [int(item) for item in xVals]
+
+  plt.figure()
+
+  titleStr = f"Losses from {len(xVals)} epochs of chosen sample"
+  plt.title(titleStr)
+  plt.xlabel("Training epoch")
+  plt.ylabel("Loss value")
 
   # 19/7/24 DH: Added to prevent "n.5" epoch intervals (which are meaningless) like 'graph-losses.py'
   plt.xticks(np.arange(0, max(xVals), step=2))
@@ -330,9 +347,16 @@ def graphLosses(recordsDict):
   #plt.xticks(np.arange(0, 11, step=1))
   plt.legend(loc="upper right")
 
-  # 18/7/24 DH: Now no longer calling: 'graphFirstLogits(recordsDict)'
-  #plt.show(block=False)
-  plt.show()
+  # FROM: 'graph-losses.py'
+  #graphFilename = f"{gWeightsGraphDir}/losses-by-epochs{graphNum}.png"
+
+  graphFilename = f"{gTLD}/gv-graphs/losses-from-{len(xVals)}-epochs.png"
+  plt.savefig(graphFilename)
+
+  if gShowFlag:
+    # 18/7/24 DH: Now no longer calling: 'graphFirstLogits(recordsDict)'
+    #plt.show(block=False)
+    plt.show()
 
 def graphFirstLogits(recordsDict):
   plt.figure()
@@ -362,7 +386,12 @@ def graphFirstLogits(recordsDict):
 # -------------------------------------------------END: GRAPHING ---------------------------------------------
 
 if __name__ == "__main__":
-  # 'trainer_log = "seq2seq_qa_INtrainer.log"' centric
+  # 'gTrainer_log = "seq2seq_qa_INtrainer.log"' centric
+
+  # 22/7/24 DH: Copying 'graph-losses.py'
+  if len(sys.argv) > 2 and "show" in sys.argv[2]:
+    gShowFlag = True
+
   recordsDict = collectLogits()
 
   pruneLogits(recordsDict)
@@ -371,3 +400,8 @@ if __name__ == "__main__":
   graphLogits(recordsDict)
   graphLosses(recordsDict)
   #graphFirstLogits(recordsDict)
+
+  if not gShowFlag:
+    print()
+    print("NOT SHOWING images (please add 'show' to cmd line args if images wanted)")
+    print()

@@ -37,7 +37,7 @@ counter=0
 # --------------------------------- TRAINING RUN -------------------------------
 let counter++
 echo "${counter}) run_qa.py"
-echo "----------------------"
+echo "------------"
 
 echo "NOT RUNNING DURING DEV..."
 #python ${SCRIPTDIR}/run_qa.py ${CFGDIR}/qa_train-Google-BERT.json
@@ -51,17 +51,23 @@ let counter++
 echo "${counter}) graph-weights.py"
 echo "-------------------"
 
-echo "NOT RUNNING DURING DEV..."
 #python ${SCRIPTDIR}/graph-weights.py ${WEIGHTSDIR} show &
+
+#python ${SCRIPTDIR}/graph-weights.py ${WEIGHTSDIR}
+# 21/7/24 DH: Need sleep for BG process so that print output correlates with heading
+#sleep 2
 echo
 
 # 21/6/24 DH: Add 'graph-losses.py'
 let counter++
 echo "${counter}) graph-losses.py"
-echo "-------------------"
+echo "------------------"
 
-echo "NOT RUNNING DURING DEV..."
 #python ${SCRIPTDIR}/graph-losses.py ${WEIGHTSDIR} show &
+
+#python ${SCRIPTDIR}/graph-losses.py ${WEIGHTSDIR}
+# 21/7/24 DH: Need sleep for BG process so that print output correlates with heading
+#sleep 2
 echo
 
 # --------------------------------- GRAPH TRAINING LOGITS -----------------------------
@@ -70,8 +76,26 @@ echo
 #             (to get non-token logits unavailable in non-training run)
 let counter++
 echo "${counter}) graph-logits.py"
-echo "-------------------"
+echo "------------------"
 
-#echo "NOT RUNNING DURING DEV..."
-python ${SCRIPTDIR}/graph-logits.py ${QArunTLD}
+#python ${SCRIPTDIR}/graph-logits.py ${QArunTLD}
 echo
+
+# --------------------------------- PRODUCE GRAPHVIZ PDF -------------------------------
+let counter++
+echo "${counter}) create-gv-training.py"
+echo "------------------------"
+
+python ${SCRIPTDIR}/create-gv-training.py ${HFOUTDIR}
+retVal=$?
+if [ ${retVal} -ne 0 ]; then
+  echo
+  echo "Error in 'create-gv-training.py' so exiting..."
+  echo
+  exit
+fi
+
+# 1/7/24 DH: Remove 'quarantine' file extended attribute
+xattr -c $(cat gvTrain_filename.txt)
+
+open $(cat gvTrain_filename.txt)

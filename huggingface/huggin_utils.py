@@ -78,7 +78,7 @@ def getIDsAndLogits(batchIdx, input_ids, start_logits, end_logits, extraDelta):
 
 # 19/7/24 DH: Now searching for randomized first entry of first batch
 def findSampleInBatch(input_ids):
-  idx = -1
+  unfoundIdx = -1
 
   # Previously assigned to first entry of first batch
   global gInput_idsEntry
@@ -92,9 +92,9 @@ def findSampleInBatch(input_ids):
       if inputId == gInput_idsEntry:
         return num
     except IndexError:
-      return idx
+      return unfoundIdx
 
-  return idx
+  return unfoundIdx
 
 #################################################################################################################
 # API CALLED FROM '*ForQuestionAnswering.forward()':

@@ -16,7 +16,6 @@ from pathlib import Path
 gScriptDir = os.path.dirname(os.path.realpath(__file__))
 # 9/7/24 DH: Path refactor so can be run from any dir
 gCWD = Path.cwd()
-gFilename = "qa-output.gv"
 
 def getDotTxt(img1a, img1b, img1c, img1d, img1e, img2, img3, qcaTableTxt, contextLabel):
   # Escape the '{' with '{{'
