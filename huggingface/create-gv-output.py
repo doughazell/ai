@@ -17,7 +17,7 @@ gScriptDir = os.path.dirname(os.path.realpath(__file__))
 # 9/7/24 DH: Path refactor so can be run from any dir
 gCWD = Path.cwd()
 
-def getDotTxt(img1a, img1b, img1c, img1d, img1e, img2, img3, qcaTableTxt, contextLabel):
+def getDotTxt(img1a, img1b, img1c, img2, img3, qcaTableTxt, contextLabel):
   # Escape the '{' with '{{'
   # Escape the '}' with '}}'
   # NOTE: Currently using hard-coded, scaled graphs
@@ -48,18 +48,13 @@ strict digraph qaOutput {{
   </TABLE>
   >]
 
-  image1d [image="{img1d}" label=""]
-  image1e [image="{img1e}" label=""]
   image2 [image="{img2}" label=""]
   image3 [image="{img3}" label=""]
-
+  
   qcaTable [label=<{qcaTableTxt}> fontsize=30 fontcolor="red" fillcolor="skyblue"]
 
   context [label="{contextLabel}" fontsize=30 fontcolor="red" fillcolor="skyblue"]
 
-  table1 -> image1d
-  image1d -> image1e [label="NOTE: Nodes without tokens DURING TRAINING\n+ NO Context ONLY focus" fontsize=20 fontcolor="red"]
-  
   table1 -> image2
   image2 -> image3
 
@@ -194,11 +189,6 @@ def getQCATableTxt(gvDir):
   return (qcaTableTxt, contextLabel, tokenLen)
 
 def createDotFile(cfgDir, hfDir):
-  # 8/7/24 DH: PREV before refactor of TLD
-  #gvDir = os.path.join(tld, "gv-graphs")
-  # 9/7/24 DH: Path refactor
-  #gvDir = os.path.join(gScriptDir, "gv-graphs")
-
   gvDir = os.path.join(gCWD, "gv-graphs")
   print(f"Using 'gvDir':   '{gvDir}' (in 'createDotFile()')")
 
@@ -217,22 +207,13 @@ def createDotFile(cfgDir, hfDir):
 
   img1c = f"{cfgDir}/{hfDir}/{h_utilsWGDir}/losses-by-epochs-1026.png"
 
-  # 10/7/24 DH: Adding in reminder of nodes without tokens
-  img1d = f"{cfgDir}/graphs/logits-by-token-by-epoch-scaled.png"
-  img1e = f"{cfgDir}/graphs/bert_num_train_epochs=1-scaled.png"
-
   # 19/6/24 DH: Correlate graphs (from Q+Context token length) with key chosen from 'qcaDict' in 'getQCATableTxt(...)'
   (qcaTableTxt, contextLabel, graphTokenLen) = getQCATableTxt(gvDir)
 
-  # 8/7/24 DH: PREV prior to TLD refactor
-  #img2 = f"{tld}/{nodeGraphsDir}/all_layers-287-{graphTokenLen}.png"
-  #img3 = f"{tld}/{h_utilsDir}/logits-by-token-{graphTokenLen}.png"
-
-  # 9/7/24 DH: Path refactor
-  #img2 = f"{gScriptDir}/{hfDir}/{nodeGraphsDir}/all_layers-287-{graphTokenLen}.png"
-  #img3 = f"{gScriptDir}/{hfDir}/{h_utilsDir}/logits-by-token-{graphTokenLen}.png"
-
+  # PRODUCED BY: 'graph-node-logits::graphLogitsByLayer(...)' WITH: 'weights/node287-logits.log' CREATED IN: 'checkpointing::createLoggers(...)'
   img2 = f"{gCWD}/{nodeGraphsDir}/all_layers-287-{graphTokenLen}.png"
+
+  # PRODUCED BY: 'qa_lime::graphTokenVals(...)' AFTER: 'qa_lime::getModelOutput(...):' output = model(...)
   img3 = f"{gCWD}/{hfDir}/{h_utilsDir}/logits-by-token-{graphTokenLen}.png"
 
   # 8/7/24 DH: Debug of TLD refactor
@@ -247,7 +228,7 @@ def createDotFile(cfgDir, hfDir):
   print()
 
   with open(dotFile, "w") as outFile:
-    dotTxt = getDotTxt(img1a, img1b, img1c, img1d, img1e, img2, img3, qcaTableTxt, contextLabel)
+    dotTxt = getDotTxt(img1a, img1b, img1c, img2, img3, qcaTableTxt, contextLabel)
     outFile.write(dotTxt)
 
   return dotFile

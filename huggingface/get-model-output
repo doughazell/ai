@@ -45,6 +45,7 @@ CWD=$(pwd)
 # TODO: Decide if this should be hard-coded across mutliple files (as currently is)
 CFGDIR="/Users/doug/src/ai/t5"
 HFOUTDIR="previous_output_dir-Google-BERT"
+JSONCFG="qa_train-Google-BERT-SQUAD.json"
 
 TLD="${CFGDIR}/${HFOUTDIR}"
 # 9/7/24 DH: Now moving from SCRIPTDIR to CWD
@@ -69,8 +70,7 @@ echo "----------------------"
 # 7/7/24 DH: Pass TLD (so script can be run from any dir NOT JUST FROM 'CFGDIR')
 echo ${TLD} > tld.txt
 
-#python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/qa_train-Google-BERT.json show
-python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/qa_train-Google-BERT.json
+python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/${JSONCFG}
 # 8/7/24 DH: Save "$?" since it changes after the conditional "test"
 retVal=$?
 
@@ -83,7 +83,7 @@ do
   fi
 
   echo "No correct answers found so rerunning..."
-  python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/qa_train-Google-BERT.json
+  python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/${JSONCFG}
   retVal=$?
 done
 
@@ -95,7 +95,6 @@ echo "-------------------"
 # Append cmd with "&" to "background" process #
 ###############################################
 echo "   CURRENTLY USING: '${TLD}/old-logs' (for Pre-trained state + training run node change)"
-#python ${SCRIPTDIR}/graph-weights.py ${TLD}/old-logs show
 
 echo "ONLY saving graphs (not showing them)"
 python ${SCRIPTDIR}/graph-weights.py ${TLD}/old-logs
@@ -104,7 +103,6 @@ python ${SCRIPTDIR}/graph-weights.py ${TLD}/old-logs
 let counter++
 echo "${counter}) graph-losses.py"
 echo "-------------------"
-#python ${SCRIPTDIR}/graph-losses.py ${TLD}/weights show
 echo "ONLY saving graphs (not showing them)"
 python ${SCRIPTDIR}/graph-losses.py ${TLD}/weights
 
@@ -136,7 +134,6 @@ python ${SCRIPTDIR}/graph-node-logits.py ${QArunTLD}
 let counter++
 echo "${counter}) create-gv-output.py"
 echo "----------------------"
-# 8/7/24 DH: PREV: python ${SCRIPTDIR}/create-gv-output.py ${TLD}
 python ${SCRIPTDIR}/create-gv-output.py ${CFGDIR} ${HFOUTDIR}
 retVal=$?
 if [ ${retVal} -ne 0 ]; then
@@ -154,3 +151,7 @@ xattr -c $(cat gv_filename.txt)
 
 open $(cat gv_filename.txt)
 
+echo
+echo "CHG TO USE: '${QArunTLD}' rather than '${TLD}'"
+echo "  (as mentioned in 'graph-weights.py' + 'graph-losses.py' above)"
+echo

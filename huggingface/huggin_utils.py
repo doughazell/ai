@@ -101,6 +101,8 @@ def findSampleInBatch(input_ids):
 #   import huggin_utils
 #   huggin_utils.logLogits(...) 
 #
+# EXAMPLE USAGE: https://github.com/doughazell/ai/commit/9b9d90037f38a1715fc6ead00c5363af9aff1608
+#
 # 30/3/24 DH: The same function can be used for a training run + model run
 # 8/6/24 DH: Now defunct after overwriting Transformer/Torch with DeepPavlov reinstall
 #            It was used to create 'seq2seq_qa_INtrainer.log' data for '$ python graph-logits.py'

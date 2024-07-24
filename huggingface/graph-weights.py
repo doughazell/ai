@@ -5,6 +5,10 @@
 #
 ##############################################################################
 
+"""
+See DESIGN in 'graph-weights-history.py'
+"""
+
 import sys, os, re
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,6 +30,9 @@ weightMapDict = {
 # 16/6/24 DH: Now wanting to just save graphs (rather than display them as default)
 gShowFlag = False
 
+# 23/7/24 DH: Originally 'huggin_utils::logWeightings(weight_tensor)' logged diffs via 'huggin_utils::checkWeightsForAllSets()'
+#             ('huggin_utils::checkWeightsForAllSets()': "WRAPPER to convert full weight values to weight diff")
+#   THEN 'logWeights(weight_tensor)' was used to ALSO LOG FULL WEIGHTS (and hence 'graph-weights::collectWeights(...)' has 'percentChg...' legacy)
 def collectWeights(weightsLog):
   percentChgDictListDict = {}
   
@@ -73,13 +80,14 @@ def collectWeights(weightsLog):
       
   return percentChgDictListDict
 
+# 24/7/24 DH: Refactored in 'graph-weights-history::printLogitsDict(...)'
 def printCollectedDict(percentChgDictListDict):
   for key in percentChgDictListDict:
     print(f"{key}:")
 
     idx = 0
     for iDict in percentChgDictListDict[key]:
-      print(f"  {idx} (ie {weightMapDict[idx]}):")
+      print(f"  {idx} (ie {weightMapDict[idx]}) % chg by node:")
 
       weightsSublist = []
       sublistIdx = 0
@@ -91,8 +99,10 @@ def printCollectedDict(percentChgDictListDict):
       
       mylist = ""
       for elem in weightsSublist: 
-        mylist += f"{elem}, ";
-      print(f"    [{mylist}...]")
+        mylist += f"{elem}, "
+      
+      lastIdx = list(percentChgDictListDict[key][idx])[-1]
+      print(f"    {mylist}...(Idx:{lastIdx})")
       
       idx += 1
       print("    ------")
@@ -237,8 +247,11 @@ def getWeightDiffs(percentChgDictListDict, lineType):
   #   "built-in dict class gained the ability to remember insertion order"
   keyList = list(percentChgDictListDict.keys())
   
-  # 25/5/24 DH: Running 'huggingface/qa.py' after 'huggingface/run_qa.py' OVERWROTE 'weights-full.log' + 'weights.log'
+  # 25/5/24 DH: Running 'huggingface/qa.py' AFTER 'huggingface/run_qa.py' OVERWROTE 'weights-full.log' + 'weights.log'
   try:
+    # '/Users/doug/src/ai/t5/previous_output_dir-Google-BERT/old-logs/weights-full.log' contains:
+    #   EPOCHS: 0, 1025, 1026 (due to length of time to stop with Ctrl-C saving an extra end value)
+    # THEREFORE ONLY 1st + 2nd EPOCHS OF THE FILE ARE TAKEN
     startEpoch = keyList[0]
 
     if "Start" in weightMapDict[lineType]:
@@ -247,7 +260,7 @@ def getWeightDiffs(percentChgDictListDict, lineType):
       print("  ------------------------------")
 
     print(f"  {weightMapDict[lineType]} line")
-    print(f"    starting at epoch: {startEpoch}")
+    print(f"    starting at epoch: {startEpoch} (STATICALLY: 'keyList[0]' from '{keyList}')")
   except IndexError:
     print()
     print("There is no epoch data...exiting")
@@ -257,7 +270,7 @@ def getWeightDiffs(percentChgDictListDict, lineType):
   try:
     endEpoch = keyList[1]
 
-    print(f"    ending at epoch: {endEpoch}")
+    print(f"    ending at epoch: {endEpoch} (STATICALLY: 'keyList[1]' from '{keyList}')")
     if "End" in weightMapDict[lineType]:
       print()
   except IndexError:
@@ -295,7 +308,7 @@ def getWeightDiffs(percentChgDictListDict, lineType):
   return (percentChgDict, endEpoch)
 
 # 22/5/24 DH: WRAPPER around 'getWeightDiffs()' for each line
-def calcAndGraphTrgDiffs(percentChgDictListDict):
+def calcAndGraphTrgDiffs(percentChgDictListDict, lastGraph=True):
   percentChgLineList = []
 
   # 'weightMapDict' = "{0: "Start", "Start": 0, ...}"
@@ -311,9 +324,23 @@ def calcAndGraphTrgDiffs(percentChgDictListDict):
   (startLineIdxDict, endLineIdxDict) = getLargestValues(percentChgLineList)
   displayLargestValues(startLineIdxDict, endLineIdxDict)
   
-  graphWeightsKeyed(percentChgLineList, "complete", lastGraph=True, lastEpoch=endEpoch)
+  graphWeightsKeyed(percentChgLineList, "complete", lastGraph=lastGraph, lastEpoch=endEpoch)
 
-  return percentChgLineList
+  return (startLineIdxDict, endLineIdxDict)
+
+# 24/7/24 DH: So can be called via "import graph_weights" (ie 'graph-weights-history.py')
+def assignPaths(weightsDir):
+  # 19/6/24 DH: 'output_dir' now is 'previous_output_dir-Google-BERT/weights' (FROM: checkpointing.py::weightPath = f"{logPath}/weights")
+  #             GIVING: '~/weights/weights-graphs'
+  output_dir = os.path.abspath(weightsDir)
+  weightsLog = os.path.join(output_dir, gTrainer_log)
+  fullweightsLog = os.path.join(output_dir, gTrainer_full_log)
+
+  global gWeightsGraphDir
+  gWeightsGraphDir = os.path.join(output_dir, "weights-graphs")
+  Path(gWeightsGraphDir).mkdir(parents=True, exist_ok=True)
+
+  return (weightsLog, fullweightsLog)
 
 # 16/6/24 DH: https://docs.python.org/3/faq/programming.html#what-are-the-rules-for-local-and-global-variables-in-python
 #  "If a variable is assigned a value anywhere within the function’s body, it’s assumed to be a local unless explicitly declared as global."
@@ -321,14 +348,8 @@ def calcAndGraphTrgDiffs(percentChgDictListDict):
 #          (and leads to "SyntaxError: name ??? is assigned to before global declaration" if used (prob due to python compiler/loader))
 if __name__ == "__main__":
   if len(sys.argv) > 1:
-    # 19/6/24 DH: 'output_dir' now is 'previous_output_dir-Google-BERT/weights' (FROM: checkpointing.py::weightPath = f"{logPath}/weights")
-    #             GIVING: '~/weights/weights-graphs'
-    output_dir = os.path.abspath(sys.argv[1])
-    weightsLog = os.path.join(output_dir, gTrainer_log)
-    fullweightsLog = os.path.join(output_dir, gTrainer_full_log)
-
-    gWeightsGraphDir = os.path.join(output_dir, "weights-graphs")
-    Path(gWeightsGraphDir).mkdir(parents=True, exist_ok=True)
+    # 24/7/24 DH:
+    (weightsLog, fullweightsLog) = assignPaths(sys.argv[1])
   else:
     print(f"You need to provide an '\"output_dir\"/weights' path")
     exit(0)
@@ -360,12 +381,12 @@ if __name__ == "__main__":
   # --------------------------- 'qa_outputs' WEIGHTS + PERCENTAGE DIFF --------------------------
   # 22/5/24 DH: Having graphed all the rounded, percentage diffs then we need to 
   #             calculate + graph the percentage diff between the first and last full value weights
-  percentChgDictListDict = collectWeights(fullweightsLog)
+  weightDictListDict = collectWeights(fullweightsLog)
 
   # Firstly graph the 'qa_outputs' full weights
   # 26/5/24 DH: During the Ctrl-C checkpointing save delay (to prevent partial saving) we sometimes get multiple end full weights
   #             ('getWeightDiffs(...) uses "startEpoch = keyList[0]", "endEpoch = keyList[1]")
-  keyList = list(percentChgDictListDict.keys())
+  keyList = list(weightDictListDict.keys())
   startEpoch = keyList[0]
   endEpoch = keyList[1]
   if len(keyList) > 2:
@@ -380,11 +401,11 @@ if __name__ == "__main__":
   if len(sys.argv) > 2 and "show" in sys.argv[2]:
     gShowFlag = True
   
-  graphWeightsKeyed(percentChgDictListDict[startEpoch], startEpoch, weights=True)
-  graphWeightsKeyed(percentChgDictListDict[endEpoch], endEpoch, weights=True)
+  graphWeightsKeyed(weightDictListDict[startEpoch], startEpoch, weights=True)
+  graphWeightsKeyed(weightDictListDict[endEpoch], endEpoch, weights=True)
 
   # Now calculate + graph the percentage diff
-  percentChgLineList = calcAndGraphTrgDiffs(percentChgDictListDict)
+  () = calcAndGraphTrgDiffs(weightDictListDict)
 
   if not gShowFlag:
     print()

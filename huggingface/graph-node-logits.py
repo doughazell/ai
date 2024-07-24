@@ -173,7 +173,7 @@ def graphLogitsByLayer(recordsDict, layerNum, wantedTokenLen=None, lastGraph=Fal
     return layerName
   # --------------------------------------------------------------------------------------------------------------
 
-  # Used for training run (ie 'run_qa.py' rather than 'test-qa-efficacy.py')
+  # Used for DEV training run OF CUSTOM JSON with 20 epochs (ie 'run_qa.py' rather than 'test-qa-efficacy.py') ???
   epochsWanted = [0, 18, 19]
 
   # Used for "all layers" graph (currently only populated for NON-TRAINING run log lines)
@@ -210,6 +210,11 @@ def graphLogitsByLayer(recordsDict, layerNum, wantedTokenLen=None, lastGraph=Fal
 
     try: # Training run only
       if any(map(int(epoch).__eq__, epochsWanted)) and int(layer) == layerNum:
+        # 23/7/24 DH: Highlighting probable dev using custom JSON training with 20 epochs
+        print()
+        print(f"  *** MAYBE DEV: {epoch} from '{epochsWanted}' at layer: {layerNum} using 'plotInplaceLine()' ***")
+        print()
+
         lwVal = (int(epoch)+4) / (int(lastEpoch))
         plotInplaceLine(lwVal, labelStr=epoch)
         # Used in graph title (+ cmd line feedback)
@@ -306,7 +311,7 @@ def graphLogitsByLayer(recordsDict, layerNum, wantedTokenLen=None, lastGraph=Fal
 # -------------------------------------------------END: GRAPHING ---------------------------------------------
 
 if __name__ == "__main__":
-  # 'trainer_log = "weights/node287-logits.log"' centric
+  # 'gTrainer_log = "weights/node287-logits.log"' centric
   (recordsDict, tokenLens) = collectLogits()
 
   displayLogits(recordsDict)

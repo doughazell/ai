@@ -18,6 +18,7 @@ CWD=$(pwd)
 # TODO: Decide if this should be hard-coded across mutliple files (as currently is)
 CFGDIR="/Users/doug/src/ai/t5"
 HFOUTDIR="previous_output_dir-Google-BERT"
+JSONCFG="qa_train-Google-BERT-custom.json"
 
 # 9/7/24 DH: Now moving from SCRIPTDIR to CWD
 QArunTLD="${CWD}/${HFOUTDIR}"
@@ -39,8 +40,7 @@ let counter++
 echo "${counter}) run_qa.py"
 echo "------------"
 
-echo "NOT RUNNING DURING DEV..."
-#python ${SCRIPTDIR}/run_qa.py ${CFGDIR}/qa_train-Google-BERT.json
+#python ${SCRIPTDIR}/run_qa.py ${CFGDIR}/${JSONCFG}
 # 8/7/24 DH: Save "$?" since it changes after the conditional "test"
 retVal=$?
 
@@ -52,10 +52,10 @@ echo "${counter}) graph-weights.py"
 echo "-------------------"
 
 #python ${SCRIPTDIR}/graph-weights.py ${WEIGHTSDIR} show &
-
-#python ${SCRIPTDIR}/graph-weights.py ${WEIGHTSDIR}
 # 21/7/24 DH: Need sleep for BG process so that print output correlates with heading
 #sleep 2
+
+python ${SCRIPTDIR}/graph-weights.py ${WEIGHTSDIR}
 echo
 
 # 21/6/24 DH: Add 'graph-losses.py'
@@ -64,10 +64,10 @@ echo "${counter}) graph-losses.py"
 echo "------------------"
 
 #python ${SCRIPTDIR}/graph-losses.py ${WEIGHTSDIR} show &
-
-#python ${SCRIPTDIR}/graph-losses.py ${WEIGHTSDIR}
 # 21/7/24 DH: Need sleep for BG process so that print output correlates with heading
 #sleep 2
+
+python ${SCRIPTDIR}/graph-losses.py ${WEIGHTSDIR}
 echo
 
 # --------------------------------- GRAPH TRAINING LOGITS -----------------------------
@@ -78,7 +78,7 @@ let counter++
 echo "${counter}) graph-logits.py"
 echo "------------------"
 
-#python ${SCRIPTDIR}/graph-logits.py ${QArunTLD}
+python ${SCRIPTDIR}/graph-logits.py ${QArunTLD}
 echo
 
 # --------------------------------- PRODUCE GRAPHVIZ PDF -------------------------------
