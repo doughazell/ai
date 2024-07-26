@@ -26,6 +26,9 @@ weightMapDict = {
   1: "End",
   "End": 1,
 }
+# 26/7/24 DH: Increased readability for "Dict-List-Dict" data structure
+gStartIdx = 0
+gEndIdx = 1
 
 # 16/6/24 DH: Now wanting to just save graphs (rather than display them as default)
 gShowFlag = False
@@ -271,8 +274,8 @@ def getWeightDiffs(percentChgDictListDict, lineType):
     endEpoch = keyList[1]
 
     print(f"    ending at epoch: {endEpoch} (STATICALLY: 'keyList[1]' from '{keyList}')")
-    if "End" in weightMapDict[lineType]:
-      print()
+    #if "End" in weightMapDict[lineType]:
+    #  print()
   except IndexError:
     print()
     print("There is no end epoch data...exiting")
@@ -293,7 +296,12 @@ def getWeightDiffs(percentChgDictListDict, lineType):
     # Need percent change from previous
     # 22/5/24 DH: 'diff/prevWeight' needs 'abs(prevWeight)'
     diff = currWeight - prevWeight
-    percentChgFromPrev = round(diff/ abs(prevWeight) * 100, 3)
+    percentChgFromPrev = round(diff / abs(prevWeight) * 100, 3)
+
+    # 25/7/24 DH:
+    if key == 287:
+      print(f"  {key}: from abs(first epoch): {abs(prevWeight)}, diff: {diff}, % chg: {percentChgFromPrev}")
+      print()
 
     """ "EXTRA EXTRA, read all about it..."
     mTxt = f"{key} Diff:"
@@ -307,8 +315,8 @@ def getWeightDiffs(percentChgDictListDict, lineType):
 
   return (percentChgDict, endEpoch)
 
-# 22/5/24 DH: WRAPPER around 'getWeightDiffs()' for each line
-def calcAndGraphTrgDiffs(percentChgDictListDict, lastGraph=True):
+# 22/5/24 DH: WRAPPER around 'getWeightDiffs()' for each line (ie start logits/end logits)
+def calcAndGraphTrgDiffs(percentChgDictListDict, lastGraph=True, showGraph=True):
   percentChgLineList = []
 
   # 'weightMapDict' = "{0: "Start", "Start": 0, ...}"
@@ -324,7 +332,9 @@ def calcAndGraphTrgDiffs(percentChgDictListDict, lastGraph=True):
   (startLineIdxDict, endLineIdxDict) = getLargestValues(percentChgLineList)
   displayLargestValues(startLineIdxDict, endLineIdxDict)
   
-  graphWeightsKeyed(percentChgLineList, "complete", lastGraph=lastGraph, lastEpoch=endEpoch)
+  # 25/7/24 DH: Added to calc 'startLineIdxDict', 'endLineIdxDict' without showing the graph from 'graph-weights-history.py'
+  if showGraph:
+    graphWeightsKeyed(percentChgLineList, "complete", lastGraph=lastGraph, lastEpoch=endEpoch)
 
   return (startLineIdxDict, endLineIdxDict)
 
@@ -405,7 +415,7 @@ if __name__ == "__main__":
   graphWeightsKeyed(weightDictListDict[endEpoch], endEpoch, weights=True)
 
   # Now calculate + graph the percentage diff
-  () = calcAndGraphTrgDiffs(weightDictListDict)
+  (startLineIdxDict, endLineIdxDict) = calcAndGraphTrgDiffs(weightDictListDict)
 
   if not gShowFlag:
     print()

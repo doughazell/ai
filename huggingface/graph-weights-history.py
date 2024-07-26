@@ -23,6 +23,10 @@ ISSUE: "weights.log" for each epoch is PERCENTAGE CHANGE from prev epoch...!!!
 DESIGN:
 Data structure [Dict-List-Dict] (code topo)
 -------------------------------
+***********************************************************************************************************************
+*** In retro-spect it would have been BETTER TO USE "Dict-Dict-Dict" (rather than have a List for start/end logits) ***
+***********************************************************************************************************************
+
 1) Dict :: 'percentChgDictListDict'
    KEY :: Epoch
    2) List
@@ -63,7 +67,7 @@ def pruneWeights(weightsDictListDict, epochsWanted, startNodes, endNodes):
 
   for epoch in weightsDictListDict:
     # Test against list FROM: 'graph-node-logits::graphLogitsByLayer(...)' (see comment re "__eq__" vs "__contains__")
-    if not any(map(int(epoch).__eq__, epochsWanted)):
+    if epochsWanted and not any(map(int(epoch).__eq__, epochsWanted)):
       # Delete list mechanism from: 'graph-logits::pruneLogits(...)'
       deleteEpochs.append(epoch)
     
@@ -108,34 +112,6 @@ def pruneWeights(weightsDictListDict, epochsWanted, startNodes, endNodes):
       del weightsDictListDict[epoch]
     except KeyError as e:
       print(f"Unable to delete epoch KEY: {epoch}")
-
-# IDEAS FROM: 'graph-weights::printCollectedDict(...)'
-def printWeightChgDict(chgDLDict, nodeNumber=10):
-  print()
-
-  for key in chgDLDict.keys():
-    print(f"'chgDLDict' epoch: {key}")
-    print("----------")
-    
-    elemIdx = 0
-    # 'chgDLDict[key]' is the LIST of (start/end) logit lines
-    for logitLineDict in chgDLDict[key]:
-      print(f"{weightMapDict[elemIdx]} logits")
-      elemIdx += 1
-      
-      valsStr = ""
-      for nodeKey in logitLineDict:
-        if nodeNumber > 10: # ie pruned nodes so not want only default of first 10
-          valsStr += f"{nodeKey}: {round(logitLineDict[nodeKey],3)}, "
-
-        elif nodeKey < nodeNumber:
-          valsStr += f"{round(logitLineDict[nodeKey],3)}, "
-
-      lastIdx = list(logitLineDict)[-1]
-      print(f"  {valsStr}...(Idx:{lastIdx})")
-    print("----------")
-    print()
-    
 
 def calcTotalChg(weightsDLDict, currEpoch, prevWeightsDLDict, prevEpoch):
   totalChgLDict = []
@@ -190,6 +166,110 @@ def getRollingWeightChgs(chgDictListDict):
 
   return totalChgDLDict
 
+# IDEAS FROM: 'graph-weights::printCollectedDict(...)'
+def printWeightChgDict(chgDLDict, nodeNumber=10):
+  print()
+
+  for key in chgDLDict.keys():
+    print(f"'chgDLDict' epoch: {key}")
+    print("----------")
+    
+    elemIdx = 0
+    # 'chgDLDict[key]' is the LIST of (start/end) logit lines
+    for logitLineDict in chgDLDict[key]:
+      print(f"{weightMapDict[elemIdx]} logits")
+      elemIdx += 1
+      
+      valsStr = ""
+      for nodeKey in logitLineDict:
+        if nodeNumber > 10: # ie pruned nodes so not want only default of first 10
+          valsStr += f"{nodeKey}: {round(logitLineDict[nodeKey],3)}, "
+
+        elif nodeKey < nodeNumber:
+          valsStr += f"{round(logitLineDict[nodeKey],3)}, "
+
+      lastIdx = list(logitLineDict)[-1]
+      print(f"  {valsStr}...(Idx:{lastIdx})")
+    print("----------")
+    print()
+
+# 25/7/24 DH: https://matplotlib.org/stable/gallery/mplot3d/index.html#d-plotting
+#             https://matplotlib.org/stable/gallery/mplot3d/surface3d.html#sphx-glr-gallery-mplot3d-surface3d-py
+def graphChosenNodes(chgDLDict, startNodes, endNodes):
+  plt.figure()
+  plt.title("Weight chg for each training epoch for selected nodes")
+  plt.xlabel("Epoch (soon to be z-axis of 3D graph)")
+  plt.ylabel("Weight chg")
+  plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
+  
+  # Start Logits / End Logits
+  #  xVals = nodeIdx key (initially just biggest 10)
+  #  yVals = node value (at KEY xVals)
+  #  zVals = epochs (therefore "z, y" graphs located at KEY xVals, later changing to sphere with ALL xVals)
+
+  zVals = list(chgDLDict.keys())
+  print(f"zVals: {zVals}")
+
+  print()
+  print(f"Start nodes: {startNodes}")
+  for node in startNodes:
+    # Access DLD data structure for:
+    #   1) Node 'node', 2) in End Logits, 3) for each epoch
+    yVals = [round(chgDLDict[epoch][gStartIdx][node]) for epoch in zVals]
+    print(f"  {node}: {yVals}")
+
+    plt.plot(zVals, yVals, label=f"Start Logits: node {node}")
+  # END: --- "for node in startNodes" ---
+
+  print()
+  print(f"End nodes: {endNodes}")
+  for node in endNodes:
+    # Access DLD data structure for:
+    #   1) Node 'node', 2) in End Logits, 3) for each epoch
+    yVals = [round(chgDLDict[epoch][gEndIdx][node]) for epoch in zVals]
+    print(f"  {node}: {yVals}")
+
+    plt.plot(zVals, yVals, label=f"End Logits: node {node}", linestyle='dashed')
+  # END: --- "for node in endNodes" ---
+  
+  if graph_weights.gShowFlag:
+    #plt.legend(loc="best")
+    plt.legend(loc="lower right")
+    plt.tight_layout()
+    plt.show(block=False)
+
+  """ FROM: https://matplotlib.org/stable/gallery/mplot3d/2dcollections3d.html#sphx-glr-gallery-mplot3d-2dcollections3d-py
+  #ax = plt.figure().add_subplot(projection='3d')
+  ax = plt.figure().add_subplot()
+
+  # Plot a sin curve using the x and y axes.
+  x = np.linspace(0, 1, 100)
+  y = np.sin(x * 2 * np.pi) / 2 + 0.5
+  #print(f"x: {x}")
+  #print(f"y: {y}")
+  
+  #ax.plot(x, y, zs=10, zdir='z', label='curve in (x, y)')
+  # Use defaults for z axis
+  ax.plot(x, y, label='curve in (x, y)')
+
+  # Make legend, set axes limits and labels
+  ax.legend()
+  #ax.set_xlim(0, 1)
+  #ax.set_ylim(0, 1)
+  #ax.set_zlim(0, 1)
+  
+  ax.set_xlabel('X')
+  ax.set_ylabel('Y')
+  #ax.set_zlabel('Z')
+
+  # Customize the view angle so it's easier to see that the scatter points lie
+  # on the plane y=0
+  #ax.view_init(elev=20., azim=-35, roll=0)
+
+  plt.show(block=False)
+  """
+
+
 if __name__ == "__main__":
   if len(sys.argv) > 1:
     # 19/6/24 DH: 'output_dir' now is 'previous_output_dir-Google-BERT/weights' (FROM: checkpointing.py::weightPath = f"{logPath}/weights")
@@ -221,19 +301,19 @@ if __name__ == "__main__":
   # 24/7/24 DH: Prune weights for 10 BIGGEST CHANGING nodes
   #   ==> Get values in 'graph_weights.getLargestValues(...)' via:
   (weightsLog, fullweightsLog) = graph_weights.assignPaths(sys.argv[1])
-  weightDictListDict = graph_weights.collectWeights(fullweightsLog)
-  (startLineIdxDict, endLineIdxDict) = graph_weights.calcAndGraphTrgDiffs(weightDictListDict, lastGraph=False)
-
+  fullweightDictListDict = graph_weights.collectWeights(fullweightsLog)
+  
+  showGraph = True
+  (startLineIdxDict, endLineIdxDict) = graph_weights.calcAndGraphTrgDiffs(fullweightDictListDict, lastGraph=False, showGraph=showGraph)
   startNodes = list(startLineIdxDict.keys())
   endNodes = list(endLineIdxDict.keys())
-  print(f"Start nodes: {startNodes}")
-  print(f"End nodes: {endNodes}")
 
   # DEV: Prev this was done with "weights-full.log" using 'calcAndGraphTrgDiffs(...)' (and we are USING "weights.log" ie ONLY DIFFS)
   rollingWeightChgDLDict = getRollingWeightChgs(weightsDictListDict)
 
   # 24/7/24 DH: Having got total adjacent values for each of 768 nodes for start + end logits we now select epochs for DEV CHECK
-  epochsWanted = [2, 10, 19]
+  #epochsWanted = [2, 10, 19]
+  epochsWanted = None # ie all epochs wanted
   pruneWeights(rollingWeightChgDLDict, epochsWanted, startNodes, endNodes)
 
   print()
@@ -241,10 +321,12 @@ if __name__ == "__main__":
   print("----------------------------------")
   printWeightChgDict(rollingWeightChgDLDict, nodeNumber=768)
 
-  # 24/7/24 DH: TODO: Graph chosen nodes over all epochs
+  # 24/7/24 DH: Graph chosen nodes over all epochs
+  graphChosenNodes(rollingWeightChgDLDict, startNodes, endNodes)
 
-  print()
-  print("PRESS RETURN TO FINISH", end='')
-  response = input()
+  if showGraph:
+    print()
+    print("PRESS RETURN TO FINISH", end='')
+    response = input()
   
   

@@ -457,7 +457,7 @@ def getWeightStats(weightsListIdx):
       # Need percent change from previous
       diff = currWeight - prevWeight
       # 22/5/24 DH: 'diff/prevWeight' needs 'abs(prevWeight)'
-      percentChgFromPrev = round(diff/ abs(prevWeight) * 100, 3)
+      percentChgFromPrev = round(diff / abs(prevWeight) * 100, 3)
       #mTxt = "Diff:"
       #print(f"{mTxt:>17} {diff}, Percent from prev: {percentChgFromPrev}%")
 
