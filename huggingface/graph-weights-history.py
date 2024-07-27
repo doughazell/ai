@@ -158,6 +158,9 @@ def getRollingWeightChgs(chgDictListDict):
       prevChgDLDict[epoch] = totalChgDLDict[epoch]
       
     else:
+      # 27/7/24 DH: Total chg for first epoch is just the first value
+      totalChgDLDict[epoch] = chgDictListDict[epoch]
+
       prevChgDLDict = {}
       prevChgDLDict['epoch'] = epoch
       prevChgDLDict[epoch] = chgDictListDict[epoch]
@@ -218,7 +221,7 @@ def graphChosenNodes(chgDLDict, startNodes, endNodes):
     yVals = [round(chgDLDict[epoch][gStartIdx][node]) for epoch in zVals]
     print(f"  {node}: {yVals}")
 
-    plt.plot(zVals, yVals, label=f"Start Logits: node {node}")
+    plt.plot(zVals, yVals, label=f"Start: node {node}")
   # END: --- "for node in startNodes" ---
 
   print()
@@ -229,7 +232,7 @@ def graphChosenNodes(chgDLDict, startNodes, endNodes):
     yVals = [round(chgDLDict[epoch][gEndIdx][node]) for epoch in zVals]
     print(f"  {node}: {yVals}")
 
-    plt.plot(zVals, yVals, label=f"End Logits: node {node}", linestyle='dashed')
+    plt.plot(zVals, yVals, label=f"  End: node {node}", linestyle='dashed')
   # END: --- "for node in endNodes" ---
   
   if graph_weights.gShowFlag:
@@ -269,6 +272,22 @@ def graphChosenNodes(chgDLDict, startNodes, endNodes):
   plt.show(block=False)
   """
 
+def graphNode(chgDLDict, typeIdx, nodeNum):
+  plt.figure()
+  plt.title(f"Weight chg for each training epoch for node {nodeNum}")
+  plt.xlabel("Epoch (soon to be z-axis of 3D graph)")
+  plt.ylabel("Weight chg")
+  
+  zVals = list(chgDLDict.keys())
+  yVals = [round(chgDLDict[epoch][typeIdx][nodeNum]) for epoch in zVals]
+
+  plt.plot(zVals, yVals, label=f"{weightMapDict[typeIdx]}: node {nodeNum}")
+
+  if graph_weights.gShowFlag:
+    plt.legend(loc="lower right")
+    plt.tight_layout()
+    plt.show(block=False)
+  
 
 if __name__ == "__main__":
   if len(sys.argv) > 1:
@@ -323,6 +342,7 @@ if __name__ == "__main__":
 
   # 24/7/24 DH: Graph chosen nodes over all epochs
   graphChosenNodes(rollingWeightChgDLDict, startNodes, endNodes)
+  graphNode(rollingWeightChgDLDict, gEndIdx, 287)
 
   if showGraph:
     print()
