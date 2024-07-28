@@ -19,18 +19,24 @@ eg
 3) Change "1-Start:" to "1," when populating correct 'csv'
 """
 
+# 28/7/24 DH: Back to "fuzzy determinism"...numbers imported as strings (hidden by preceding: ') preventing line graphs working
+#             https://forum.openoffice.org/en/forum/viewtopic.php?t=62769 "Detect special numbers: ON (checked)"
+#
+#             https://www.openoffice.org/documentation/manuals/oooauthors/Creating_Charts_Graphs.pdf
+# (like when time always needs to be entered: "H:M:S" https://forum.openoffice.org/en/forum/viewtopic.php?t=2352)
+
 # 23/7/24 DH: NEEDED: $ cd ~/huggingface; ln -s graph-weights.py graph_weights.py
 from graph_weights import *
 import graph_weights
 
-def printHeadings(csvFile, lastNodeKey):
+def writeHeadings(csvFile, lastNodeKey):
   csvFile.write(f"Epoch,")
   for cnt in range(lastNodeKey+1):
     csvFile.write(f"{cnt},")
   
   csvFile.write(f"\n")
 
-def printAdaptedLine(csvFile, key, logitLineDict):
+def writeAdaptedLine(csvFile, key, logitLineDict):
   valsStr = ""
   for nodeKey in logitLineDict:
     valsStr += f"{round(logitLineDict[nodeKey],3)}, "
@@ -38,16 +44,17 @@ def printAdaptedLine(csvFile, key, logitLineDict):
   csvFile.write(f"{key}, {valsStr}\n")
 
 # IDEAS FROM: 'graph-weights-history::printWeightChgDict(...)'
-def printCSVdict(weightsDictListDict):
-  startLineCSVfile = open("weights-start.csv", "w")
-  endLineCSVfile = open("weights-end.csv", "w")
+def writeCSVdict(weightsDictListDict, startLineCSVfilename, endLineCSVfilename):
+  startLineCSVfile = open(startLineCSVfilename, "w")
+  endLineCSVfile = open(endLineCSVfilename, "w")
 
+  # D-L-D lookup
   firstEpochKey = list(weightsDictListDict)[0]
   firstNodeDict = weightsDictListDict[firstEpochKey][gStartIdx]
   lastNodeKey = list(firstNodeDict)[-1]
 
-  printHeadings(startLineCSVfile, lastNodeKey)
-  printHeadings(endLineCSVfile, lastNodeKey)
+  writeHeadings(startLineCSVfile, lastNodeKey)
+  writeHeadings(endLineCSVfile, lastNodeKey)
 
   for key in weightsDictListDict.keys():
     
@@ -56,13 +63,21 @@ def printCSVdict(weightsDictListDict):
     for logitLineDict in weightsDictListDict[key]:
 
       if weightMapDict[elemIdx] == "Start":
-        printAdaptedLine(startLineCSVfile, key, logitLineDict)
+        writeAdaptedLine(startLineCSVfile, key, logitLineDict)
       if weightMapDict[elemIdx] == "End":
-        printAdaptedLine(endLineCSVfile, key, logitLineDict)
+        writeAdaptedLine(endLineCSVfile, key, logitLineDict)
 
       elemIdx += 1
+  # END: --- "for key in weightsDictListDict.keys()" ---
 
-if __name__ == "__main__":
+  print(f"Created:")
+  print(f"  '{startLineCSVfilename}'")
+  print(f"  '{endLineCSVfilename}'")
+  print()
+
+# 28/7/24 DH:
+def getWeightsLog():
+  weightsLog = None
   if len(sys.argv) > 1:
     # 19/6/24 DH: 'output_dir' now is 'previous_output_dir-Google-BERT/weights' (FROM: checkpointing.py::weightPath = f"{logPath}/weights")
     #             GIVING: '~/weights/weights-graphs'
@@ -78,7 +93,17 @@ if __name__ == "__main__":
     print(f"You need to provide an '\"output_dir\"/weights' path")
     exit(0)
   
+  return weightsLog
+
+if __name__ == "__main__":
+  weightsLog = getWeightsLog()
+  
   weightsDictListDict = graph_weights.collectWeights(weightsLog)
 
-  printCSVdict(weightsDictListDict)
-  print()
+  # 28/7/24 DH: These are "raw" values (not "totals" from 'graph-weights-history.py')
+  #             ALSO NEED: "rollingChgs-start.csv", "rollingChgs-end.csv"
+  startLineCSVfilename = "weights-start.csv"
+  endLineCSVfilename = "weights-end.csv"
+  
+  writeCSVdict(weightsDictListDict, startLineCSVfilename, endLineCSVfilename)
+  

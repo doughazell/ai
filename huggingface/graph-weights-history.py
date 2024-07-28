@@ -60,6 +60,8 @@ Data structure [Dict-List-Dict] (code topo)
 # 23/7/24 DH: NEEDED: $ cd ~/huggingface; ln -s graph-weights.py graph_weights.py
 from graph_weights import *
 import graph_weights
+# 28/7/24 DH: NEEDED: $ cd ~/huggingface; ln -s create-weights-csv.py create_weights_csv.py
+from create_weights_csv import *
 
 def pruneWeights(weightsDictListDict, epochsWanted, startNodes, endNodes):
   deleteEpochs = []
@@ -167,6 +169,12 @@ def getRollingWeightChgs(chgDictListDict):
     
   # END: --- "for epoch in chgDictListDict" ---
 
+  # 28/7/24 DH: Now copying 'create-weights-csv.py' (but for total "rolling" changes rather than incremental changes by epoch)
+  startLineCSVfilename = "rollingChgs-start.csv"
+  endLineCSVfilename = "rollingChgs-end.csv"
+  
+  writeCSVdict(totalChgDLDict, startLineCSVfilename, endLineCSVfilename)
+
   return totalChgDLDict
 
 # IDEAS FROM: 'graph-weights::printCollectedDict(...)'
@@ -200,7 +208,7 @@ def printWeightChgDict(chgDLDict, nodeNumber=10):
 #             https://matplotlib.org/stable/gallery/mplot3d/surface3d.html#sphx-glr-gallery-mplot3d-surface3d-py
 def graphChosenNodes(chgDLDict, startNodes, endNodes):
   plt.figure()
-  plt.title("Weight chg for each training epoch for selected nodes")
+  plt.title("Total 'rolling' weight chg over training epochs for selected nodes")
   plt.xlabel("Epoch (soon to be z-axis of 3D graph)")
   plt.ylabel("Weight chg")
   plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
@@ -211,7 +219,6 @@ def graphChosenNodes(chgDLDict, startNodes, endNodes):
   #  zVals = epochs (therefore "z, y" graphs located at KEY xVals, later changing to sphere with ALL xVals)
 
   zVals = list(chgDLDict.keys())
-  print(f"zVals: {zVals}")
 
   print()
   print(f"Start nodes: {startNodes}")
@@ -274,7 +281,7 @@ def graphChosenNodes(chgDLDict, startNodes, endNodes):
 
 def graphNode(chgDLDict, typeIdx, nodeNum):
   plt.figure()
-  plt.title(f"Weight chg for each training epoch for node {nodeNum}")
+  plt.title(f"Total 'rolling' weight chg over training epochs for node {nodeNum}")
   plt.xlabel("Epoch (soon to be z-axis of 3D graph)")
   plt.ylabel("Weight chg")
   
@@ -309,10 +316,12 @@ if __name__ == "__main__":
   
   weightsDictListDict = graph_weights.collectWeights(weightsLog)
   
+  """ DEV
   print()
   print("Individual weight chgs by epoch (using 'graph-weights::printCollectedDict(...)')")
   print("-------------------------------")
   graph_weights.printCollectedDict(weightsDictListDict)
+  """
 
   # DEV shortcut
   graph_weights.gShowFlag = True
@@ -332,13 +341,15 @@ if __name__ == "__main__":
 
   # 24/7/24 DH: Having got total adjacent values for each of 768 nodes for start + end logits we now select epochs for DEV CHECK
   #epochsWanted = [2, 10, 19]
-  epochsWanted = None # ie all epochs wanted
+  epochsWanted = None # ie all epochs wanted (just pruning unwanted nodes from 10 largest changing ones)
   pruneWeights(rollingWeightChgDLDict, epochsWanted, startNodes, endNodes)
 
+  """ DEV
   print()
   print("Rolling total weight chgs by epoch")
   print("----------------------------------")
   printWeightChgDict(rollingWeightChgDLDict, nodeNumber=768)
+  """
 
   # 24/7/24 DH: Graph chosen nodes over all epochs
   graphChosenNodes(rollingWeightChgDLDict, startNodes, endNodes)
