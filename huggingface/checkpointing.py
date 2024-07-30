@@ -21,6 +21,8 @@ gFileNameFull = "weights-full"
 gLossFilename = "loss-by-epochs"
 # 8/6/24 DH:
 gSelectedNodeFilename = "node287-logits"
+# 29/7/24 DH:
+gFileNameRounded = "weights-rounded"
 
 # 6/6/24 DH:
 def archivePrevLogs(weightPath, file=False):
@@ -106,6 +108,8 @@ def createLoggers(training_args, overwrite=True):
   global gLossFilename
   # 8/6/24 DH:
   global gSelectedNodeFilename
+  # 29/7/24 DH:
+  global gFileNameRounded
 
   # 21/5/24 DH: https://docs.python.org/3/library/pathlib.html#concrete-paths
   Path(checkpointing_config.gGraphDir).mkdir(parents=True, exist_ok=True)
@@ -147,6 +151,12 @@ def createLoggers(training_args, overwrite=True):
     checkpointing_config.gSelectedNodeFilename.write(f"ALL LOGITS FROM NODE 287 IN A 'Bert' LAYER\n")
     checkpointing_config.gSelectedNodeFilename.write(f"------------------------------------------\n")
     checkpointing_config.gSelectedNodeFilename.write(f"\n")
+
+    # 29/7/24 DH: CURRENTLY NOT adding to 'archivePrevLogs(weightPath)'
+    checkpointing_config.gRoundedWeightsFile = open(f"{weightPath}/{gFileNameRounded}.log", 'w')
+    checkpointing_config.gRoundedWeightsFile.write(f"RECORDED ROUNDED WEIGHT BY NUMBERED EPOCH\n")
+    checkpointing_config.gRoundedWeightsFile.write(f"-----------------------------------------\n")
+    checkpointing_config.gRoundedWeightsFile.write(f"\n")
   
   else: # non-training run
     archivePrevLogs(weightPath, file=gSelectedNodeFilename)

@@ -17,6 +17,8 @@ from pathlib import Path
 
 gTrainer_log = "weights.log"
 gTrainer_full_log = "weights-full.log"
+# 29/7/24 DH:
+gTrainer_rounded_log = "weights-rounded.log"
 
 # 12/5/24 DH: MUTABLE variables (don't need to be accessed with 'global' to prevent local scope overlay)
 #             (a task centric version of 'hugging_utils.py::weightMapDict')
@@ -126,11 +128,11 @@ def graphWeightsKeyed(percentChgDictList, epochNum, weights=False, lastGraph=Fal
       titleStr = f"Weight change by node from 'qa_outputs' layer for epoch {epochNum}"
   
   else:
-    titleStr = f"Total node weight change from 'qa_outputs' after {lastEpoch} epochs"
+    titleStr = f"Total node weight % change from 'qa_outputs' after {lastEpoch} epochs"
 
   plt.title(titleStr)
   plt.xlabel("Node number (NOT token ID)")
-  plt.ylabel("Weight")
+  plt.ylabel("Weight chg")
 
   print(f"  \"{titleStr}\" (USING: 'abs(prevWeight)')")
 
@@ -220,13 +222,13 @@ def getLargestValues(percentChgLineList):
       cutoffPercent = 0.025
       # Find top value from each sortedIdx '0'
       if abs(lineDict[sortedIdxs[0]]) > abs(prevLineDict[prevSortedIdxs[0]]):
-        print(f"TOP VALUE: '{weightMapDict[1]}' idx: {sortedIdxs[0]} = {lineDict[sortedIdxs[0]]}")
+        #print(f"TOP VALUE: '{weightMapDict[1]}' idx: {sortedIdxs[0]} = {lineDict[sortedIdxs[0]]}")
         cutoff = round(abs(lineDict[sortedIdxs[0]] * cutoffPercent))
-        print(f"CUTOFF FOR INCLUSION: +- {cutoff} (at {cutoffPercent*100}%)")
+        #print(f"CUTOFF FOR INCLUSION: +- {cutoff} (at {cutoffPercent*100}%)")
       else:
-        print(f"TOP VALUE: '{weightMapDict[0]}' idx: {prevSortedIdxs[0]} = {prevLineDict[prevSortedIdxs[0]]}")
+        #print(f"TOP VALUE: '{weightMapDict[0]}' idx: {prevSortedIdxs[0]} = {prevLineDict[prevSortedIdxs[0]]}")
         cutoff = round(abs(prevLineDict[prevSortedIdxs[0]] * cutoffPercent))
-        print(f"CUTOFF FOR INCLUSION: +- {cutoff} (at {cutoffPercent*100}%)")
+        #print(f"CUTOFF FOR INCLUSION: +- {cutoff} (at {cutoffPercent*100}%)")
       
       for idx in sortedIdxs:
         if abs(lineDict[idx]) > cutoff:
@@ -257,13 +259,12 @@ def getWeightDiffs(percentChgDictListDict, lineType):
     # THEREFORE ONLY 1st + 2nd EPOCHS OF THE FILE ARE TAKEN
     startEpoch = keyList[0]
 
+    """
     if "Start" in weightMapDict[lineType]:
-      print()
       print("  Calculating total weight diffs")
       print("  ------------------------------")
+    """
 
-    print(f"  {weightMapDict[lineType]} line")
-    print(f"    starting at epoch: {startEpoch} (STATICALLY: 'keyList[0]' from '{keyList}')")
   except IndexError:
     print()
     print("There is no epoch data...exiting")
@@ -272,10 +273,7 @@ def getWeightDiffs(percentChgDictListDict, lineType):
   # 24/5/24 DH:
   try:
     endEpoch = keyList[1]
-
-    print(f"    ending at epoch: {endEpoch} (STATICALLY: 'keyList[1]' from '{keyList}')")
-    #if "End" in weightMapDict[lineType]:
-    #  print()
+    
   except IndexError:
     print()
     print("There is no end epoch data...exiting")
@@ -298,17 +296,11 @@ def getWeightDiffs(percentChgDictListDict, lineType):
     diff = currWeight - prevWeight
     percentChgFromPrev = round(diff / abs(prevWeight) * 100, 3)
 
-    # 25/7/24 DH:
-    if key == 287:
+    """ 25/7/24 DH: DEBUG
+    #if key == 287:
+    selectedKeys = [467, 752, 110, 224, 326, 287, 34, 569]
+    if any(map(key.__eq__, selectedKeys)):
       print(f"  {key}: from abs(first epoch): {abs(prevWeight)}, diff: {diff}, % chg: {percentChgFromPrev}")
-      print()
-
-    """ "EXTRA EXTRA, read all about it..."
-    mTxt = f"{key} Diff:"
-    extraTxt = ""
-    if percentChgFromPrev > 100 or percentChgFromPrev < -100:
-      extraTxt = f", CURRENT: {currWeight}, PREV: {prevWeight}"
-    print(f"{mTxt:>17} {diff}, Percent from prev: {percentChgFromPrev}% {extraTxt}")
     """
 
     percentChgDict[key] = percentChgFromPrev
@@ -328,9 +320,13 @@ def calcAndGraphTrgDiffs(percentChgDictListDict, lastGraph=True, showGraph=True)
       (percentChgLine, endEpoch) = getWeightDiffs(percentChgDictListDict, lineType)
       percentChgLineList.append(percentChgLine)
   
-  # 7/6/24 DH: Now display largest +ve/-ve values from both start + end lines
+  # 7/6/24 DH: Now get largest +ve/-ve values from both start + end lines
   (startLineIdxDict, endLineIdxDict) = getLargestValues(percentChgLineList)
-  displayLargestValues(startLineIdxDict, endLineIdxDict)
+  
+  print()
+  print("  NO LONGER CALLING: 'displayLargestValues(...)'")
+  #displayLargestValues(startLineIdxDict, endLineIdxDict)
+  print()
   
   # 25/7/24 DH: Added to calc 'startLineIdxDict', 'endLineIdxDict' without showing the graph from 'graph-weights-history.py'
   if showGraph:
@@ -345,12 +341,14 @@ def assignPaths(weightsDir):
   output_dir = os.path.abspath(weightsDir)
   weightsLog = os.path.join(output_dir, gTrainer_log)
   fullweightsLog = os.path.join(output_dir, gTrainer_full_log)
+  # 29/7/24 DH:
+  roundedLog = os.path.join(output_dir, gTrainer_rounded_log)
 
   global gWeightsGraphDir
   gWeightsGraphDir = os.path.join(output_dir, "weights-graphs")
   Path(gWeightsGraphDir).mkdir(parents=True, exist_ok=True)
 
-  return (weightsLog, fullweightsLog)
+  return (weightsLog, fullweightsLog, roundedLog)
 
 # 16/6/24 DH: https://docs.python.org/3/faq/programming.html#what-are-the-rules-for-local-and-global-variables-in-python
 #  "If a variable is assigned a value anywhere within the function’s body, it’s assumed to be a local unless explicitly declared as global."
@@ -359,7 +357,7 @@ def assignPaths(weightsDir):
 if __name__ == "__main__":
   if len(sys.argv) > 1:
     # 24/7/24 DH:
-    (weightsLog, fullweightsLog) = assignPaths(sys.argv[1])
+    (weightsLog, fullweightsLog, roundedLog) = assignPaths(sys.argv[1])
   else:
     print(f"You need to provide an '\"output_dir\"/weights' path")
     exit(0)
@@ -398,6 +396,7 @@ if __name__ == "__main__":
   #             ('getWeightDiffs(...) uses "startEpoch = keyList[0]", "endEpoch = keyList[1]")
   keyList = list(weightDictListDict.keys())
   startEpoch = keyList[0]
+  # 'endEpoch' is taken as 2nd in "weights-full.log" (see comment above)
   endEpoch = keyList[1]
   if len(keyList) > 2:
     print(f"  (not graphing epochs: ", end='')
@@ -411,7 +410,9 @@ if __name__ == "__main__":
   if len(sys.argv) > 2 and "show" in sys.argv[2]:
     gShowFlag = True
   
+  # Display full weights per node of start/end lines for 'startEpoch' (ie 0)
   graphWeightsKeyed(weightDictListDict[startEpoch], startEpoch, weights=True)
+  # Display full weights per node of start/end lines for 'endEpoch' (ie 19 for custom JSON)
   graphWeightsKeyed(weightDictListDict[endEpoch], endEpoch, weights=True)
 
   # Now calculate + graph the percentage diff

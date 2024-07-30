@@ -55,7 +55,7 @@ echo "-------------------"
 # 21/7/24 DH: Need sleep for BG process so that print output correlates with heading
 #sleep 2
 
-python ${SCRIPTDIR}/graph-weights.py ${WEIGHTSDIR}
+python ${SCRIPTDIR}/graph-weights.py ${WEIGHTSDIR} show
 echo
 
 # 21/6/24 DH: Add 'graph-losses.py'

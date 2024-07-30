@@ -366,7 +366,7 @@ gValMatrixIdx = 1
 gFirstEpoch = -1
 
 # Taken from: 'ai/huggingface/graph-logits.py'
-def graphWeights(percentChgDictList, saveVals=True):
+def graphWeights(percentChgDictList, saveVals=True, roundedDictList=None):
   # 4/9/23 DH: Display all graphs simultaneously with 'plt.show(block=False)' (which needs to be cascaded)
   plt.figure()
 
@@ -397,8 +397,20 @@ def graphWeights(percentChgDictList, saveVals=True):
     if saveVals: # NOTE: 'gWeightsFile'
       # Opened in 'checkpointing.py::createLoggers(training_args)' called from 'run_qa.py'
       checkpointing_config.gWeightsFile.write(f"{epochNum}-{weightMapDict[idx]}: {yVals}\n")
+
+      # 29/7/24 DH: MAYBE ADD ROUNDED WEIGHTS EXTRA LINE HERE for each "epoch-lineType"
+      #   Option 1: Add 2 extra lines per epoch to "weights.log"
+      #   Option 2: Populate lines per epoch to "weights-rounded.log" [CHOSEN]
+      # 29/7/24 DH:
+      if roundedDictList:
+        yRoundedVals = [roundedDictList[idx][key] for key in roundedDictList[idx]]
+        checkpointing_config.gRoundedWeightsFile.write(f"{epochNum}-{weightMapDict[idx]}: {yRoundedVals}\n")
+
       if idx == 1: # space after end line (ie idx 1)
         checkpointing_config.gWeightsFile.write("\n")
+        # 29/7/24 DH:
+        if roundedDictList:
+          checkpointing_config.gRoundedWeightsFile.write("\n")
     
     else: # NOTE: 'gFullWeightsFile'
       checkpointing_config.gFullWeightsFile.write(f"{epochNum}-{weightMapDict[idx]}: {yVals}\n")
@@ -438,8 +450,10 @@ def graphWeights(percentChgDictList, saveVals=True):
 # 14/5/24 DH: Convert full weight values to rounded weight diff
 def getWeightStats(weightsListIdx):
   global gValMatrixIdx
-  #lgeChgDict = {}
+  
   percentChgDict = {}
+  # 29/7/24 DH:
+  roundedWeightsDict = {}
 
   currLen = len(weightValMatrix[gValMatrixIdx][weightsListIdx])
   try:
@@ -462,25 +476,12 @@ def getWeightStats(weightsListIdx):
       #print(f"{mTxt:>17} {diff}, Percent from prev: {percentChgFromPrev}%")
 
       percentChgDict[idx] = percentChgFromPrev
+      # 29/7/24 DH:  Needed to round to 6dp (in order to record ANY CHANGE) from 2dp (acceptable for % chg values per epoch) 
+      roundedWeightsDict[idx] = round(currWeight, 6)
 
-      """ Prev debug
-      if percentChgFromPrev > 1:
-        #mTxt = "GREATER THAN ONE"
-        #print(f"{mTxt:>30}")
-      
-        lgeChgDict[idx] = percentChgFromPrev
-      """
-      
     # END: --- "for idx in range(currLen)" ---
   
-  """ Prev debug
-  print()
-  print(f"    {weightMapDict[weightsListIdx]}")
-  for key in lgeChgDict:
-    print(f"    {key} = {lgeChgDict[key]}")
-  """
-  
-  return percentChgDict
+  return (percentChgDict, roundedWeightsDict)
 
 # 21/5/24 DH:
 def getFullvalsDictList(weightValMatrix):
@@ -505,6 +506,8 @@ def checkWeightsForAllSets():
   global gValMatrixIdx
   global gFirstEpoch
   percentChgDictList = []
+  # 29/7/24 DH:
+  roundedDictList = []
 
   idx = 0
   # Full values for 'qa_outputs' CURRENT values
@@ -512,11 +515,14 @@ def checkWeightsForAllSets():
   # weightValMatrix[gValMatrixIdx][0]: "[0.0387488454580307, 0.030061528086662292, 0.018482686951756477, ..., 0.012040662579238415]"
   # weightValMatrix[gValMatrixIdx][1]: "[0.007029589265584946, -0.0615961030125618, -0.028790319338440895, ..., 0.026614349335432053]"
   for iList in weightValMatrix[gValMatrixIdx]:
-    weightStats = getWeightStats(idx)
+    (weightStats, roundedWeights) = getWeightStats(idx)
     
     # Account for first entry when 'prevLen == "NONE"'
     if len(weightStats) > 0:
       percentChgDictList.append(weightStats)
+      # 29/7/24 DH:
+      roundedDictList.append(roundedWeights)
+
     idx += 1
 
   if len(percentChgDictList) > 0:
@@ -524,7 +530,10 @@ def checkWeightsForAllSets():
     # --------------------------------------------------------------
     # percentChgDictList[0]: "{0: 0.012, 1: 0.011, 2: 0.025, ..., 767: 0.042}"
     # percentChgDictList[1]: "{0: 0.046, 1: -0.002, 2: -0.008, ..., 767: 0.017}"
-    graphWeights(percentChgDictList)
+
+    # 29/7/24 DH: (See 'graph-weights-history.py' detailed comment re graphing weight chg over training epoch)
+    #             We also need to RECORD ROUNDED WEIGHT VALUE (as well as percentage diff) in 'getWeightStats(idx)' (in order to graph over training)
+    graphWeights(percentChgDictList, roundedDictList=roundedDictList)
   
   # 21/5/24 DH: Graph final full weights (rather than just percentage diffs)
 

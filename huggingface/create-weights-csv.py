@@ -21,9 +21,12 @@ eg
 
 # 28/7/24 DH: Back to "fuzzy determinism"...numbers imported as strings (hidden by preceding: ') preventing line graphs working
 #             https://forum.openoffice.org/en/forum/viewtopic.php?t=62769 "Detect special numbers: ON (checked)"
+#   ("the point was chosen by the Ministry of Technology in 1968", https://en.wikipedia.org/wiki/Decimal_separator#English-speaking_countries)
+#   (we are using "." NOT "decimal point", ie mid dot)
 #
-#             https://www.openoffice.org/documentation/manuals/oooauthors/Creating_Charts_Graphs.pdf
-# (like when time always needs to be entered: "H:M:S" https://forum.openoffice.org/en/forum/viewtopic.php?t=2352)
+#   (like when time always needs to be entered: "H:M:S" https://forum.openoffice.org/en/forum/viewtopic.php?t=2352)
+
+# https://www.openoffice.org/documentation/manuals/oooauthors/Creating_Charts_Graphs.pdf
 
 # 23/7/24 DH: NEEDED: $ cd ~/huggingface; ln -s graph-weights.py graph_weights.py
 from graph_weights import *
@@ -70,10 +73,9 @@ def writeCSVdict(weightsDictListDict, startLineCSVfilename, endLineCSVfilename):
       elemIdx += 1
   # END: --- "for key in weightsDictListDict.keys()" ---
 
-  print(f"Created:")
+  print(f"Created (in 'create-weights-csv::writeCVSdict()'):")
   print(f"  '{startLineCSVfilename}'")
   print(f"  '{endLineCSVfilename}'")
-  print()
 
 # 28/7/24 DH:
 def getWeightsLog():

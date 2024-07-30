@@ -17,8 +17,8 @@ It creates:
 NEED to track the weight chg of 10 BIGGEST CHANGING (found by 'graph-weights::getLargestValues(...)' nodes by epoch from the start
 
 ISSUE: "weights.log" for each epoch is PERCENTAGE CHANGE from prev epoch...!!!
-  OPTION 1: Keep running weight value from start
-  OPTION 2: Have rolling weight chg [CHOSEN]
+  OPTION 1: Keep running weight value from start [WORKS]
+  OPTION 2: Have rolling weight chg [CHOSEN, but leads to "63ln(x)+111" shift from % chg from start (29/7/24)]
 
 DESIGN:
 Data structure [Dict-List-Dict] (code topo)
@@ -208,9 +208,9 @@ def printWeightChgDict(chgDLDict, nodeNumber=10):
 #             https://matplotlib.org/stable/gallery/mplot3d/surface3d.html#sphx-glr-gallery-mplot3d-surface3d-py
 def graphChosenNodes(chgDLDict, startNodes, endNodes):
   plt.figure()
-  plt.title("Total 'rolling' weight chg over training epochs for selected nodes")
+  plt.title("Total 'rolling' weight over training epochs for selected nodes")
   plt.xlabel("Epoch (soon to be z-axis of 3D graph)")
-  plt.ylabel("Weight chg")
+  plt.ylabel("Weight")
   plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
   
   # Start Logits / End Logits
@@ -220,31 +220,25 @@ def graphChosenNodes(chgDLDict, startNodes, endNodes):
 
   zVals = list(chgDLDict.keys())
 
-  print()
-  print(f"Start nodes: {startNodes}")
   for node in startNodes:
     # Access DLD data structure for:
     #   1) Node 'node', 2) in End Logits, 3) for each epoch
-    yVals = [round(chgDLDict[epoch][gStartIdx][node]) for epoch in zVals]
-    print(f"  {node}: {yVals}")
+    yVals = [chgDLDict[epoch][gStartIdx][node] for epoch in zVals]
 
     plt.plot(zVals, yVals, label=f"Start: node {node}")
   # END: --- "for node in startNodes" ---
 
-  print()
-  print(f"End nodes: {endNodes}")
   for node in endNodes:
     # Access DLD data structure for:
     #   1) Node 'node', 2) in End Logits, 3) for each epoch
-    yVals = [round(chgDLDict[epoch][gEndIdx][node]) for epoch in zVals]
-    print(f"  {node}: {yVals}")
+    yVals = [chgDLDict[epoch][gEndIdx][node] for epoch in zVals]
 
     plt.plot(zVals, yVals, label=f"  End: node {node}", linestyle='dashed')
   # END: --- "for node in endNodes" ---
   
   if graph_weights.gShowFlag:
     #plt.legend(loc="best")
-    plt.legend(loc="lower right")
+    plt.legend(loc="upper left")
     plt.tight_layout()
     plt.show(block=False)
 
@@ -281,12 +275,13 @@ def graphChosenNodes(chgDLDict, startNodes, endNodes):
 
 def graphNode(chgDLDict, typeIdx, nodeNum):
   plt.figure()
-  plt.title(f"Total 'rolling' weight chg over training epochs for node {nodeNum}")
+  plt.title(f"Total 'rolling' weight over training epochs for node {nodeNum}")
   plt.xlabel("Epoch (soon to be z-axis of 3D graph)")
-  plt.ylabel("Weight chg")
+  plt.ylabel("Weight")
   
   zVals = list(chgDLDict.keys())
-  yVals = [round(chgDLDict[epoch][typeIdx][nodeNum]) for epoch in zVals]
+  #yVals = [round(chgDLDict[epoch][typeIdx][nodeNum]) for epoch in zVals]
+  yVals = [chgDLDict[epoch][typeIdx][nodeNum] for epoch in zVals]
 
   plt.plot(zVals, yVals, label=f"{weightMapDict[typeIdx]}: node {nodeNum}")
 
@@ -294,31 +289,46 @@ def graphNode(chgDLDict, typeIdx, nodeNum):
     plt.legend(loc="lower right")
     plt.tight_layout()
     plt.show(block=False)
+
+# 30/7/24 DH:
+def getInitialWeights(fullweightDictListDict, startNodes, endNodes):
+  initWeightsDictList = []
+
+  startEpoch = '0'
+
+  initWeightsDict = {}
+  for node in startNodes:
+    initWeightsDict[node] = fullweightDictListDict[startEpoch][gStartIdx][node]
+    
+  initWeightsDictList.append(initWeightsDict)
   
+  initWeightsDict = {}
+  for node in endNodes:
+    initWeightsDict[node] = fullweightDictListDict[startEpoch][gEndIdx][node]
+  
+  initWeightsDictList.append(initWeightsDict)
+  
+  return initWeightsDictList
 
 if __name__ == "__main__":
   if len(sys.argv) > 1:
-    # 19/6/24 DH: 'output_dir' now is 'previous_output_dir-Google-BERT/weights' (FROM: checkpointing.py::weightPath = f"{logPath}/weights")
-    #             GIVING: '~/weights/weights-graphs'
-    output_dir = os.path.abspath(sys.argv[1])
+    (weightsLog, fullweightsLog, roundedLog) = assignPaths(sys.argv[1])
 
-    #graph_weights.gTrainer_log = "weights.log"
-    weightsLog = os.path.join(output_dir, gTrainer_log)
-    print(f"'{gTrainer_log}' is PERCENT CHG weights (from 'huggin_utils::checkWeightsForAllSets():' weightStats = getWeightStats(idx) )")
+    print(f"'{weightsLog}' is PERCENT CHG weights (from 'huggin_utils::checkWeightsForAllSets():' weightStats = getWeightStats(idx) )")
 
     # 23/7/24 DH: Full weights are ONLY TAKEN at the start + end epochs NOT EVERY EPOCH (which is weight diffs)
 
-    graph_weights.gWeightsGraphDir = os.path.join(output_dir, "weights-graphs")
-    Path(graph_weights.gWeightsGraphDir).mkdir(parents=True, exist_ok=True)
   else:
     print(f"You need to provide an '\"output_dir\"/weights' path")
     exit(0)
   
-  weightsDictListDict = graph_weights.collectWeights(weightsLog)
+  # 29/7/24 DH:
+  #weightsDictListDict = graph_weights.collectWeights(weightsLog)
+  weightsDictListDict = graph_weights.collectWeights(roundedLog)
   
   """ DEV
   print()
-  print("Individual weight chgs by epoch (using 'graph-weights::printCollectedDict(...)')")
+  print("Individual weight by epoch (using 'graph-weights::printCollectedDict(...)')")
   print("-------------------------------")
   graph_weights.printCollectedDict(weightsDictListDict)
   """
@@ -326,23 +336,30 @@ if __name__ == "__main__":
   # DEV shortcut
   graph_weights.gShowFlag = True
 
-  # 24/7/24 DH: Prune weights for 10 BIGGEST CHANGING nodes
-  #   ==> Get values in 'graph_weights.getLargestValues(...)' via:
-  (weightsLog, fullweightsLog) = graph_weights.assignPaths(sys.argv[1])
+  #                      GET 10 BIGGEST CHANGING NODES
+  # =============================================================================
+  # 24/7/24 DH: Get values in 'graph_weights.getLargestValues(...)' via:
   fullweightDictListDict = graph_weights.collectWeights(fullweightsLog)
   
   showGraph = True
   (startLineIdxDict, endLineIdxDict) = graph_weights.calcAndGraphTrgDiffs(fullweightDictListDict, lastGraph=False, showGraph=showGraph)
   startNodes = list(startLineIdxDict.keys())
   endNodes = list(endLineIdxDict.keys())
+  # -----------------------------------------------------------------------------
 
+  # 30/7/24 DH:
+  epoch0weights = getInitialWeights(fullweightDictListDict, startNodes, endNodes)
+
+  #                     THEN GET ROLLING WEIGHT CHANGES
+  # =============================================================================
   # DEV: Prev this was done with "weights-full.log" using 'calcAndGraphTrgDiffs(...)' (and we are USING "weights.log" ie ONLY DIFFS)
-  rollingWeightChgDLDict = getRollingWeightChgs(weightsDictListDict)
+
+  rollingWeightsChgDLDict = getRollingWeightChgs(weightsDictListDict)
 
   # 24/7/24 DH: Having got total adjacent values for each of 768 nodes for start + end logits we now select epochs for DEV CHECK
   #epochsWanted = [2, 10, 19]
   epochsWanted = None # ie all epochs wanted (just pruning unwanted nodes from 10 largest changing ones)
-  pruneWeights(rollingWeightChgDLDict, epochsWanted, startNodes, endNodes)
+  pruneWeights(rollingWeightsChgDLDict, epochsWanted, startNodes, endNodes)
 
   """ DEV
   print()
@@ -351,9 +368,25 @@ if __name__ == "__main__":
   printWeightChgDict(rollingWeightChgDLDict, nodeNumber=768)
   """
 
-  # 24/7/24 DH: Graph chosen nodes over all epochs
-  graphChosenNodes(rollingWeightChgDLDict, startNodes, endNodes)
-  graphNode(rollingWeightChgDLDict, gEndIdx, 287)
+  # 30/7/24 DH: Need to add at key start (since 'Dict.keys()' is insertion order)
+  rollingWeightsFromStartDLD = {}
+  rollingWeightsFromStartDLD[0] = epoch0weights
+  rollingWeightsFromStartDLD.update(rollingWeightsChgDLDict)
+
+  # 24/7/24 DH: Graph chosen nodes over all epochs (incl Epoch 0)
+  graphChosenNodes(rollingWeightsFromStartDLD, startNodes, endNodes)
+  
+  # 30/7/24 DH: Points of inflection curves
+  graphNode(rollingWeightsFromStartDLD, gStartIdx, 752)
+
+  graphNode(rollingWeightsFromStartDLD, gEndIdx, 34)
+  graphNode(rollingWeightsFromStartDLD, gEndIdx, 569)
+
+  # 30/7/24 DH:
+  print()
+  print("NEED:")
+  print("  1) Rounded starting values for each of largest % chg's [DONE]")
+  print("  2) Overshoot points of inflection")
 
   if showGraph:
     print()
