@@ -4,7 +4,7 @@
   "train_file": "/Users/doug/src/ai/t5/data.json",
 
   "do_train": "True",
-  "num_train_epochs": 10,
+  "num_train_epochs": 20,
   "output_dir": "previous_output_dir-Google-BERT",
 
   "save_total_limit": 2

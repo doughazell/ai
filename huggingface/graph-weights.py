@@ -167,6 +167,10 @@ def graphWeightsKeyed(percentChgDictList, epochNum, weights=False, lastGraph=Fal
     plt.savefig(totalWeightChgFilename)
   else:
     if weights:
+      # 1/8/24 DH: Adding in ID marker between graphs
+      plt.axhline(y=0.006, color='green', linestyle='dashed', linewidth=0.5)
+      plt.axhline(y=-0.003, color='green', linestyle='dashed', linewidth=0.5)
+
       fullValsFilename = f"{gWeightsGraphDir}/{epochNum}-fullValues.png"
       print(f"    SAVING: {fullValsFilename}")
       plt.savefig(fullValsFilename)

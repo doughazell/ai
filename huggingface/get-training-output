@@ -19,6 +19,7 @@ CWD=$(pwd)
 CFGDIR="/Users/doug/src/ai/t5"
 HFOUTDIR="previous_output_dir-Google-BERT"
 JSONCFG="qa_train-Google-BERT-custom.json"
+#JSONCFG="qa_train-Google-BERT-SQUAD.json"
 
 # 9/7/24 DH: Now moving from SCRIPTDIR to CWD
 QArunTLD="${CWD}/${HFOUTDIR}"
@@ -40,11 +41,13 @@ let counter++
 echo "${counter}) run_qa.py"
 echo "------------"
 
-#python ${SCRIPTDIR}/run_qa.py ${CFGDIR}/${JSONCFG}
+python ${SCRIPTDIR}/run_qa.py ${CFGDIR}/${JSONCFG}
 # 8/7/24 DH: Save "$?" since it changes after the conditional "test"
 retVal=$?
 
 echo
+#echo "Exiting script during dev..."
+#exit
 
 # --------------------------------- GRAPH TRAINING WEIGHTS + LOSSES -------------------------------
 let counter++
@@ -55,7 +58,7 @@ echo "-------------------"
 # 21/7/24 DH: Need sleep for BG process so that print output correlates with heading
 #sleep 2
 
-python ${SCRIPTDIR}/graph-weights.py ${WEIGHTSDIR} show
+python ${SCRIPTDIR}/graph-weights.py ${WEIGHTSDIR}
 echo
 
 # 21/6/24 DH: Add 'graph-losses.py'
@@ -78,6 +81,7 @@ let counter++
 echo "${counter}) graph-logits.py"
 echo "------------------"
 
+#python ${SCRIPTDIR}/graph-logits.py ${QArunTLD} show
 python ${SCRIPTDIR}/graph-logits.py ${QArunTLD}
 echo
 

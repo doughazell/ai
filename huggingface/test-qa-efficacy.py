@@ -135,6 +135,22 @@ def runRandSamples(dataOrigin, raw_datasets, data_args, model_args, iterations=3
   # END --- "for idx in range(iterations)" ---
   return answerDictDict
 
+# 2/8/24 DH: Create log for Custom JSON that does NOT provide correct answer (for testing QA fine-tuning non-Pretrained weights)
+# https://discuss.huggingface.co/t/different-results-predicting-from-trainer-and-model/12922/5
+def createErrorLogFile(answerDict, training_args):
+  print("CREATING: '~/gv-graphs/qca.log' for incorrect Custom JSON data run")
+  outFile = createLogFile(training_args)
+
+  outFile.write(f"1-{answerDict['tokenLen']}: Q={answerDict['question']}\n")
+  outFile.write(f"1-{answerDict['tokenLen']}: C={answerDict['context']}\n")
+  outFile.write(f"1-{answerDict['tokenLen']}: A={answerDict['answer']}\n")
+  outFile.write(f"1-{answerDict['tokenLen']}: START INDEX={answerDict['startIdx']}\n")
+  outFile.write(f"1-{answerDict['tokenLen']}: END INDEX={answerDict['endIdx']}\n")
+  outFile.write(f"1-{answerDict['tokenLen']}: TOKEN LEN={answerDict['tokenLen']}\n")
+  outFile.write("\n")
+
+  outFile.close()  
+
 # 18/6/24 DH: Create (+ archive old versions) like 'checkpointing.py::archivePrevLogs(...)'
 def createLogFile(training_args):
 
@@ -204,6 +220,7 @@ def displayResults(answerDictDict, training_args):
     
     print()
   # END: ------ "for key in answerDictDict" ------
+
   try: # Handle case when not open due to no correct answers
     outFile.close() # since not using "with ..."
     return True
@@ -211,6 +228,13 @@ def displayResults(answerDictDict, training_args):
     print()
     print("No correct answers found")
     print()
+
+    # 2/8/24 DH: This will leave previous "~/gv-graphs/qca.log" (and may cause INCORRECT 'qa-output-<date>.gv.pdf')
+    ansKeyList = list(answerDictDict.keys())
+    if len(ansKeyList) == 1: # 'main()::if data_args.train_file' ie Custom JSON
+      # Have a no correct answers "qca.log" for testing QA fine-tuning of non-Pretrained weights
+      createErrorLogFile(answerDictDict[ansKeyList[0]], training_args)
+    
     return False
 
 # 7/7/24 DH:
@@ -274,7 +298,7 @@ def main():
   transformers.utils.logging.set_verbosity_error()
   # ---------------------------------------------------------------------------------
 
-  print("  NOT USING CHECKPOINT")
+  print("  'test-qa-efficacy::main()' - NOT USING CHECKPOINT")
   print()
 
   """
@@ -305,6 +329,11 @@ def main():
 
   # Set seed before initializing model.
   # https://github.com/huggingface/transformers/blob/main/src/transformers/trainer_utils.py#L86
+  print()
+  print("************************************")
+  print(f"CALLING: trainer_utils::set_seed({training_args.seed})")
+  print("************************************")
+  print()
   set_seed(training_args.seed)
 
   # ------------------------------------- LOAD DATASETS ----------------------------------

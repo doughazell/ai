@@ -326,6 +326,11 @@ def main():
     createLoggers(training_args)
 
     # Set seed before initializing model.
+    print()
+    print("************************************")
+    print(f"CALLING: trainer_utils::set_seed({training_args.seed})")
+    print("************************************")
+    print()
     set_seed(training_args.seed)
 
     # Get the datasets: you can either provide your own CSV/JSON/TXT training and evaluation files (see below)
@@ -389,6 +394,7 @@ def main():
         token=model_args.token,
         trust_remote_code=model_args.trust_remote_code,
     )
+    """
     model = AutoModelForQuestionAnswering.from_pretrained(
         model_args.model_name_or_path,
         from_tf=bool(".ckpt" in model_args.model_name_or_path),
@@ -398,6 +404,21 @@ def main():
         token=model_args.token,
         trust_remote_code=model_args.trust_remote_code,
     )
+    """
+
+    # 1/8/24 DH: Attempt to get non-Pretrained initial weights (https://github.com/huggingface/transformers/issues/11047)
+    print()
+    print("-------------------------------------------------------")
+    print("* GETTING NON-PRETRAINED INITIAL WEIGHTS with:        *")
+    print("*   'config = BertConfig()'                           *")
+    print("*   'model = BertForQuestionAnswering(config=config)' *")
+    print("-------------------------------------------------------")
+    print()
+
+    from transformers import BertConfig, BertForQuestionAnswering
+
+    config = BertConfig() # You can also change the architecture using this config class
+    model = BertForQuestionAnswering(config=config)
 
     # 24/3/24 DH:
     print()

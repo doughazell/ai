@@ -400,8 +400,12 @@ def getModelOutput(raw_data, data_args, model_args, printOut=False, lastGraph=Fa
   print("  CALLING: 'model(encoding['input_ids'])' which gets HANDLED BY 'BertForQuestionAnswering.forward()'", end='')
 
   output = model(
-    encoding["input_ids"],
+    #encoding["input_ids"],
     #attention_mask=encoding["attention_mask"]
+
+    # 2/8/24 DH: Solving issue when training (OK) + non-training (too low for non-"CLS") logits do not match
+    # https://docs.python.org/3/tutorial/controlflow.html#keyword-arguments
+    **encoding
   )
   print("------------------------ END: HUGGINGFACE NON-TRAINING RUN ---------------------")
 

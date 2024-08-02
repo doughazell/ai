@@ -175,7 +175,9 @@ def pruneLogits(recordsDict):
   try:
     tokenLen = len(recordsDict['input_ids'])
   except KeyError:
-    print(f"There are no 'input_ids' so check '{gTrainer_log}'")
+    print()
+    print(f"ERROR: There are no 'input_ids' so check '{gTrainer_log}'")
+    print( "       exiting...")
     exit(0)
 
   deleteList = []
@@ -405,3 +407,4 @@ if __name__ == "__main__":
     print()
     print("NOT SHOWING images (please add 'show' to cmd line args if images wanted)")
     print()
+  

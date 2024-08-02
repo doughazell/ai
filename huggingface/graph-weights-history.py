@@ -63,6 +63,9 @@ import graph_weights
 # 28/7/24 DH: NEEDED: $ cd ~/huggingface; ln -s create-weights-csv.py create_weights_csv.py
 from create_weights_csv import *
 
+import numpy as np
+from scipy.interpolate import interp1d
+
 def pruneWeights(weightsDictListDict, epochsWanted, startNodes, endNodes):
   deleteEpochs = []
   deleteNodes = []
@@ -285,6 +288,11 @@ def graphNode(chgDLDict, typeIdx, nodeNum):
 
   plt.plot(zVals, yVals, label=f"{weightMapDict[typeIdx]}: node {nodeNum}")
 
+  plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
+  plt.axvline(x=1, color='red', linestyle='dashed', linewidth=0.5)
+  plt.axvline(x=2, color='red', linestyle='dashed', linewidth=0.5)
+  plt.axvline(x=3, color='red', linestyle='dashed', linewidth=0.5)
+
   if graph_weights.gShowFlag:
     plt.legend(loc="lower right")
     plt.tight_layout()
@@ -309,6 +317,178 @@ def getInitialWeights(fullweightDictListDict, startNodes, endNodes):
   initWeightsDictList.append(initWeightsDict)
   
   return initWeightsDictList
+
+def graphGradient(nodeWeights, xLabel, xVals, yLabel, yVals):
+  plt.figure()
+  plt.title(f"Gradient of the change in node weight over epoch")
+  plt.xlabel(xLabel)
+  plt.ylabel(yLabel)
+  
+  """
+  print()
+  print("  Node values")
+  print("  -----------")
+  print(f"  {nodeWeights}")
+  print()
+
+  print("  Gradient values")
+  print("  ---------------")
+  print(f"  xVals: {xVals}")
+  print(f"  yVals: {yVals}")
+  print()
+  """
+
+  plt.plot(xVals, yVals)
+  
+  if xLabel == "Epoch":
+    plt.xticks(xVals)
+    
+    plt.axhline(y=0, color='green', linestyle='dashed', linewidth=0.5)
+    plt.axvline(x=1, color='red', linestyle='dashed', linewidth=0.5)
+    plt.axvline(x=2, color='red', linestyle='dashed', linewidth=0.5)
+    plt.axvline(x=3, color='red', linestyle='dashed', linewidth=0.5)
+  else:
+    plt.yticks(yVals) # 'yVals' are "x values"
+    
+    plt.axvline(x=0, color='green', linestyle='dashed', linewidth=0.5)
+    plt.axvline(x=-0.00010, color='green', linestyle='dashed', linewidth=0.5)
+    plt.axhline(y=1, color='red', linestyle='dashed', linewidth=0.5)
+    plt.axhline(y=2, color='red', linestyle='dashed', linewidth=0.5)
+    plt.axhline(y=3, color='red', linestyle='dashed', linewidth=0.5)
+
+  if graph_weights.gShowFlag:
+    plt.tight_layout()
+    plt.show(block=False)
+  
+# 31/7/24 DH:
+def getInterpolatedVals(xVals, yVals):
+  print()
+  print("'getTrend()'")
+  print("------------")
+  print()
+  # 31/7/24 DH: Interpolate data (https://docs.scipy.org/doc/scipy/tutorial/interpolate.html)
+  #             (Conceptual issue here, since graphs are drawn purely for interpolation (heuristically or data extraction) 
+  #              but 'matplotlib' just displays data [Matplotlib = Model -> View -> NOT Enhanced Model] )
+
+  # DEFAULT: Just replicating 'np.gradient()'
+  funcInput = xVals
+  print(f"DEFAULT: Func input ({funcInput.__class__}):  {funcInput}")
+
+  # https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html#scipy.interpolate.interp1d
+  # "This class is considered legacy and will no longer receive updates."
+  #interp1d_func = interp1d(xVals, yVals)
+  #interpOutput = interp1d_func(funcInput)
+  #print(f"'scipy.interp1d()' output ({interpOutput.__class__}): {interpOutput}")
+
+  # https://docs.scipy.org/doc/scipy/tutorial/interpolate/1D.html#legacy-interface-for-1-d-interpolation-interp1d
+  # "The ‘cubic’ kind of 'interp1d()' is equivalent to 'make_interp_spline()', and the ‘linear’ kind is equivalent to 'np.interp()'"
+  interpOutput = np.interp(funcInput, xVals, yVals)
+  print(f"'np.interp()' output ({interpOutput.__class__}): {interpOutput}")
+
+def displayTrends(trendDict):
+  # ID: "ZERO" -> "POSITIVE"
+  # ID: "ZERO" -> "-ve"
+  print(f"  TREND IS: {trendDict['trend'].lower()}")
+
+  trendDict['toPos'] = []
+  trendDict['toNeg'] = []
+  for zero in trendDict['zero']:
+    if trendDict[zero+1] == "POSITIVE":
+      trendDict['toPos'].append(zero)
+    if trendDict[zero+1] == "-ve":
+      trendDict['toNeg'].append(zero)
+
+  if len(trendDict['toPos']) > 0:
+    print(f"    ZERO to POSITIVE nodes: {trendDict['toPos']}")
+  
+  if len(trendDict['toNeg']) > 0:
+    print(f"    ZERO to -ve nodes: {trendDict['toNeg']}")
+
+# 31/7/24 DH:
+def getTrend(gradPts, gradList):
+  trendDict = {}
+  trendDict['plusCnt'] = 0
+  trendDict['negCnt'] = 0
+  trendDict['zero'] = []
+
+  for idx in range(gradPts):
+    currVal = gradList[idx]
+
+    if currVal <= 0:
+      trendDict['negCnt'] += 1
+      trendDict[idx] = "-ve"
+    else:
+      trendDict['plusCnt'] += 1
+      trendDict[idx] = "POSITIVE"
+    
+    if abs(currVal) < 0.00002:
+      trendDict[idx] = "ZERO"
+      trendDict['zero'].append(idx)
+    
+    #print(f"  +ve: {trendDict['plusCnt']}, -ve: {trendDict['negCnt']}) {idx}: {currVal} ({trendDict[idx]})")
+    
+  # END: --- "for idx in range(gradPts)" ---
+
+  if trendDict['plusCnt'] > trendDict['negCnt']:
+    trendDict['trend'] = "POSITIVE"
+  else:
+    trendDict['trend'] = "-ve"
+
+  displayTrends(trendDict)
+  
+
+# 30/7/24 DH:
+def getInflectionPoints(rollingWeightsFromStartDLD, startNodes, endNodes):
+  print()
+  print("'getInflectionPoints()'")
+  print("-----------------------")
+
+  epochs = list(rollingWeightsFromStartDLD.keys())
+  firstEpoch = epochs[0]
+  
+  print("'startNodes':")
+  print("-------------")
+  # ---------------------------------------------------------------------------------------
+  for node in startNodes:
+    print(f"{node}")
+ 
+    nodeWeights = [rollingWeightsFromStartDLD[epoch][gStartIdx][node] for epoch in epochs]
+
+    npWeights = np.array(nodeWeights)
+    gradList = np.gradient(npWeights, edge_order=1)
+    gradPts = gradList.shape[0]
+
+    getTrend(gradPts, gradList)
+
+  print()
+  print("'endNodes':")
+  print("-----------")
+  # ---------------------------------------------------------------------------------------
+  for node in endNodes:
+    print(f"{node}")
+
+    nodeWeights = [rollingWeightsFromStartDLD[epoch][gEndIdx][node] for epoch in epochs]
+
+    npWeights = np.array(nodeWeights)
+    gradList = np.gradient(npWeights, edge_order=1)
+    gradPts = gradList.shape[0]
+
+    getTrend(gradPts, gradList)
+
+    """ GRAPHING GRADIENT
+    xLabel = "Epoch"
+    xVals = np.arange(0, gradPts, step=1)
+    yLabel = "Gradient"
+    yVals = gradList
+    
+    graphGradient(nodeWeights, xLabel, xVals, yLabel, yVals)
+    #getInterpolatedVals(xVals, yVals)
+    
+    # Switch axis
+    funcInput = [-0.0001, -0.00005, 0, 0.00005]
+    #graphGradient(nodeWeights, yLabel, yVals, xLabel, xVals, funcInput)
+    """
+    
 
 if __name__ == "__main__":
   if len(sys.argv) > 1:
@@ -377,16 +557,23 @@ if __name__ == "__main__":
   graphChosenNodes(rollingWeightsFromStartDLD, startNodes, endNodes)
   
   # 30/7/24 DH: Points of inflection curves
-  graphNode(rollingWeightsFromStartDLD, gStartIdx, 752)
+  # ---------------------------------------
+  """
+  for node in startNodes:
+    graphNode(rollingWeightsFromStartDLD, gStartIdx, node)
 
-  graphNode(rollingWeightsFromStartDLD, gEndIdx, 34)
-  graphNode(rollingWeightsFromStartDLD, gEndIdx, 569)
+  for node in endNodes:
+    graphNode(rollingWeightsFromStartDLD, gEndIdx, node)
+  """
+  
+  getInflectionPoints(rollingWeightsFromStartDLD, startNodes, endNodes)
 
-  # 30/7/24 DH:
   print()
   print("NEED:")
-  print("  1) Rounded starting values for each of largest % chg's [DONE]")
-  print("  2) Overshoot points of inflection")
+  print("  1) Absolute chg + epoch 0 of all nodes")
+  # https://huggingface.co/brunokreiner
+  # https://github.com/huggingface/transformers/issues/11047
+  print("  2) Weights from non-Pretrained Bert")
 
   if showGraph:
     print()

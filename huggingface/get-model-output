@@ -45,9 +45,13 @@ CWD=$(pwd)
 # TODO: Decide if this should be hard-coded across mutliple files (as currently is)
 CFGDIR="/Users/doug/src/ai/t5"
 HFOUTDIR="previous_output_dir-Google-BERT"
-JSONCFG="qa_train-Google-BERT-SQUAD.json"
+#JSONCFG="qa_train-Google-BERT-SQUAD.json"
+JSONCFG="qa_train-Google-BERT-custom.json"
 
-TLD="${CFGDIR}/${HFOUTDIR}"
+# 2/8/24 DH: This needs to change to "CWD/HFOUTDIR" in order to run local model
+#TLD="${CFGDIR}/${HFOUTDIR}"
+TLD="${CWD}/${HFOUTDIR}"
+
 # 9/7/24 DH: Now moving from SCRIPTDIR to CWD
 QArunTLD="${CWD}/${HFOUTDIR}"
 
@@ -83,6 +87,12 @@ do
   fi
 
   echo "No correct answers found so rerunning..."
+
+  #echo "Exiting during dev..."
+  #exit
+  echo "Continuing during dev..."
+  break
+
   python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/${JSONCFG}
   retVal=$?
 done
