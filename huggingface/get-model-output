@@ -46,18 +46,21 @@ CWD=$(pwd)
 CFGDIR="/Users/doug/src/ai/t5"
 HFOUTDIR="previous_output_dir-Google-BERT"
 
-JSONCFG="qa_train-Google-BERT-SQUAD.json"
-#JSONCFG="qa_train-Google-BERT-custom.json"
+# ------------------------ CONFIG OF MODEL TRAINING STATE + DATA TYPE ------------------
+#                          ------------------------------------------
+#JSONCFG="qa_train-Google-BERT-SQUAD.json"
+JSONCFG="qa_train-Google-BERT-custom.json"
+
+# 2/8/24 DH: This needs to be: "CWD/HFOUTDIR", in order to run local model 
+#            (but particular model can be chosen with: "${CFGDIR}/${HFOUTDIR}")
+#TLD="${CFGDIR}/${HFOUTDIR}"
+TLD="${CWD}/${HFOUTDIR}"
+# --------------------------------------------------------------------------------------
 
 CORRECTLOG="correct-answers.log"
 DBDIR="/Users/doug/src/ai/bert"
 DBNAME="stack_trace.db"
 TABLENAME="model_efficacy"
-
-# 2/8/24 DH: This needs to be: "CWD/HFOUTDIR", in order to run local model 
-#            (but particular model can be chosen with: "${CFGDIR}/${HFOUTDIR}")
-TLD="${CFGDIR}/${HFOUTDIR}"
-#TLD="${CWD}/${HFOUTDIR}"
 
 # 9/7/24 DH: Now moving from SCRIPTDIR to CWD
 QArunTLD="${CWD}/${HFOUTDIR}"
@@ -126,7 +129,7 @@ let percentCorrect="correctNum * 100 / totalSamples"
 echo "Proportion correct: ${correctNum}/${totalSamples} (${percentCorrect} %)"
 echo
 
-modelTypeState=$(python ${SCRIPTDIR}/model_type_state.py ${TLD})
+modelTypeState=$( python ${SCRIPTDIR}/model_type_state.py ${TLD} ${CFGDIR}/${JSONCFG} )
 
 python ${SCRIPTDIR}/db_utils.py ${DBDIR}/${DBNAME} ${TABLENAME} ${modelTypeState} ${correctNum} ${totalSamples}
 

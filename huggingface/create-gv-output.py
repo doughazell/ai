@@ -219,9 +219,9 @@ def createDotFile(cfgDir, hfDir):
   # 8/7/24 DH: Debug of TLD refactor
   print("USING")
   print("-----")
-  print(f"Full weights graph:            {img1a}")
-  print(f"Weight change graph:           {img1b}")
-  print(f"Loss by epoch graph:           {img1c}")
+  print(f"(STATIC: NEEDS DYNAMIC) Full weights graph:  {img1a}")
+  print(f"(STATIC: NEEDS DYNAMIC) Weight change graph: {img1b}")
+  print(f"(STATIC: NEEDS DYNAMIC) Loss by epoch graph: {img1c}")
   print()
   print(f"  All Layers for node 287 graph: {img2}")
   print(f"  Logits by token graph:         {img3}")

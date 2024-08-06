@@ -387,7 +387,7 @@ def main():
   #                   (add to SQLite DB: epoch, loss, SQuAD#, success/fail)
   #######################################################################################################
 
-  # 27/5/24 DH: HARD-CODED to use first sample of JSON datasets (which is the JSON list)
+  # 27/5/24 DH: HARD-CODED to use FIRST SAMPLE of JSON datasets (which is the JSON list)
   if data_args.train_file:
     datasetsIdx = 0
 
@@ -399,6 +399,9 @@ def main():
      ansDict['answer'], ansDict['startIdx'], ansDict['endIdx']) = getModelOutput(raw_data, data_args, model_args, printOut=False)
     answerDictDict = {}
     answerDictDict[1] = ansDict
+
+    # 6/8/24 DH: Update Custom JSON to use stats system developed for SQUAD
+    iterations = 1
 
   # BUT random sample of Arrow Datasets (First entry is 0)
   elif data_args.dataset_name:
