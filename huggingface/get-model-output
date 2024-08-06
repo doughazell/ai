@@ -45,12 +45,19 @@ CWD=$(pwd)
 # TODO: Decide if this should be hard-coded across mutliple files (as currently is)
 CFGDIR="/Users/doug/src/ai/t5"
 HFOUTDIR="previous_output_dir-Google-BERT"
-#JSONCFG="qa_train-Google-BERT-SQUAD.json"
-JSONCFG="qa_train-Google-BERT-custom.json"
 
-# 2/8/24 DH: This needs to change to "CWD/HFOUTDIR" in order to run local model
-#TLD="${CFGDIR}/${HFOUTDIR}"
-TLD="${CWD}/${HFOUTDIR}"
+JSONCFG="qa_train-Google-BERT-SQUAD.json"
+#JSONCFG="qa_train-Google-BERT-custom.json"
+
+CORRECTLOG="correct-answers.log"
+DBDIR="/Users/doug/src/ai/bert"
+DBNAME="stack_trace.db"
+TABLENAME="model_efficacy"
+
+# 2/8/24 DH: This needs to be: "CWD/HFOUTDIR", in order to run local model 
+#            (but particular model can be chosen with: "${CFGDIR}/${HFOUTDIR}")
+TLD="${CFGDIR}/${HFOUTDIR}"
+#TLD="${CWD}/${HFOUTDIR}"
 
 # 9/7/24 DH: Now moving from SCRIPTDIR to CWD
 QArunTLD="${CWD}/${HFOUTDIR}"
@@ -74,10 +81,15 @@ echo "----------------------"
 # 7/7/24 DH: Pass TLD (so script can be run from any dir NOT JUST FROM 'CFGDIR')
 echo ${TLD} > tld.txt
 
+testRuns=1
 python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/${JSONCFG}
 # 8/7/24 DH: Save "$?" since it changes after the conditional "test"
 retVal=$?
 
+# 5/8/24 DH: Get % correct stats 
+#   [ 'test-qa-efficacy::displayResults(...)' determines correct answers from 'test-qa-efficacy::runRandSamples(..., iterations)' 
+#     BUT 'test-qa-efficacy.py' DOES NOT KNOW HOW TIMES IT IS CALLED BEFORE A CORRECT ANSWER IS FOUND, 
+#     so it needs to populate 'checkpointing::gCorrectLogFilename'  ]
 while [ ${retVal} -ne 0 ]
 do
   # 8/7/24 DH: 126 stops normal cycle that may never end in dev (https://tldp.org/LDP/abs/html/exitcodes.html)
@@ -86,16 +98,37 @@ do
     exit
   fi
 
+  # "correct-answers.log" will be OLD DATA
   echo "No correct answers found so rerunning..."
 
   #echo "Exiting during dev..."
   #exit
-  echo "Continuing during dev..."
-  break
+  #echo "Continuing during dev..."
+  #break
 
+  let testRuns++
   python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/${JSONCFG}
   retVal=$?
 done
+
+# 5/8/24 DH: Get number of correct answers
+logVals=(`cat ${CORRECTLOG} | awk -F': ' '{print $2}'`)
+correctNum=${logVals[0]}
+iterNum=${logVals[1]}
+echo
+echo "Number correct: ${correctNum}"
+echo "Iterations per run: ${iterNum}"
+echo "Number of runs: ${testRuns}"
+
+let totalSamples="testRuns * iterNum"
+let percentCorrect="correctNum * 100 / totalSamples"
+
+echo "Proportion correct: ${correctNum}/${totalSamples} (${percentCorrect} %)"
+echo
+
+modelTypeState=$(python ${SCRIPTDIR}/model_type_state.py ${TLD})
+
+python ${SCRIPTDIR}/db_utils.py ${DBDIR}/${DBNAME} ${TABLENAME} ${modelTypeState} ${correctNum} ${totalSamples}
 
 # --------------------------------- GRAPH TRAINING WEIGHTS + LOSSES -------------------------------
 let counter++
@@ -160,8 +193,3 @@ fi
 xattr -c $(cat gv_filename.txt)
 
 open $(cat gv_filename.txt)
-
-echo
-echo "CHG TO USE: '${QArunTLD}' rather than '${TLD}'"
-echo "  (as mentioned in 'graph-weights.py' + 'graph-losses.py' above)"
-echo

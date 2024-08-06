@@ -83,7 +83,7 @@ def createDotFile(hfDir):
   print(f"Loss from all epochs graph: {img1c}")
   print()
   print(f"  Logits by epoch graph:       {img1d}")
-  print(f"  Loss by sample epochs graph: {img1e}")
+  print(f"(HARD-CODED FILENAME) Loss by sample epochs graph: {img1e}")
   print()
 
   with open(dotFile, "w") as outFile:

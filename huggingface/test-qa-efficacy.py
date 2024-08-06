@@ -186,8 +186,10 @@ def createLogFile(training_args):
   return outFile
 
 # 17/6/24 DH: Need to log correct actual answer sets by {key}-Token Len (in order to add details to 'qa-output-<date>.gv.pdf')
-def displayResults(answerDictDict, training_args):
+def displayResults(answerDictDict, training_args, iterations):
   qcaFileOpen = False
+  # 5/8/24 DH: Getting stats of efficacy of current model state
+  numCorrect = 0
 
   for key in answerDictDict:
     print()
@@ -217,12 +219,24 @@ def displayResults(answerDictDict, training_args):
       outFile.write(f"{key}-{answerDictDict[key]['tokenLen']}: END INDEX={answerDictDict[key]['endIdx']}\n")
       outFile.write(f"{key}-{answerDictDict[key]['tokenLen']}: TOKEN LEN={answerDictDict[key]['tokenLen']}\n")
       outFile.write("\n")
+
+      numCorrect += 1
+    # END --- <Expected answer == Actual answer> ---
     
     print()
   # END: ------ "for key in answerDictDict" ------
 
   try: # Handle case when not open due to no correct answers
     outFile.close() # since not using "with ..."
+
+    # 5/8/24 DH: This may need a timestamp since it gets overwritten
+    with open(gCorrectLogFilename, "w") as logFile:
+      logLine1 = f"Number correct: {numCorrect}"
+      logLine2 = f"From: {iterations}"
+
+      logFile.write(logLine1 + "\n")
+      logFile.write(logLine2 + "\n")
+
     return True
   except UnboundLocalError:
     print()
@@ -388,9 +402,10 @@ def main():
 
   # BUT random sample of Arrow Datasets (First entry is 0)
   elif data_args.dataset_name:
-    answerDictDict = runRandSamples(data_args.dataset_name, raw_datasets, data_args, model_args)
+    iterations = 3
+    answerDictDict = runRandSamples(data_args.dataset_name, raw_datasets, data_args, model_args, iterations)
 
-  someCorrectFlag = displayResults(answerDictDict, training_args)
+  someCorrectFlag = displayResults(answerDictDict, training_args, iterations)
   
   if qa_lime_config.gShowFlag == True:
     print()

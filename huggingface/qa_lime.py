@@ -397,7 +397,8 @@ def getModelOutput(raw_data, data_args, model_args, printOut=False, lastGraph=Fa
   # 31/5/24 DH: Handled by 'BertForQuestionAnswering.forward()' (via usual Torch hooks)
   print()
   # 31/5/24 DH: NO NEWLINE after "aid-memoire" since 'Linear.forward()' printout is designed to follow TQDM lines (that remain on printout)
-  print("  CALLING: 'model(encoding['input_ids'])' which gets HANDLED BY 'BertForQuestionAnswering.forward()'", end='')
+  #print("  (*** INCORRECT ***) CALLING: 'model(encoding['input_ids'])' which gets HANDLED BY 'BertForQuestionAnswering.forward()'", end='')
+  print("  CALLING: 'model(**encoding)' which gets HANDLED BY 'BertForQuestionAnswering.forward()'", end='')
 
   output = model(
     #encoding["input_ids"],

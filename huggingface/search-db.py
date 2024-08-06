@@ -85,21 +85,22 @@ def searchTable(cursor, stmnt):
     print(f"    OperationlError: '{e}'")
 
 # =============================== MAIN =================================
-cursor = getDBconnection()
-tables = getTables(cursor)
+if __name__ == "__main__":
+  cursor = getDBconnection()
+  tables = getTables(cursor)
 
-col = "function"
-#searchStr = "backward"
-searchStr = "dropout"
+  col = "function"
+  #searchStr = "backward"
+  searchStr = "dropout"
 
-print(f"SEARCHING for '{searchStr}', in COL: '{col}', from:")
+  print(f"SEARCHING for '{searchStr}', in COL: '{col}', from:")
 
-for tab in tables:
-  print(f"  TABLE: '{tab}'")
+  for tab in tables:
+    print(f"  TABLE: '{tab}'")
+      
+    stmnt = f"SELECT * from {tab} where {col} like '%{searchStr}%';"
+    #stmnt = f"SELECT * from {table} where {col} = '{searchStr}';"
     
-  stmnt = f"SELECT * from {tab} where {col} like '%{searchStr}%';"
-  #stmnt = f"SELECT * from {table} where {col} = '{searchStr}';"
-  
-  searchTable(cursor, stmnt)
+    searchTable(cursor, stmnt)
    
 

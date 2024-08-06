@@ -23,6 +23,8 @@ gLossFilename = "loss-by-epochs"
 gSelectedNodeFilename = "node287-logits"
 # 29/7/24 DH:
 gFileNameRounded = "weights-rounded"
+# 5/8/24 DH: Get % correct stats for 'test-qa-efficacy.py'
+gCorrectLogFilename = "correct-answers.log"
 
 # 6/6/24 DH:
 def archivePrevLogs(weightPath, file=False):
