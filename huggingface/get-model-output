@@ -48,8 +48,8 @@ HFOUTDIR="previous_output_dir-Google-BERT"
 
 # ------------------------ CONFIG OF MODEL TRAINING STATE + DATA TYPE ------------------
 #                          ------------------------------------------
-#JSONCFG="qa_train-Google-BERT-SQUAD.json"
-JSONCFG="qa_train-Google-BERT-custom.json"
+JSONCFG="qa_train-Google-BERT-SQUAD.json"
+#JSONCFG="qa_train-Google-BERT-custom.json"
 
 # 2/8/24 DH: This needs to be: "CWD/HFOUTDIR", in order to run local model 
 #            (but particular model can be chosen with: "${CFGDIR}/${HFOUTDIR}")
@@ -60,14 +60,22 @@ TLD="${CWD}/${HFOUTDIR}"
 CORRECTLOG="correct-answers.log"
 DBDIR="/Users/doug/src/ai/bert"
 DBNAME="stack_trace.db"
-TABLENAME="model_efficacy"
+TABLENAMEstats="model_efficacy"
+TABLENAMEdetails="model_details"
 
 # 9/7/24 DH: Now moving from SCRIPTDIR to CWD
 QArunTLD="${CWD}/${HFOUTDIR}"
 
 # 9/7/24 DH: Prev used SCRIPTDIR but better to use 'cwd' (which gets propagated)
 mkdir -p ${CWD}/gv-graphs
-echo "CREATED: 'gv-graphs' IN: '${CWD}'"
+
+echo
+echo "--------------- SCRIPT PARAMS ------------------"
+echo "                -------------"
+echo "Model TLD:  '${TLD}'"
+echo "Run cfg:     ${JSONCFG}"
+echo "Output dir: '${CWD}'"
+echo "------------------------------------------------"
 echo
 
 counter=0
@@ -102,7 +110,8 @@ do
   fi
 
   # "correct-answers.log" will be OLD DATA
-  echo "No correct answers found so rerunning..."
+  echo "No correct answers found so rerunning (after ${testRuns} runs)..."
+  echo
 
   #echo "Exiting during dev..."
   #exit
@@ -114,7 +123,8 @@ do
   retVal=$?
 done
 
-# 5/8/24 DH: Get number of correct answers
+# 5/8/24 DH: Get number of correct answers (easier to read `` with list assingnment "()" than "$()" below)
+#            https://www.gnu.org/software/bash/manual/html_node/Arrays.html
 logVals=(`cat ${CORRECTLOG} | awk -F': ' '{print $2}'`)
 correctNum=${logVals[0]}
 iterNum=${logVals[1]}
@@ -123,15 +133,16 @@ echo "Number correct: ${correctNum}"
 echo "Iterations per run: ${iterNum}"
 echo "Number of runs: ${testRuns}"
 
-let totalSamples="testRuns * iterNum"
+let totalSamples="testRuns * iterNum" # 8 secs per sample
 let percentCorrect="correctNum * 100 / totalSamples"
 
 echo "Proportion correct: ${correctNum}/${totalSamples} (${percentCorrect} %)"
 echo
 
+# (better to use "$()" than `` above, done for ease of reading with list assignment "()")
 modelTypeState=$( python ${SCRIPTDIR}/model_type_state.py ${TLD} ${CFGDIR}/${JSONCFG} )
 
-python ${SCRIPTDIR}/db_utils.py ${DBDIR}/${DBNAME} ${TABLENAME} ${modelTypeState} ${correctNum} ${totalSamples}
+python ${SCRIPTDIR}/db_utils.py ${DBDIR}/${DBNAME} ${TABLENAMEstats} ${modelTypeState} ${correctNum} ${totalSamples}
 
 # --------------------------------- GRAPH TRAINING WEIGHTS + LOSSES -------------------------------
 let counter++
@@ -196,3 +207,9 @@ fi
 xattr -c $(cat gv_filename.txt)
 
 open $(cat gv_filename.txt)
+
+# 9/8/24 DH:
+echo
+echo "TODO: "
+echo "  1) Chg 'create-gv-output.py' to use non-static weights/loss graphs"
+echo

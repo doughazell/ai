@@ -8,6 +8,9 @@
 
 trainer = None
 training_args = None
+# 9/8/24 DH: Used to record 'data_type' in 'trainer_state.json'
+data_args = None
+pretrained_modelFlag = None
 
 # 14/5/24 DH: Used to save a layer weights (for later graphing)
 gWeightsFile = None

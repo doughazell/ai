@@ -202,10 +202,10 @@ def createDotFile(cfgDir, hfDir):
   nodeGraphsDir = "gv-graphs"
   h_utilsWGDir = "weights/weights-graphs"
 
-  img1a = f"{cfgDir}/{hfDir}/{oldDir}/0-fullValues.png"
-  img1b = f"{cfgDir}/{hfDir}/{oldDir}/total-weight-change.png"
+  img1a = f"{cfgDir}/{hfDir}-SQUAD/{oldDir}/0-fullValues.png"
+  img1b = f"{cfgDir}/{hfDir}-SQUAD/{oldDir}/total-weight-change.png"
 
-  img1c = f"{cfgDir}/{hfDir}/{h_utilsWGDir}/losses-by-epochs-1026.png"
+  img1c = f"{cfgDir}/{hfDir}-SQUAD/{h_utilsWGDir}/losses-by-epochs-1026.png"
 
   # 19/6/24 DH: Correlate graphs (from Q+Context token length) with key chosen from 'qcaDict' in 'getQCATableTxt(...)'
   (qcaTableTxt, contextLabel, graphTokenLen) = getQCATableTxt(gvDir)

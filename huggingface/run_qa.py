@@ -52,6 +52,9 @@ from transformers.utils.versions import require_version
 
 # 24/2/24 DH:
 from checkpointing import *
+# 9/8/24 DH: Added to make the location of a function clear (not strictly required after "from checkpointing import *" but aids readability)
+import checkpointing
+
 import checkpointing_config
 # 23/3/24 DH:
 from huggin_utils import *
@@ -253,6 +256,8 @@ def main():
 
     # 24/2/24 DH:
     checkpointing_config.training_args = training_args
+    # 9/8/24 DH:
+    checkpointing_config.data_args = data_args
 
     if model_args.use_auth_token is not None:
         warnings.warn(
@@ -419,6 +424,7 @@ def main():
 
     config = BertConfig() # You can also change the architecture using this config class
     model = BertForQuestionAnswering(config=config)
+    checkpointing_config.pretrained_modelFlag = False
 
     # 24/3/24 DH:
     print()
@@ -781,7 +787,11 @@ def main():
         """
         # ---------------------------------------------------------------
 
+        # 9/8/24 DH: Need to record 'data_args' + 'pretrained_modelFlag' for use with 'checkpointing.saveTrialParams()' here...
+        #            (prior to possible Ctrl-C)
+        #            (CHECKPOINT USAGE WILL OVERRIDE MODEL TYPE)
         train_result = trainer.train(resume_from_checkpoint=checkpoint)
+
         trainer.save_model()  # Saves the tokenizer too for easy upload
 
         metrics = train_result.metrics
@@ -792,7 +802,12 @@ def main():
 
         trainer.log_metrics("train", metrics)
         trainer.save_metrics("train", metrics)
-        trainer.save_state()
+
+        # 9/8/24 DH:
+        checkpointing.saveTrialParams()
+
+        # 9/8/24 DH: Now added to 'checkpointing.saveTrialParams()'
+        #trainer.save_state()
 
         # 18/5/24 DH:
         # 24/5/24 DH: NO LONGER using 'breakpoint()' to allow weight graphs to be displayed after training

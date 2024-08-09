@@ -182,6 +182,31 @@ def getHighestCheckpoint():
   
   return checkpointNum
 
+# 9/8/24 DH:
+#   CONFIG_NAME = "config.json" (https://github.com/huggingface/transformers/blob/main/src/transformers/utils/__init__.py#L239)
+#   'PretrainedConfig.save_pretrained(...)' (https://github.com/huggingface/transformers/blob/main/src/transformers/configuration_utils.py#L423)
+#   'Trainer._save(...)' (https://github.com/huggingface/transformers/blob/main/src/transformers/trainer.py#L3506)
+#
+#   ACTUALLY PROBABLE BEST to save in: TRAINER_STATE_NAME = "trainer_state.json"
+#     "pretrained_model": false,
+#     trainer.state => TrainerState(...) (https://github.com/huggingface/transformers/blob/main/src/transformers/trainer_callback.py#L36)
+
+def saveTrialParams():
+  # 9/8/24 DH:
+  checkpointing_config.trainer.state.trial_params = {}
+  
+  if checkpointing_config.data_args.dataset_name is not None:
+    checkpointing_config.trainer.state.trial_params['data_type'] = checkpointing_config.data_args.dataset_name
+  
+  if checkpointing_config.data_args.train_file is not None:
+    checkpointing_config.trainer.state.trial_params['data_type'] = checkpointing_config.data_args.train_file
+
+  # 9/8/24 DH: Record whether using: 'model = BertForQuestionAnswering() / BertForQuestionAnswering.from_pretrained()'
+  if checkpointing_config.pretrained_modelFlag == False: # set if using 'BertForQuestionAnswering()' 
+    checkpointing_config.trainer.state.trial_params['pretrained_model'] = False
+
+  checkpointing_config.trainer.save_state()
+
 #######################################################################################################
 # Globals needed from Trainer script:
 #   1) training_args
@@ -213,15 +238,23 @@ def signal_handler(sig, frame):
     # 13/2/24 DH: Accomodate when there is no checkpoint already (knock-3-times-and-ask-for-Alan...)
     # 25/5/24 DH: PREV: "if checkpointNum == gCheckpointNum and not checkpointNum != 0" 
     #   (ie...double negative meant always false so exited without advancing checkpoint when "not != 0"...ffs...!!!)
-    if checkpointNum == gCheckpointNum and checkpointNum != 0:
+    # 9/8/24 DH: Accom HF partial save issue by ensuring that "Trainer.save_steps" has elapsed
+    #            (Preventing Ctrl-C'ing the Ctrl-C when saving is not complete to due "Accelerator" distrib scheduling)
+    sufficDiff = Trainer.save_steps + 1
+    if checkpointNum < gCheckpointNum + sufficDiff and checkpointNum != 0:
       print()
-      print(f"  {checkpointNum} is same as {gCheckpointNum}")
+      print(f"  {checkpointNum} is still less than {gCheckpointNum + sufficDiff}")
       print()
     else:
       checkpointing_config.trainer.save_model()
       checkpointing_config.trainer.save_state()
 
+      # 9/8/24 DH: Now saving 'data_type' + 'pretrained_model' in 'trainer_state.json'
+      saveTrialParams()
+
       sigLogger = logging.getLogger("trainer_log")
       sigLogger.info(f"Saving checkpoint: {checkpointNum}")  
+
+      
 
       sys.exit(0)

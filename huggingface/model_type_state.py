@@ -30,7 +30,19 @@ def getTrainerState():
     configData = json.load(read_file)
     trainerState = configData['global_step']
 
-  return trainerState
+    # 9/8/24 DH:
+    # 'configData['trial_params']['data_type']' also exists (BUT CURRENTLY DONE VIA 'gRunJSON')
+    try:
+      # If 'pretrained_model' key present then it is always 'false' (but explicit from code below)
+      # https://json-schema.org/understanding-json-schema/reference/boolean
+      #   "Note that in JSON, true and false are lower case, whereas in Python they are capitalized (True and False)."
+      pretrained_model = configData['trial_params']['pretrained_model']
+      if pretrained_model == False:
+        nonPretrained = "NoPretrain"
+    except KeyError:
+      nonPretrained = None
+
+  return (trainerState, nonPretrained)
 
 def getDataType():
   jsonPath = os.path.join(gTLD, gRunJSON)
@@ -56,9 +68,12 @@ if __name__ == "__main__":
     exit(1)
   
   modelArch = getModelArch()
-  trainerState = getTrainerState()
+  (trainerState, nonPretrained) = getTrainerState()
   dataType = getDataType()
 
   # The script returns the model type/state via the 'stdout'
-  #   eg print("BertForQuestionAnswering-1026")
-  print(f"{modelArch}-{trainerState}-{dataType}")
+  #   eg print("BertForQuestionAnswering-1026-squad")
+  if nonPretrained:
+    print(f"{modelArch}-{nonPretrained}-{trainerState}-{dataType}")
+  else:
+    print(f"{modelArch}-{trainerState}-{dataType}")
