@@ -42,7 +42,7 @@ from transformers import (
     EvalPrediction,
     HfArgumentParser,
     PreTrainedTokenizerFast,
-    TrainingArguments,
+    TrainingArguments, # https://github.com/huggingface/transformers/blob/main/src/transformers/training_args.py#L213
     default_data_collator,
     set_seed,
 )
@@ -115,6 +115,11 @@ class ModelArguments:
             )
         },
     )
+
+    # 9/8/24 DH: ALLOWING: "pretrained_model": false
+    #   https://json-schema.org/understanding-json-schema/reference/boolean
+    #   "Note that in JSON, true and false are lower case, whereas in Python they are capitalized (True and False)."
+    pretrained_model: bool = field(default=True, metadata={"help": "Whether to use Pre-trained model for fine-tuning"})
 
 
 @dataclass
@@ -250,6 +255,7 @@ def main():
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
+        # 9/8/24 DH: "allow_extra_keys = False" (https://github.com/huggingface/transformers/blob/main/src/transformers/hf_argparser.py#L380)
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
@@ -399,8 +405,25 @@ def main():
         token=model_args.token,
         trust_remote_code=model_args.trust_remote_code,
     )
-    """
-    model = AutoModelForQuestionAnswering.from_pretrained(
+    
+    if model_args.pretrained_model == False:
+      # 1/8/24 DH: Attempt to get non-Pretrained initial weights (https://github.com/huggingface/transformers/issues/11047)
+      print()
+      print("-------------------------------------------------------")
+      print("* GETTING NON-PRETRAINED INITIAL WEIGHTS with:        *")
+      print("*   'config = BertConfig()'                           *")
+      print("*   'model = BertForQuestionAnswering(config=config)' *")
+      print("-------------------------------------------------------")
+      print()
+
+      from transformers import BertConfig, BertForQuestionAnswering
+
+      config = BertConfig() # You can also change the architecture using this config class
+      model = BertForQuestionAnswering(config=config)
+      checkpointing_config.pretrained_modelFlag = False
+      
+    else:
+      model = AutoModelForQuestionAnswering.from_pretrained(
         model_args.model_name_or_path,
         from_tf=bool(".ckpt" in model_args.model_name_or_path),
         config=config,
@@ -408,23 +431,7 @@ def main():
         revision=model_args.model_revision,
         token=model_args.token,
         trust_remote_code=model_args.trust_remote_code,
-    )
-    """
-
-    # 1/8/24 DH: Attempt to get non-Pretrained initial weights (https://github.com/huggingface/transformers/issues/11047)
-    print()
-    print("-------------------------------------------------------")
-    print("* GETTING NON-PRETRAINED INITIAL WEIGHTS with:        *")
-    print("*   'config = BertConfig()'                           *")
-    print("*   'model = BertForQuestionAnswering(config=config)' *")
-    print("-------------------------------------------------------")
-    print()
-
-    from transformers import BertConfig, BertForQuestionAnswering
-
-    config = BertConfig() # You can also change the architecture using this config class
-    model = BertForQuestionAnswering(config=config)
-    checkpointing_config.pretrained_modelFlag = False
+      )
 
     # 24/3/24 DH:
     print()

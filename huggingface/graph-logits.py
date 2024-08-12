@@ -337,7 +337,7 @@ def graphLosses(recordsDict):
   plt.ylabel("Loss value")
 
   # 19/7/24 DH: Added to prevent "n.5" epoch intervals (which are meaningless) like 'graph-losses.py'
-  plt.xticks(np.arange(0, max(xVals), step=2))
+  plt.xticks(np.arange(0, max(xVals)+1, step=2))
 
   print(f"\"{titleStr}\"")
   print("  Adding start loss line")
@@ -352,8 +352,13 @@ def graphLosses(recordsDict):
   # FROM: 'graph-losses.py'
   #graphFilename = f"{gWeightsGraphDir}/losses-by-epochs{graphNum}.png"
 
-  graphFilename = f"{gTLD}/gv-graphs/losses-from-{len(xVals)}-epochs.png"
+  gv_graphsDir = f"{gTLD}/gv-graphs"
+  graphFilename = f"{gv_graphsDir}/losses-from-{len(xVals)}-epochs.png"
   plt.savefig(graphFilename)
+
+  # Save filename of losses graph (since varies by epochs of selected sample, NOT BATCH EPOCHS)
+  with open(f"{gv_graphsDir}/losses_filename.txt", "w") as outFile:
+    outFile.write(f"losses-from-{len(xVals)}-epochs.png")
 
   if gShowFlag:
     # 18/7/24 DH: Now no longer calling: 'graphFirstLogits(recordsDict)'

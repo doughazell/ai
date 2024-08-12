@@ -8,8 +8,11 @@
 import sys
 import sqlite3
 
+# 12/8/24 DH: Hard-coded Bash-Python IPC "Named Pipe"
+gRecordIDfilename = "efficacy-record-id.txt"
+
 # TAKEN FROM: 'stop_trainer.py'
-def getOrCreateTable():
+def getOrCreateTable(dbFQN, tableName, tableColumnsStr):
   # ------------------------ DB CONNECTION -------------------------
   try:
     statsDB = sqlite3.connect(dbFQN, check_same_thread=False)
@@ -28,22 +31,23 @@ def getOrCreateTable():
       #            "sqlite> alter table model_efficacy add sample_seq;"
       
       # FIELD NUMBERS:              0                             1               2           3           4
-      f"CREATE TABLE {gTableName} (id INTEGER PRIMARY KEY, model_type_state, correct_num, sample_num, sample_seq)"
+      #f"CREATE TABLE {tableName} (id INTEGER PRIMARY KEY, model_type_state, correct_num, sample_num, sample_seq)"
+      f"CREATE TABLE {tableName} (id INTEGER PRIMARY KEY, {tableColumnsStr})"
     )
 
-    index_name = f"{gTableName}_id"
+    index_name = f"{tableName}_id"
     cursor.execute(
-      f"CREATE INDEX {index_name} ON {gTableName}(id)"
+      f"CREATE INDEX {index_name} ON {tableName}(id)"
     )
     statsDB.commit()
     cursor.close()
-    print(f"  Created table: '{gTableName}'")
+    print(f"  Created table: '{tableName}'")
     print(f"     with index: '{index_name}'")
     print()
 
   except sqlite3.OperationalError as e:
-    if f"table {gTableName} already exists" in e.args:
-      print(f"  Table: '{gTableName}' already exists")
+    if f"table {tableName} already exists" in e.args:
+      print(f"  Table: '{tableName}' already exists")
     else:
       print(e)
   
@@ -96,12 +100,18 @@ def updateTableStats(statsDB):
 
     if int(samplesNum) == 0:
       stmnt = f"INSERT INTO {gTableName} (model_type_state, correct_num, sample_num, sample_seq) VALUES (\
-        '{gModelTypeState}', '{updatedCorrectNum}', '{updatedSamplesNum}', '{updatedSampleSeq}')"
+'{gModelTypeState}', '{updatedCorrectNum}', '{updatedSamplesNum}', '{updatedSampleSeq}')"
     else:
       stmnt = f"UPDATE {gTableName} SET correct_num = {updatedCorrectNum}, sample_num = {updatedSamplesNum}, sample_seq = '{updatedSampleSeq}' WHERE id={id}"
 
     print(f"  {stmnt}")
     cursor.execute(stmnt)
+    
+    # https://docs.python.org/3/library/sqlite3.html#sqlite3.Cursor.lastrowid "row id of the last INSERTED row"
+    recordID = cursor.lastrowid
+    if recordID == 0: # ie UPDATE vs INSERT
+      recordID = id
+
     statsDB.commit()
 
     cursor.close()
@@ -111,11 +121,13 @@ def updateTableStats(statsDB):
   
   except ValueError as e:
     print(f"Incorrect args: {sys.argv[3:]}")
+  
+  return recordID
 
 # This is written to be called from BASH (eg 'get-model-output')
 if __name__ == "__main__":
   if len(sys.argv) > 5:
-    dbFQN = sys.argv[1]
+    gDbFQN = sys.argv[1]
     gTableName = sys.argv[2]
     gModelTypeState = sys.argv[3]
     gCorrectNum = sys.argv[4]
@@ -125,8 +137,11 @@ if __name__ == "__main__":
     print("  INCORRECT cmd args, need <FQN of DB> + <Table name> + <Model-Type-State> + <Correct number> + <Total samples>")
     exit(1)
   
-  statsDB = getOrCreateTable()
-  updateTableStats(statsDB)
+  columnsStr = "model_type_state, correct_num, sample_num, sample_seq"
+  statsDB = getOrCreateTable(gDbFQN, gTableName, columnsStr)
+  recordID = updateTableStats(statsDB)
 
-  # 7/8/24 DH: Neater print out with newline at end
-  print()
+  # 12/8/24 DH: The script returns ID of last recrod added via 'gRecordIDfilename'
+  with open(gRecordIDfilename, "w") as outFile:
+    outFile.write(f"{recordID}")
+  

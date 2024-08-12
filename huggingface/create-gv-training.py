@@ -74,7 +74,20 @@ def createDotFile(hfDir):
   img1b = f"{gCWD}/{hfDir}/{h_utilsWGDir}/total-weight-change.png"
   img1c = f"{gCWD}/{hfDir}/{h_utilsWGDir}/losses-by-epochs.png"
   img1d = f"{gCWD}/gv-graphs/logits-by-epoch.png"
-  img1e = f"{gCWD}/gv-graphs/losses-from-10-epochs.png"
+
+  try:
+    lossesFilenameFile = f"{gCWD}/gv-graphs/losses_filename.txt"
+    with open(lossesFilenameFile) as inFile:
+      lossesFilename = inFile.readline()
+  
+  # 11/8/24 DH: Handling when SQUAD trg does NOT PROVIDE 'input_ids' etc in 'seq2seq_qa_INtrainer.log' 
+  #   ( handled by 'graph-logits.py::pruneLogits(...)' prior to 'graphLosses(...)' producing 'losses_filename.txt' )
+  except FileNotFoundError:
+    print(f"Filename: {lossesFilenameFile} NOT FOUND")
+    print("This is probably an artifact of SQUAD trg in 'huggin_utils::logLogits(...)'")
+    exit(0)  
+
+  img1e = f"{gCWD}/gv-graphs/{lossesFilename}"
 
   print("USING")
   print("-----")
@@ -83,7 +96,7 @@ def createDotFile(hfDir):
   print(f"Loss from all epochs graph: {img1c}")
   print()
   print(f"  Logits by epoch graph:       {img1d}")
-  print(f"(HARD-CODED FILENAME) Loss by sample epochs graph: {img1e}")
+  print(f"  Loss by sample epochs graph: {img1e}")
   print()
 
   with open(dotFile, "w") as outFile:
@@ -117,7 +130,7 @@ if __name__ == "__main__":
   dotFile = createDotFile(hfDir)
   dotFilePDF = createOutput(dotFile)
 
-  # Save path of 'pdf' for it to be opened by 'get-model-output'
+  # Save path of 'pdf' for it to be opened by 'get-training-output'
   with open("gvTrain_filename.txt", "w") as outFile:
     outFile.write(dotFilePDF)
 

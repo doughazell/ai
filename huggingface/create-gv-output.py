@@ -197,15 +197,21 @@ def createDotFile(cfgDir, hfDir):
   dotFile = f"qa-output-{today}.gv"
   dotFile = os.path.join(gvDir, dotFile)
 
-  oldDir = "old-logs/weights-graphs"
   h_utilsDir = "graphs"
   nodeGraphsDir = "gv-graphs"
   h_utilsWGDir = "weights/weights-graphs"
 
+  # 10/8/24 DH: Now making dynamic (rather than static for musing during dev twilight...)
+  """
+  oldDir = "old-logs/weights-graphs"
   img1a = f"{cfgDir}/{hfDir}-SQUAD/{oldDir}/0-fullValues.png"
   img1b = f"{cfgDir}/{hfDir}-SQUAD/{oldDir}/total-weight-change.png"
-
   img1c = f"{cfgDir}/{hfDir}-SQUAD/{h_utilsWGDir}/losses-by-epochs-1026.png"
+  """
+  
+  img1a = f"{gCWD}/{hfDir}/{h_utilsWGDir}/0-fullValues.png"
+  img1b = f"{gCWD}/{hfDir}/{h_utilsWGDir}/total-weight-change.png"
+  img1c = f"{gCWD}/{hfDir}/{h_utilsWGDir}/losses-by-epochs.png"
 
   # 19/6/24 DH: Correlate graphs (from Q+Context token length) with key chosen from 'qcaDict' in 'getQCATableTxt(...)'
   (qcaTableTxt, contextLabel, graphTokenLen) = getQCATableTxt(gvDir)
@@ -219,9 +225,9 @@ def createDotFile(cfgDir, hfDir):
   # 8/7/24 DH: Debug of TLD refactor
   print("USING")
   print("-----")
-  print(f"(STATIC: NEEDS DYNAMIC) Full weights graph:  {img1a}")
-  print(f"(STATIC: NEEDS DYNAMIC) Weight change graph: {img1b}")
-  print(f"(STATIC: NEEDS DYNAMIC) Loss by epoch graph: {img1c}")
+  print(f"Full weights graph:  {img1a}")
+  print(f"Weight change graph: {img1b}")
+  print(f"Loss by epoch graph: {img1c}")
   print()
   print(f"  All Layers for node 287 graph: {img2}")
   print(f"  Logits by token graph:         {img3}")

@@ -62,6 +62,12 @@ class ModelArguments:
   #  present on the Hub on your local machine."
   trust_remote_code: bool = field(default=False,)
 
+  # 11/8/24 DH: ALLOWING: "pretrained_model": false
+  #   https://json-schema.org/understanding-json-schema/reference/boolean
+  #   "Note that in JSON, true and false are lower case, whereas in Python they are capitalized (True and False)."
+  pretrained_model: bool = field(default=True, metadata={"help": "Whether to use Pre-trained model for fine-tuning"})
+
+
 @dataclass
 class DataTrainingArguments:
   """
@@ -97,6 +103,10 @@ def runRandSamples(dataOrigin, raw_datasets, data_args, model_args, iterations=3
   print(f"  (+ '{numValidationSamples}' validation samples giving total of '{numValidationSamples + numSamples}' in '{dataOrigin}')")
   print("---------------------------------------------------------------------------")
 
+  # 12/8/24 DH: Reset file every time 'test-qa-efficacy.py' is called
+  idxLogFilename = "dataset-idxs.log"
+  idxLog = open(idxLogFilename, "w")
+
   # -------------------------------------------
   # Loop for specified model non-training runs
   # -------------------------------------------
@@ -109,6 +119,9 @@ def runRandSamples(dataOrigin, raw_datasets, data_args, model_args, iterations=3
 
     raw_data = raw_datasets["train"][datasetsIdx]
     if idx + 1 == iterations:
+      # 11/8/24 DH: Record 'datasetsIdx' in 'dataset-idxs.log' to be picked up by 'get-model-ouput' bash script to populate 'stack_trace.db'
+      idxLog.write(f"{datasetsIdx}")
+
       print()
       # 11/6/24 DH: See 'qa_lime.py::graphTokenVals(...)' re NO LONGER SENDING 'lastGraph=True'
       #print(f"  Graph {idx+1} of {iterations} with IDX: '{datasetsIdx}' and last graph so sending 'True' to 'plt.show(block=True)'")
@@ -122,6 +135,9 @@ def runRandSamples(dataOrigin, raw_datasets, data_args, model_args, iterations=3
        ansDict['answer'], ansDict['startIdx'], ansDict['endIdx']) = getModelOutput(raw_data, data_args, model_args, printOut=False)
       print(f"*** END Graph {idx+1} ***")
     else:
+      # 11/8/24 DH: Record 'datasetsIdx' in 'dataset-idxs.log' to be picked up by 'get-model-ouput' bash script to populate 'stack_trace.db'
+      idxLog.write(f"{datasetsIdx},")
+
       print()
       print(f"*** Graph {idx+1} of {iterations} with IDX: '{datasetsIdx}' ***")
 
@@ -133,6 +149,10 @@ def runRandSamples(dataOrigin, raw_datasets, data_args, model_args, iterations=3
     
     answerDictDict[idx+1] = ansDict
   # END --- "for idx in range(iterations)" ---
+
+  # 12/8/24 DH: Close file opened at start of function
+  idxLog.close()
+
   return answerDictDict
 
 # 2/8/24 DH: Create log for Custom JSON that does NOT provide correct answer (for testing QA fine-tuning non-Pretrained weights)

@@ -49,7 +49,7 @@ def collectWeights(weightsLog):
 
       textLines = [line.strip() for line in source.readlines() if line.strip()]
   except FileNotFoundError:
-    print(f"Filename: {weightsLog} NOT FOUND")
+    print(f"Filename: {weightsLog} NOT FOUND...exiting")
     exit(0)
   
   # eg "19-End: [0.046, -0.002, -0.008, 0.015, ...]"
@@ -131,8 +131,6 @@ def graphWeightsKeyed(percentChgDictList, epochNum, weights=False, lastGraph=Fal
     titleStr = f"Total node weight % change from 'qa_outputs' after {lastEpoch} epochs"
 
   plt.title(titleStr)
-  plt.xlabel("Node number (NOT token ID)")
-  plt.ylabel("Weight chg")
 
   print(f"  \"{titleStr}\" (USING: 'abs(prevWeight)')")
 
@@ -157,16 +155,24 @@ def graphWeightsKeyed(percentChgDictList, epochNum, weights=False, lastGraph=Fal
 
   # 15/6/24 DH: Adjust space around y-axis label to accom large axis values (eg "25000")
   #             https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.tight_layout.html
-  plt.tight_layout()
+  #plt.tight_layout()
 
   # 16/6/24 DH: 'gWeightsGraphDir' assigned in "if __name__ == "__main__""
 
   if "complete" in epochNum:
+    plt.xlabel("Node number (NOT token ID)")
+    plt.ylabel("Weight chg")
+    plt.tight_layout()
+
     totalWeightChgFilename = f"{gWeightsGraphDir}/total-weight-change.png"
     print(f"    SAVING: {totalWeightChgFilename}")
     plt.savefig(totalWeightChgFilename)
   else:
     if weights:
+      plt.xlabel("Node number (NOT token ID)")
+      plt.ylabel("Weight")
+      plt.tight_layout()
+
       # 1/8/24 DH: Adding in ID marker between graphs
       plt.axhline(y=0.006, color='green', linestyle='dashed', linewidth=0.5)
       plt.axhline(y=-0.003, color='green', linestyle='dashed', linewidth=0.5)
@@ -175,6 +181,10 @@ def graphWeightsKeyed(percentChgDictList, epochNum, weights=False, lastGraph=Fal
       print(f"    SAVING: {fullValsFilename}")
       plt.savefig(fullValsFilename)
     else:
+      plt.xlabel("Node number (NOT token ID)")
+      plt.ylabel("Weight chg")
+      plt.tight_layout()
+
       percentDiffsFilename = f"{gWeightsGraphDir}/{epochNum}-percentDiffs.png"
       print(f"    SAVING: {percentDiffsFilename}")
       plt.savefig(percentDiffsFilename)

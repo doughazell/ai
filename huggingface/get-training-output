@@ -31,8 +31,14 @@ mkdir -p ${CWD}/gv-graphs
 echo "CREATED: 'gv-graphs' IN: '${CWD}'"
 echo
 
-# 7/7/24 DH: Pass TLD (so script can be run from any dir NOT JUST FROM 'CFGDIR')
-echo ${TLD} > tld.txt
+echo
+echo "--------------- SCRIPT PARAMS ------------------"
+echo "                -------------"
+echo "Model TLD:  '${QArunTLD}'"
+echo "Run cfg:     ${JSONCFG}"
+echo "Output dir: '${CWD}'"
+echo "------------------------------------------------"
+echo
 
 counter=0
 
@@ -42,7 +48,7 @@ let counter++
 echo "${counter}) run_qa.py"
 echo "------------"
 
-#python ${SCRIPTDIR}/run_qa.py ${CFGDIR}/${JSONCFG}
+python ${SCRIPTDIR}/run_qa.py ${CFGDIR}/${JSONCFG}
 # 8/7/24 DH: Save "$?" since it changes after the conditional "test"
 retVal=$?
 
@@ -104,3 +110,10 @@ fi
 xattr -c $(cat gvTrain_filename.txt)
 
 open $(cat gvTrain_filename.txt)
+
+# 11/8/24 DH:
+echo "TODO:"
+echo "  1) graph-logits.py - ERROR: There are no 'input_ids' so check 'seq2seq_qa_INtrainer.log'"
+echo "     create-gv-training.py - No such file or directory: '/Users/doug/src/ai/tmp/non-pretrainedSQUAD/gv-graphs/losses_filename.txt'"
+echo "     (See 'huggin_utils::logLogits(...)' for custom JSON-centric code, that fails with SQUAD)"
+echo

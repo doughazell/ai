@@ -58,10 +58,14 @@ TLD="${CWD}/${HFOUTDIR}"
 # --------------------------------------------------------------------------------------
 
 CORRECTLOG="correct-answers.log"
+IDXSLOG="dataset-idxs.log"
+RECORDid="efficacy-record-id.txt"
+usedIDXS=""
+
 DBDIR="/Users/doug/src/ai/bert"
 DBNAME="stack_trace.db"
 TABLENAMEstats="model_efficacy"
-TABLENAMEdetails="model_details"
+TABLENAMEindices="sample_indices"
 
 # 9/7/24 DH: Now moving from SCRIPTDIR to CWD
 QArunTLD="${CWD}/${HFOUTDIR}"
@@ -97,6 +101,12 @@ python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/${JSONCFG}
 # 8/7/24 DH: Save "$?" since it changes after the conditional "test"
 retVal=$?
 
+# 11/8/24 DH: Record SQUAD idx's used from 'dataset-idxs.log'
+usedIDXS+=$(cat ${IDXSLOG})
+echo
+echo "USED INDICES: ${usedIDXS}"
+echo
+
 # 5/8/24 DH: Get % correct stats 
 #   [ 'test-qa-efficacy::displayResults(...)' determines correct answers from 'test-qa-efficacy::runRandSamples(..., iterations)' 
 #     BUT 'test-qa-efficacy.py' DOES NOT KNOW HOW TIMES IT IS CALLED BEFORE A CORRECT ANSWER IS FOUND, 
@@ -121,6 +131,12 @@ do
   let testRuns++
   python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/${JSONCFG}
   retVal=$?
+
+  # 11/8/24 DH: Record SQUAD idx's used from 'dataset-idxs.log'
+  usedIDXS+=","$(cat ${IDXSLOG})
+  echo
+  echo "USED INDICES: ${usedIDXS}"
+  echo
 done
 
 # 5/8/24 DH: Get number of correct answers (easier to read `` with list assingnment "()" than "$()" below)
@@ -142,7 +158,12 @@ echo
 # (better to use "$()" than `` above, done for ease of reading with list assignment "()")
 modelTypeState=$( python ${SCRIPTDIR}/model_type_state.py ${TLD} ${CFGDIR}/${JSONCFG} )
 
+# 12/8/24 DH: ID of last record added is printed to '${RECORDid}' for Bash-Python "Named Pipe" IPC
 python ${SCRIPTDIR}/db_utils.py ${DBDIR}/${DBNAME} ${TABLENAMEstats} ${modelTypeState} ${correctNum} ${totalSamples}
+
+statsRecordID=$( cat ${RECORDid} )
+# 12/8/24 DH: Add 'usedIDXS' to DB ('db-indices.py' WRAPPER AROUND 'db_utils.py')
+python ${SCRIPTDIR}/db-indices.py ${DBDIR}/${DBNAME} ${TABLENAMEindices} ${statsRecordID} ${totalSamples} ${usedIDXS}
 
 # --------------------------------- GRAPH TRAINING WEIGHTS + LOSSES -------------------------------
 let counter++
@@ -151,10 +172,9 @@ echo "-------------------"
 ###############################################
 # Append cmd with "&" to "background" process #
 ###############################################
-echo "   CURRENTLY USING: '${TLD}/old-logs' (for Pre-trained state + training run node change)"
 
 echo "ONLY saving graphs (not showing them)"
-python ${SCRIPTDIR}/graph-weights.py ${TLD}/old-logs
+python ${SCRIPTDIR}/graph-weights.py ${TLD}/weights
 
 # 21/6/24 DH: Add 'graph-losses.py'
 let counter++
@@ -208,8 +228,3 @@ xattr -c $(cat gv_filename.txt)
 
 open $(cat gv_filename.txt)
 
-# 9/8/24 DH:
-echo
-echo "TODO: "
-echo "  1) Chg 'create-gv-output.py' to use non-static weights/loss graphs"
-echo
