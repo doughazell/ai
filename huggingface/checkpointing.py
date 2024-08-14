@@ -52,6 +52,10 @@ def archivePrevLogs(weightPath, file=False):
       shutil.copy(logFile, logFileDated)
 
       print(f"  COPIED: '{logFile}' to '{logFileDated}'")
+
+      # 14/8/24 DH: 'graph-weights.py' copies "weights-full.log" to "weights-full-0.log" if it contains epoch 0
+      #             This is then used for graphing % change during MID-SECTION TRAINING DUE TO CHECKPOINT
+
     else:
       print(f"  NOT COPIED: '{logFile}'")
     

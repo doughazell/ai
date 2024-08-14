@@ -133,7 +133,7 @@ def get_qcaDict(gvDir):
 
 def display_qcaDict(qcaDict):
   print()
-  print("CONTENTS OF 'qcaDict':")
+  print("CONTENTS OF 'qcaDict' (from 'qca.log'):")
   print("-----------")
   for tldKey in qcaDict:
     print(f"'{tldKey}':")

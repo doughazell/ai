@@ -228,3 +228,11 @@ xattr -c $(cat gv_filename.txt)
 
 open $(cat gv_filename.txt)
 
+###############################################
+#                      DEBUG
+#                      -----
+# weights$ grep -i start weights-full.log*| awk -F' ' '{print $1}'
+#
+###############################################
+
+

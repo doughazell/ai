@@ -65,6 +65,7 @@ echo "-------------------"
 # 21/7/24 DH: Need sleep for BG process so that print output correlates with heading
 #sleep 2
 
+# 13/8/24 DH: TODO: 'graph-weights.py' needs to mark 'weights-full.log' as 'weights-full-0.log' if containes "0-Start: ..."
 python ${SCRIPTDIR}/graph-weights.py ${WEIGHTSDIR}
 echo
 
@@ -112,6 +113,7 @@ xattr -c $(cat gvTrain_filename.txt)
 open $(cat gvTrain_filename.txt)
 
 # 11/8/24 DH:
+echo
 echo "TODO:"
 echo "  1) graph-logits.py - ERROR: There are no 'input_ids' so check 'seq2seq_qa_INtrainer.log'"
 echo "     create-gv-training.py - No such file or directory: '/Users/doug/src/ai/tmp/non-pretrainedSQUAD/gv-graphs/losses_filename.txt'"

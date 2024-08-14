@@ -144,16 +144,12 @@ def logLogits(tokenizer, input_ids, start_logits, end_logits, start_loss=None, e
     print("REMOVED CODE THOUGHT UNNECESSARY in 'huggin_utils::logLogits(...)'")
     print()
 
-  # 28/3/24 DH: Use Python logging rather than 'transformers.utils.logging'
-  #
-  # (DURING TRAINING: Take first entry of overflow batch from Dataset #10 with batch size #8
-  #  THEREFORE the model has already been trained by batch size (8) reps over un-trained model that only "knows language")
-  
   # Access custom additional API assigned in 'Trainer.compute_loss(...)' SO ONLY AVAILABLE IN TRAINING
   from transformers import Trainer
   epochNum = Trainer.stateAPI.global_step
   
   # 19/7/24 DH: Use first entry of first batch + search for it in later epochs
+  # 12/8/24 DH: This works for Custom JSON (with 10 samples) but not for SQUAD (with 88524 samples)
   if Trainer.stateAPI.epoch == 0:
     idx = 0
     (inputIdsEnd, startLogitsList, endLogitsList) = getIDsAndLogits(idx, input_ids, start_logits, end_logits, extraDelta)
@@ -165,6 +161,7 @@ def logLogits(tokenizer, input_ids, start_logits, end_logits, start_loss=None, e
   
     gEpochNum += 1
     
+    # 28/3/24 DH: Use Python logging rather than 'transformers.utils.logging'
     import logging
     sigLogger = logging.getLogger("trainer_signaller")
 
@@ -207,7 +204,7 @@ def logLogits(tokenizer, input_ids, start_logits, end_logits, start_loss=None, e
 
     sigLogger.info(f"{epochNum}) endLogitsList (+{extraDelta}): {endLogitsList}")
     sigLogger.info(f"  {epochNum}) end_loss: {end_loss}")
-  # END: ------ "if start_logits.shape[0] == 2" ------
+  # END: --- "if idx != -1" ---
 
 # ---------------------------------------------------------------
 # JSON Arrow data

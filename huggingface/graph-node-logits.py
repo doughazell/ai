@@ -95,7 +95,7 @@ def collectLogits():
 
         # 11/6/24 DH: Get number of Token Lengths used (ie from "-1-self-120")
         keySplit = epochLayerCnt.split("-")
-        if len(keySplit) > 2:
+        if len(keySplit) > 3:
           tokenLenStr = keySplit[gTokenIdx]
           try:
             tokenLen = int(tokenLenStr)

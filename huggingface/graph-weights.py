@@ -9,7 +9,7 @@
 See DESIGN in 'graph-weights-history.py'
 """
 
-import sys, os, re
+import sys, os, re, shutil
 import matplotlib.pyplot as plt
 import numpy as np
 from ast import literal_eval
@@ -405,6 +405,16 @@ if __name__ == "__main__":
   #             calculate + graph the percentage diff between the first and last full value weights
   weightDictListDict = collectWeights(fullweightsLog)
 
+  # 14/8/24 DH: Copy "weights-full.log" to "weights-full-0.log" if it contains epoch 0
+  #             This is then used for graphing % change during MID-SECTION TRAINING DUE TO CHECKPOINT
+  # (https://docs.python.org/3/library/os.html#os.symlink)
+  # (https://docs.python.org/3/library/os.html#os.rename)
+  # (https://docs.python.org/3/library/shutil.html#shutil.copy)
+  if '0' in weightDictListDict.keys():
+    # Better to copy than rename
+    #os.rename(fullweightsLog, f"{sys.argv[1]}/weights-full-0.log")
+    shutil.copy(fullweightsLog, f"{sys.argv[1]}/weights-full-0.log")
+
   # Firstly graph the 'qa_outputs' full weights
   # 26/5/24 DH: During the Ctrl-C checkpointing save delay (to prevent partial saving) we sometimes get multiple end full weights
   #             ('getWeightDiffs(...) uses "startEpoch = keyList[0]", "endEpoch = keyList[1]")
@@ -423,14 +433,28 @@ if __name__ == "__main__":
   #             (which is called from 'calcAndGraphTrgDiffs(...)' wrapper)
   if len(sys.argv) > 2 and "show" in sys.argv[2]:
     gShowFlag = True
-  
+
   # Display full weights per node of start/end lines for 'startEpoch' (ie 0)
   graphWeightsKeyed(weightDictListDict[startEpoch], startEpoch, weights=True)
   # Display full weights per node of start/end lines for 'endEpoch' (ie 19 for custom JSON)
   graphWeightsKeyed(weightDictListDict[endEpoch], endEpoch, weights=True)
 
   # Now calculate + graph the percentage diff
-  (startLineIdxDict, endLineIdxDict) = calcAndGraphTrgDiffs(weightDictListDict)
+  # 14/8/24 DH: If 'startEpoch' is NOT ZERO then repopulate 'weightDictListDict' with epoch 0 from "weights-full-0.log"
+  if startEpoch != '0':
+    zeroWeightDLDict = collectWeights(f"{sys.argv[1]}/weights-full-0.log")
+
+    zeroKeyList = list(zeroWeightDLDict.keys())
+    for zeroKey in zeroKeyList:
+      if zeroKey != '0':
+        print(f"Deleting '{zeroKey}' from 'zeroWeightDLDict'")
+        del zeroWeightDLDict[zeroKey]
+
+    zeroWeightDLDict[endEpoch] = weightDictListDict[endEpoch]
+    (startLineIdxDict, endLineIdxDict) = calcAndGraphTrgDiffs(zeroWeightDLDict)
+
+  else:
+    (startLineIdxDict, endLineIdxDict) = calcAndGraphTrgDiffs(weightDictListDict)
 
   if not gShowFlag:
     print()
