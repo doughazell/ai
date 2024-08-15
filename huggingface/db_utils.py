@@ -11,6 +11,50 @@ import sqlite3
 # 12/8/24 DH: Hard-coded Bash-Python IPC "Named Pipe"
 gRecordIDfilename = "efficacy-record-id.txt"
 
+# 15/8/24 DH: Created for 'squad-interface.py'
+# --------------------------------------------
+def getDBConnection(dbFQN):
+  try:
+    statsDB = sqlite3.connect(dbFQN, check_same_thread=False)
+    print()
+    print("Opened connection to DB: ", dbFQN)
+
+  except sqlite3.OperationalError as e:
+    print(e)
+    return None
+  
+  return statsDB
+
+# sqlite> select count(*) from sample_indices;
+def iterateRecords(statsDB, tableName, handlerFunc):
+  try:
+    cursor = statsDB.cursor()
+  
+    stmnt = f"select count(*) from {tableName}"
+    cursor.execute(stmnt)
+    # 'fetchall() returns an array of tuples for wanted fields
+    result = cursor.fetchall()
+    recordNum = result[0][0]
+    print(f"RECORD NUMBER: {recordNum}")
+    
+    for idx in range(recordNum+1):
+      stmnt = f"select * from {tableName} where id={idx}"
+      cursor.execute(stmnt)
+      result = cursor.fetchall()
+
+      if len(result) > 0:
+        record = result[0]
+        handlerFunc(record)  
+
+  except sqlite3.OperationalError as e:
+    print(e)
+  
+  except ValueError as e:
+    print(e)
+
+
+# --------------------------------------------
+
 # TAKEN FROM: 'stop_trainer.py'
 def getOrCreateTable(dbFQN, tableName, tableColumnsStr):
   # ------------------------ DB CONNECTION -------------------------

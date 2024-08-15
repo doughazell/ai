@@ -103,7 +103,7 @@ if __name__ == "__main__":
   weightsDictListDict = graph_weights.collectWeights(weightsLog)
 
   # 28/7/24 DH: These are "raw" values (not "totals" from 'graph-weights-history.py')
-  #             ALSO NEED: "rollingChgs-start.csv", "rollingChgs-end.csv"
+  #             ALSO NEED: "rollingChgs-start.csv", "rollingChgs-end.csv" (DONE IN: 'graph-weights-history.py')
   startLineCSVfilename = "weights-start.csv"
   endLineCSVfilename = "weights-end.csv"
   

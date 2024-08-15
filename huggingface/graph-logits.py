@@ -177,6 +177,16 @@ def pruneLogits(recordsDict):
   except KeyError:
     print()
     print(f"ERROR: There are no 'input_ids' so check '{gTrainer_log}'")
+    
+    try:
+      global gTLD
+      lossesFilenameTxt = f"{gTLD}/gv-graphs/losses_filename.txt"
+      # https://docs.python.org/3/library/os.html#os.remove
+      os.remove(lossesFilenameTxt)
+      print(f"       Deleted: '{lossesFilenameTxt}'")
+    except FileNotFoundError:
+      pass
+
     print( "       exiting...")
     exit(0)
 
