@@ -233,7 +233,6 @@ open $(cat gv_filename.txt)
 #                      -----
 # weights$ grep -i start weights-full.log*| awk -F' ' '{print $1}'
 #
-# https://github.com/DavidPineda/zmq-socket-angular
 ###############################################
 
 

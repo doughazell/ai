@@ -44,7 +44,7 @@ def iterateRecords(statsDB, tableName, handlerFunc):
 
       if len(result) > 0:
         record = result[0]
-        handlerFunc(record)  
+        handlerFunc(record, recordNum)  
 
   except sqlite3.OperationalError as e:
     print(e)
