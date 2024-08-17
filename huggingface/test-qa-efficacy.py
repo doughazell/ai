@@ -117,6 +117,13 @@ def runRandSamples(dataOrigin, raw_datasets, data_args, model_args, iterations=3
     # "Give the integer quotient as the answer, so 26 / 11 = 2. It is sometimes called 'integer division', and denoted by '//'."
     datasetsIdx = int( (random.random() * numSamples * numSamples) // numSamples )
 
+    # 16/8/24 DH: Find which of list of SQUAD indices is correct
+    """
+    indicesCheck = [23581, 21533, 46079]
+    #'2-65' is correct "How many local subway stations are on 23rd Street?"
+    datasetsIdx = indicesCheck[idx]
+    """
+
     raw_data = raw_datasets["train"][datasetsIdx]
     if idx + 1 == iterations:
       # 11/8/24 DH: Record 'datasetsIdx' in 'dataset-idxs.log' to be picked up by 'get-model-ouput' bash script to populate 'stack_trace.db'
