@@ -784,6 +784,8 @@ def main():
                 compromise for the regular SQUAD dataset between having most question/contexts be tokenized without any 
                 truncation while keeping something small to go fast."
 
+                [NOTE: 384 = 768/2 so for a fully cross-linked NN there will be "room for expansion" in cascade for half populated Nodes]
+
               (Pdb) qaModelOutput['end_logits'].shape
               torch.Size([8, 384])
               (Pdb) qaModelOutput['loss'].shape

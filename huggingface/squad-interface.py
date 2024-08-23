@@ -24,6 +24,7 @@ gTABLENAMEindices = "sample_indices"
 # Used to store a DictList of records from 'db_utils.iterateRecords(...)'
 gRecordDictList = []
 
+# ================================= SQUAD ===================================
 def getSQUADindex(dataset, idx, numSamples, tokenizer):
   data = dataset[idx]
 
@@ -44,6 +45,25 @@ def getSQUADindex(dataset, idx, numSamples, tokenizer):
   print(f"EXPECTED ANSWER START IDX: {expAnswerStart}")
   print(f"TOKEN LEN (Bert vocab): {tokenLen}")
 
+def getIndexFromUser():
+  print("What index do you want? (just press return for random index) ", end='')
+  response = input()
+  if len(response) == 0:
+    # https://en.wikipedia.org/wiki/Division_(mathematics)#Of_integers
+    # "Give the integer quotient as the answer, so 26 / 11 = 2. It is sometimes called 'integer division', and denoted by '//'."
+    datasetIdx = int( (random.random() * numSamples * numSamples) // numSamples )
+    print(f"Getting 'random' index: {datasetIdx}")
+    print()
+  else:
+    try:
+      datasetIdx = int(response)
+      print()
+    except ValueError:
+      return False
+  
+  return datasetIdx
+
+# =============================== CHECK DUPLICATE SEQ_IDS ===================================
 # 15/8/24 DH: Passed to 'db_utils.iterateRecords(...)' and called for every record in 'stack_trace.db::sample_indices'
 def checkDuplicatesColHandler(record, recordNum):
   # Specific to 'stack_trace.db::sample_indices' schema
@@ -81,7 +101,6 @@ def checkAdjacentIdsInSet(recordDictList, startIdx, endIdx):
   for idx in range(endIdx + 1 - startIdx):
     listIdx = startIdx + idx
 
-    # 16/8/24 DH: TODO: Check all record combinations in the set (NOT JUST ADJACENT RECORDS)
     if prevIdx != None:
       # https://docs.python.org/3/tutorial/datastructures.html#sets
       #   "a & b"  # letters in both a and b
@@ -161,7 +180,6 @@ def populateDictListHandler(record, recordNum):
   if len(gRecordDictList) == recordNum:
     print()
 
-
 # 16/8/24 DH: Passed to 'db_utils.iterateRecords(...)' and called for every record in 'stack_trace.db::sample_indices'
 def checkDupsByModelIDHandler(record, recordNum):
   populateDictListHandler(record, recordNum)
@@ -201,24 +219,6 @@ def checkDupsByModelIDHandler(record, recordNum):
 
   # END: --- "if len(gRecordDictList) == recordNum" ---
 
-def getIndexFromUser():
-  print("What index do you want? (just press return for random index) ", end='')
-  response = input()
-  if len(response) == 0:
-    # https://en.wikipedia.org/wiki/Division_(mathematics)#Of_integers
-    # "Give the integer quotient as the answer, so 26 / 11 = 2. It is sometimes called 'integer division', and denoted by '//'."
-    datasetIdx = int( (random.random() * numSamples * numSamples) // numSamples )
-    print(f"Getting 'random' index: {datasetIdx}")
-    print()
-  else:
-    try:
-      datasetIdx = int(response)
-      print()
-    except ValueError:
-      return False
-  
-  return datasetIdx
-
 # 16/8/24 DH:
 def checkForSeqIDs(dupSeqIDs):
   # Not necessary for just reading (but would create a local variable when writing without "global")
@@ -232,8 +232,14 @@ def checkForSeqIDs(dupSeqIDs):
 
   print()
 
+# ======================================== MAIN =========================================
+
 # Connect Python/Huggingface with Ionic/Angular: https://github.com/DavidPineda/zmq-socket-angular
-# https://stackoverflow.com/questions/53036381/how-to-deploy-ionic-4-app-to-github-pages
+#                                                https://zeromq.org/languages/nodejs/
+#                                                https://zeromq.org/languages/python/
+#                                                https://groovetechnology.com/blog/how-to-use-python-in-node-js/
+#
+# Put Ionic on GitHub: https://stackoverflow.com/questions/53036381/how-to-deploy-ionic-4-app-to-github-pages
 if __name__ == "__main__":
   print()
   print("...to infinity and beyond...may they never meet")
@@ -256,26 +262,30 @@ if __name__ == "__main__":
   if response.lower() == "y" or len(response) == 0:
     statsDB = db_utils.getDBConnection(f"{gDBDIR}/{gDBNAME}")
     print()
+
+    """ DEBUG
     print(f"RAW DATA FROM '{gDBNAME}::{gTABLENAMEindices}'")
     print( "----------------------------------------------")
     db_utils.iterateRecords(statsDB, gTABLENAMEindices, handlerFunc=checkDuplicatesColHandler)
-    print("NOW CHECKING FOR DUPLICATE 'seq_ids'")
-    print("------------------------------------")
+    """
+    
+    print("CHECKING FOR DUPLICATE 'seq_ids'")
+    print("--------------------------------")
     db_utils.iterateRecords(statsDB, gTABLENAMEindices, handlerFunc=checkDupsByModelIDHandler)
     #db_utils.iterateRecords(statsDB, gTABLENAMEindices, handlerFunc=populateDictListHandler)
 
     """
     # Find [23581, 21533, 46079] in mid-sequence for 'model_efficacy_id' '8' (and HENCE NOT CORRECT) in order to FIND WHICH ONE IS CORRECT
     RESULT: Only found as final sequence in ID's 7,8 so UNABLE TO TELL WHICH ONE IS CORRECT FROM THAT
-            'qca.log' shows '2-65' (21533) is correct for 'test-qa-efficacy.py::runRandSamples(...)' hack:
+            'qca.log' shows '2-65' (21533) is correct for 'test-qa-efficacy.py::runRandSamples(...)' HACK:
 
                 for idx in range(iterations):
                   ...
                   indicesCheck = [23581, 21533, 46079]
                   datasetsIdx = indicesCheck[idx]
-    """
     #dupSeqIDs = [23581, 21533, 46079]
     #checkForSeqIDs(dupSeqIDs)
+    """
 
   datasetIdx = getIndexFromUser()
   while datasetIdx is False:
