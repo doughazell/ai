@@ -47,17 +47,25 @@ A good place to start with understanding LIME is:
 
   eg Top prediction of first perturbation: [1 1 1 1 0 0 1 0 1 0 1 0 0 1 1 1 0 0 1 0 0 1 0 0 0 0 0 1] = conch 
   
-  (rather than 'Labrador_retriever' for full image)
-* Row 2: Get prediction place for 'Labrador_retriever' (ie top prediction for full image) + RMS diff between segment mask used and full image mask 
-  (ie [1 1 ... 1 1])
+* Row 2: Get prediction place for 'Labrador_retriever' (ie top prediction for full image) + RMS diff between segment mask used and full image mask
+
+  eg [1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1]
+  
 * Row 3: Perform a multiple linear regression for prediction place of 'Labrador_retriever' vs 28 bit segment mask
 * Bottom Row: 'InceptionV3().predict()' produces order of 1000 known images (eg 'Labrador_retriever', 'conch' etc) and need to correlate placing of image 208 (ie 'Labrador_retriever') for each of 100 * 28 bit masks.
 
-![alt text](https://github.com/doughazell/ai/blob/main/LIME-flow-diag.jpg?raw=true)
+![alt text](https://github.com/doughazell/ai/blob/main/LIME-flow-diag.jpg)
 
 ### Running 'lime.py'
 ```
 $ python lime.py
 ```
+Gives:
+
+![alt text](https://github.com/doughazell/ai/blob/main/segment_coeffs.png)
+
+and
+
+![alt text](https://github.com/doughazell/ai/blob/main/top_segments.png)
 
 
