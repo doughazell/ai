@@ -222,6 +222,7 @@ class Lime(object):
     self.top_pred_reversed = self.preds[0].argsort()[-5:]
     self.top_pred_classes = self.top_pred_reversed[::-1]
     
+    # 31/8/24 DH: eg "208": ["n02099712", "Labrador_retriever"] in https://github.com/pytorch/tutorials/blob/main/_static/imagenet_class_index.json
     print("\ntop_pred_classes (from 'inceptionV3_model.predict()'):",self.top_pred_classes)
     print("top pred index (from 'inceptionV3_model.predict()'):",self.top_pred_classes[0])
 

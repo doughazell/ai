@@ -184,8 +184,7 @@ class LimeUtils(object):
     # "If you want an image file as well as a user interface window, use pyplot.savefig before pyplot.show. 
     # At the end of (a blocking) show() the figure is closed and thus unregistered from pyplot. 
     # Calling pyplot.savefig afterwards would save a new and thus empty figure."
-    print("Saving image")
-    plt.savefig('my_plot.png')
+    plt.savefig('binomial_distrib.png')
 
     plt.show(block=False)
     #plt.show()
@@ -324,6 +323,9 @@ class LimeUtils(object):
 
         # 13/9/23 DH: Display img2 (ie without segmentation boundaries)
         #skimage.io.imshow( img2 )
+
+        # 1/9/24 DH:
+        plt.savefig('top_segments.png')
 
         # 13/9/23 DH:
         if last == False:
@@ -517,6 +519,9 @@ class LimeUtils(object):
               " segments of prediction accuracy Linear Regression\n")
     plt.xlabel("Segment number")
     plt.ylabel("Coefficent to linear regression")
+
+    # 1/9/24 DH:
+    plt.savefig('segment_coeffs.png')
 
     #plt.show()
     plt.show(block=False)

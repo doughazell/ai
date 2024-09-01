@@ -234,6 +234,9 @@ def checkForSeqIDs(dupSeqIDs):
 
 # ======================================== MAIN =========================================
 
+# 23/8/24 DH: Ideas BUT APP DESIGNED FOR ANDROID THAT DOESN'T SUPPORT PYTHON (rather than 'Node.js' with a 'fs')
+#   (See 'file:///Users/doug/Desktop/devlogeD/2024/doc/h4-aug22.html#label-Add+Python+to+Angular' from browser, not Cmd+Click)
+#
 # Connect Python/Huggingface with Ionic/Angular: https://github.com/DavidPineda/zmq-socket-angular
 #                                                https://zeromq.org/languages/nodejs/
 #                                                https://zeromq.org/languages/python/
