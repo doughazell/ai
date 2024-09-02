@@ -76,8 +76,8 @@ $ python inDeCeptionV3.py
 ```
 Gives on the first run:
 
-![alt text]()
+![alt text](https://github.com/doughazell/ai/blob/main/top_features_12.png?raw=true)
 
 and then on the second run (having CLOSED ALL the previous windows)
 
-![alt text]()
+![alt text](https://github.com/doughazell/ai/blob/main/top_features_19.png?raw=true)
