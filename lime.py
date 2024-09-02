@@ -154,9 +154,15 @@ class Lime(object):
       # "The different color bands/channels are stored in the third dimension, 
       #  such that a gray-image is MxN, an RGB-image MxNx3 and an RGBA-image MxNx4."
       img = skimage.io.imread("https://arteagac.github.io/blog/lime_image/img/cat-and-dog.jpg")
+    # END: --- "if img is None" ---
 
     img = skimage.transform.resize(img, (299,299))
     img = (img - 0.5)*2 #Inception pre-processing
+  
+    # 22/8/23 DH: 'inception_v3' needs 4-D input:
+    # ValueError: Input 0 of layer "inception_v3" is incompatible with the layer: 
+    # expected shape=(None, 299, 299, 3), found shape=(None, 299, 3)
+    img2 = img[np.newaxis,:,:,:]    
 
     """### Predict class of input image
     The Inception V3 model is used to predict the class of the image. 
@@ -164,12 +170,6 @@ class Lime(object):
     available in Inception V3. The description of these classes is shown and it can be seen that 
     the "Labrador Retriever" is the top class for the given image.
     """
-
-    # 22/8/23 DH: 'inception_v3' needs 4-D input:
-    # ValueError: Input 0 of layer "inception_v3" is incompatible with the layer: 
-    # expected shape=(None, 299, 299, 3), found shape=(None, 299, 3)
-    img2 = img[np.newaxis,:,:,:]
-
     # 11/9/23 DH: 'InceptionV3' is custom Keras Model 
     #             https://www.tensorflow.org/api_docs/python/tf/keras/Model#predict
     self.preds = self.inceptionV3_model.predict(img2)

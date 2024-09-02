@@ -355,6 +355,11 @@ class LimeUtils(object):
 
     plt.figure()
     skimage.io.imshow( img )
+
+    # 2/9/24 DH:
+    topSegment = last_features[-1]
+    plt.savefig(f"top_features_{topSegment}.png")
+
     plt.show(block=False)
     
     return img
@@ -406,8 +411,11 @@ class LimeUtils(object):
 
     # 13/9/23 DH: 'limeImage.imgSegmentMask' is (299,299) image with pixel values being the segment index value
     origImg = limeImage.img/2+0.5
-    self.remove_topfeatures_display(origImg, limeImage.imgSegmentMask, last_features)
+    newImg = self.remove_topfeatures_display(origImg, limeImage.imgSegmentMask, last_features)
+    # 1/9/24 DH:
+    #return newImg
 
+    # 1/9/24 DH:
     markedImg = self.remove_topfeatures_image(origImg, limeImage.imgSegmentMask, last_features)
     return markedImg
 
@@ -417,6 +425,8 @@ class LimeUtils(object):
 
     # Fig 1) Image of top segments blacked-out
     # --- PREVIOUSLY SHOW IMAGE HERE ---
+    #
+    # --- NOW IN 'remove_topfeatures_display(...)' ---
 
     # Fig 2) Full orig image (non preprocessed)
     plt.figure()
@@ -434,6 +444,7 @@ class LimeUtils(object):
     skimage.io.imshow( self.alteredImg )
     plt.show(block=False)
     """
+    # 1/9/24 DH: After Sept 2023 refactor caused a bug with 'inDeCeptionV3.py' 2nd time through image
     return segmentedImg
   # ------------------------------------ END: Refactor --------------------------------------------
 

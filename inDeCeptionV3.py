@@ -11,10 +11,22 @@ def runLimeSegmentation():
 
   limeImage = Lime()
 
+  # 1/9/24 DH: Solving 'self.inceptionV3_model.predict(img2)' bug with: 'keras/utils/traceback_utils.py", line 70, in error_handler'
+  print()
+  print("======================================")
+  print("FIRST TIME: 'getSegmentedPrediction()'")
+  print("======================================")
+  print()
+  # 'Lime::getImagePrediction()' assigns 'limeImage.img' (as part of 'Lime::getSegmentedPrediction()')
   limeImage.getSegmentedPrediction()
   limeImage.getCoefficientsFromMaskedPredictions()
   newImg = limeImage.lime_utils.displayTopFeaturesRemoved(limeImage)
 
+  print()
+  print("=================================================")
+  print("SECOND TIME: 'getSegmentedPrediction(img=newImg)'")
+  print("=================================================")
+  print()
   limeImage.getSegmentedPrediction(img=newImg)
   limeImage.getCoefficientsFromMaskedPredictions()
   newImg = limeImage.lime_utils.displayTopFeaturesRemoved(limeImage)

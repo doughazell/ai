@@ -54,7 +54,7 @@ A good place to start with understanding LIME is:
 * Row 3: Perform a multiple linear regression for prediction place of 'Labrador_retriever' vs 28 bit segment mask
 * Bottom Row: 'InceptionV3().predict()' produces order of 1000 known images (eg 'Labrador_retriever', 'conch' etc) and need to correlate placing of image 208 (ie 'Labrador_retriever') for each of 100 * 28 bit masks.
 
-![alt text](https://github.com/doughazell/ai/blob/main/LIME-flow-diag.jpg)
+![alt text](https://github.com/doughazell/ai/blob/main/LIME-flow-diag.jpg?raw=true)
 
 ### Running 'lime.py'
 ```
@@ -62,10 +62,22 @@ $ python lime.py
 ```
 Gives:
 
-![alt text](https://github.com/doughazell/ai/blob/main/segment_coeffs.png)
+![alt text](https://github.com/doughazell/ai/blob/main/segment_coeffs.png?raw=true)
 
 and
 
-![alt text](https://github.com/doughazell/ai/blob/main/top_segments.png)
+![alt text](https://github.com/doughazell/ai/blob/main/top_segments.png?raw=true)
 
+### Running 'inDeCeptionV3.py'
+This is initially a re-run of 'lime.py' but then blanks out the top 4 segments to identity the image (which is now a cat).
 
+```
+$ python inDeCeptionV3.py
+```
+Gives on the first run:
+
+![alt text]()
+
+and then on the second run (having CLOSED ALL the previous windows)
+
+![alt text]()
