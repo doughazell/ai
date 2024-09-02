@@ -140,7 +140,11 @@ class Lime(object):
     prevRow = row[0]
     prevCol = col[0]
     firstTopPred = list(self.predSummary.keys())[1]
-    print(firstTopPred, "entry", prevCol+1, ":", valArray[prevRow][prevCol])
+    # 2/9/24 DH: Updating output for README.md
+    print("NOTE THE PLACING + PROBABILITY of the second prediction in the full image (ie first prediction): ")
+    print("==============================")
+    print()
+    print(f"  {firstTopPred} entry {prevCol+1} : {valArray[prevRow][prevCol]}")
 
   # --------------------------------- END: API ---------------------------
 

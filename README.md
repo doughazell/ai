@@ -73,6 +73,27 @@ This is initially a re-run of 'lime.py' but then blanks out the top 4 segments t
 
 ```
 $ python inDeCeptionV3.py
+
+  Predictions summary
+  -------------------
+  (Run: 'open https://observablehq.com/@mbostock/imagenet-hierarchy')
+
+  Labrador_retriever :
+    ('n02099712', 'Labrador_retriever', 0.818291)
+    ('n02099601', 'golden_retriever', 0.015929893)
+    ('n02093428', 'American_Staffordshire_terrier', 0.010066423)
+
+  Egyptian_cat :
+    ('n02124075', 'Egyptian_cat', 0.098595686)
+    ('n02108915', 'French_bulldog', 0.09533588)
+    ('n01883070', 'wombat', 0.08558813)
+
+  NOTE THE PLACING + PROBABILITY of the second prediction in the full image (ie first prediction): 
+  ==============================
+
+    Labrador_retriever entry 18 : ['n02124075' 'Egyptian_cat' '0.0018015162']
+
+  ----------------------------------------------------------------
 ```
 Gives on the first run:
 
