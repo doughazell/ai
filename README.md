@@ -20,6 +20,8 @@ This is a BASH script around:
 
 in order to produce a PDF like:
 
+![alt text](https://github.com/doughazell/ai/blob/main/huggingface/qa-training-10Aug.gv.pdf?raw=true)
+
 ## HuggingFace Transformers
 * huggin_utils.py
 * Activation/Optimization
