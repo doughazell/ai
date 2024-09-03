@@ -1,10 +1,29 @@
 # Huggin API
-### Introduction
+## Introduction
 This is my Repo to learn about Transformer Neural Networks which has become a https://github.com/huggingface/transformers/tree/main/src/transformers API.
 
 This has been a major journey for me which started by learning about Keras Sequential networks for https://en.wikipedia.org/wiki/MNIST_database processing with https://github.com/doughazell/mnist-training-errors.  Then moved onto using https://nbviewer.org/url/arteagac.github.io/blog/lime_image.ipynb with https://github.com/doughazell/ai/blob/main/lime.py (diagram below of LIME process).
 
+## Scripts
+* get-training-output
+* get-model-output
+* squad-interface.py
+* legend.py
 
+### get-training-output
+This is a BASH script around:
+* run_qa.py
+* graph-weights.py
+* graph-losses.py
+* graph-logits.py
+* create-gv-training.py
+
+in order to produce a PDF like:
+
+## HuggingFace Transformers
+* huggin_utils.py
+* Activation/Optimization
+* Logits via 'hidden_states'
 
 # LIME process
 LIME (https://arxiv.org/abs/1602.04938) works by having a Binomial Distribution of image masking (ie removing segments of the full image) in order to perturb the image prior to calling 'keras.applications.inception_v3.InceptionV3().predict(perturbed_img)'.  Then get the RMS segment diff from the orig image to each of Binomially Distributed segment masks.  Finally correlate the RMS diff with the place of the predicted full image.  This then provides an order to segment importance of the final prediction (to compare how you would ID the same image and therefore gain confidence in the prediction).
@@ -42,7 +61,7 @@ A good place to start with understanding LIME is:
     -------------------------------------
 ```
 
-### Diagram overview
+## Diagram overview
 * Top Row: Get mask from Binomial Distribution of which of 28 segments to include
 
   eg Top prediction of first perturbation: [1 1 1 1 0 0 1 0 1 0 1 0 0 1 1 1 0 0 1 0 0 1 0 0 0 0 0 1] = conch 
@@ -56,7 +75,7 @@ A good place to start with understanding LIME is:
 
 ![alt text](https://github.com/doughazell/ai/blob/main/LIME-flow-diag.jpg?raw=true)
 
-### Running 'lime.py'
+## Running 'lime.py'
 ```
 $ python lime.py
 ```
@@ -68,7 +87,7 @@ and
 
 ![alt text](https://github.com/doughazell/ai/blob/main/top_segments.png?raw=true)
 
-### Running 'inDeCeptionV3.py'
+## Running 'inDeCeptionV3.py'
 This is initially a re-run of 'lime.py' but then blanks out the top 4 segments to identity the image (which is now a cat).
 
 ```
