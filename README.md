@@ -11,16 +11,72 @@ This has been a major journey for me which started by learning about Keras Seque
 * legend.py
 
 ### get-training-output
-This is a BASH script around:
-* run_qa.py
+This is a BASH script that makes trying things (like fine-tuning from Non-Pretrained) easy and includes:
+* run_qa.py 
+
+  ('run_qa.py' filename preserved from https://github.com/huggingface/transformers/tree/main/examples/pytorch/question-answering#fine-tuning-bert-on-squad10)
+
+  * Non-Pretrained via '"pretrained_model": true' in cfg.json specified in 'run_qa.py' execution
+
+  * Ctrl-C in 'checkpointing.py::signal_handler(...)' allow fine-tuning SQUAD overnight (which took 2 weeks on my MacBook Pro with Flash Storage for 2 epochs)
+
+  * It uses a 'trainer_qa.py::QuestionAnsweringTrainer' 
+
+  Hooking 'modeling_bert.py' to collect logits + node weights during optimization via 'huggin_utils.py' :
+  * BertSelfAttention.forward()
+
+    ```
+    ...
+    def logSelectedNodeLogits(outputs):
+      ...
+      # 10/6/24 DH: Now sending 'tokenNum' since in TRAINING it is ALWAYS 384 but in NON-training it is TOKEN LENGTH
+      huggin_utils.logSelectedNodeLogits(nodeForeachLogit, BertSelfAttention.cnt, bertLayerName="self", embedTokens=tokenNum)
+
+    # Take FIRST BertSelfAttention + Node 287 (ie Max change) for all 384 logits
+    if (BertSelfAttention.cnt == 1):
+      logSelectedNodeLogits(outputs)
+
+    # Take LAST BertSelfAttention + Node 287 (ie Max change) for all 384 logits
+    if (BertSelfAttention.cnt == self.config.num_hidden_layers):
+      logSelectedNodeLogits(outputs)
+    ```
+
+  * BertOutput.forward()
+    ```
+    ...
+    if (BertSelfAttention.cnt == self.config.num_hidden_layers):
+      huggin_utils.logSelectedNodeLogits(nodeForeachLogit, BertSelfAttention.cnt, bertLayerName="out", embedTokens=logitNum)
+
+      # Reset counter for next training/non-training run NOW NOT DONE IN 'BertSelfAttention'
+      BertSelfAttention.cnt = 0
+    ```
+  
+  * BertForQuestionAnswering.forward()
+    ```
+    ...
+    if logitsLen > 1: # ie training not non-training calc
+      huggin_utils.logWeightings(self.qa_outputs.weight)
+
+    if start_positions is not None and end_positions is not None:
+      ...
+      huggin_utils.logLogits(tokenizer, input_ids, start_logits, end_logits, start_loss, end_loss)
+    ```
+
 * graph-weights.py
 * graph-losses.py
 * graph-logits.py
 * create-gv-training.py
 
-in order to produce a PDF like:
+in order to produce a PDF from Custom JSON data (which retrains several times with the same sample so a valid training comparison can be drawn) like:
 
-![alt text](https://github.com/doughazell/ai/blob/main/huggingface/qa-training-10Aug.gv.pdf?raw=true)
+![alt text](https://github.com/doughazell/ai/blob/main/huggingface/qa-training-10Aug.jpeg?raw=true)
+
+or from SQUAD data (with 100,000+ samples so no point tracking same sample) like:
+
+![alt text](https://github.com/doughazell/ai/blob/main/huggingface/qa-training-15Aug.jpeg?raw=true)
+
+### get-model-output
+
 
 ## HuggingFace Transformers
 * huggin_utils.py
