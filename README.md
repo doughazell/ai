@@ -76,6 +76,64 @@ or from SQUAD data (with 100,000+ samples so no point tracking same sample) like
 ![alt text](https://github.com/doughazell/ai/blob/main/huggingface/qa-training-15Aug.jpeg?raw=true)
 
 ### get-model-output
+* test-qa-efficacy.py
+
+  Keep re-running until an answer is returned that is correct (to test partial fine-tuning after an overnight run of about 1000 epochs of batches of 12)
+
+  Then add results to SQLite DB (currently '~/ai/bert/stack_trace.db')
+
+  ```
+  This DB was initially used for 'track-trainer.py' in order to get a stack trace at random time intervals in order to learn the HuggingFace training system.
+
+  'track-trainer.py' used:
+    'track-trainer-backend.py' (for creating a separate 'run_qa.py' process to signal Ctrl-C)
+    'stop_trainer.py'
+    'sort_error_log.py'
+    'stop_trainer_utils.py'
+  ```
+
+  * db_utils.py
+
+    Populate 'stack_trace.db::sample_indices'
+
+    ```
+    bert$ sqlite3 stack_trace.db
+
+    sqlite> select * from sample_indices;
+    id|model_efficacy_id|seq_num|seq_ids
+    ...
+    15|8|36|73046,28615,43280,35492,56949,5569,18151,40362,66763,47757,85209,637,66349,78306,44359,41921,85703,3223,58179,48952,54222,80427,19808,40113,8465,54659,61244,32650,75646,17769,61959,63990,79124,24554,59255,4916
+    ```
+
+  * db-indices.py
+
+    Populate 'stack_trace.db::model_efficacy' with each record being a distinct "model/training state/training data"
+
+    ```
+    bert$ sqlite3 stack_trace.db
+
+    sqlite> select * from model_efficacy;
+    id|model_type_state|correct_num|sample_num|sample_seq
+    1|BertForQuestionAnswering-1026-squad|17|51|3,3,6
+    2|BertForQuestionAnswering-1026-data.json|7|7|
+    3|BertForQuestionAnswering-40-data.json|2|2|
+    4|BertForQuestionAnswering-1126-data.json|1|1|
+    5|BertForQuestionAnswering-NoPretrain-1126-squad|15|1584|216,60,27,354,69,162,33,150,156
+    6|BertForQuestionAnswering-10-data.json|3|3|1,1,1
+    7|BertForQuestionAnswering-NoPretrain-2134-squad|17|1152|159,78,36,15,66,147,72,3,87,3,42,30,42,12,48,102,210
+    8|BertForQuestionAnswering-NoPretrain-3188-squad|13|354|81,6,18,63,3,48,57,9,3,3,27,36
+    ```
+
+    so you can see from "id 8" that "BertForQuestionAnswering-NoPretrain-3188-squad" is 13/354 (3.7%) accurate and the last run of 'test-qa-efficacy.py' took 36 attempts to get a correct answer with the SQUAD ids listed in "id 15" of 'sample_indices'.
+
+* graph-weights.py
+* graph-losses.py
+* graph-node-logits.py
+* create-gv-output.py
+
+![alt text](https://github.com/doughazell/ai/blob/main/huggingface/qa-output-16Aug.jpeg?raw=true)
+
+### squad-interface.py
 
 
 ## HuggingFace Transformers
