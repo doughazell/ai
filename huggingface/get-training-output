@@ -29,7 +29,6 @@ WEIGHTSDIR="${QArunTLD}/weights"
 # 9/7/24 DH: Prev used SCRIPTDIR but better to use 'cwd' (which gets propagated)
 mkdir -p ${CWD}/gv-graphs
 echo "CREATED: 'gv-graphs' IN: '${CWD}'"
-echo
 
 echo
 echo "--------------- SCRIPT PARAMS ------------------"

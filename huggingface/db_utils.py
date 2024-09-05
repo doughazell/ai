@@ -185,7 +185,7 @@ if __name__ == "__main__":
   statsDB = getOrCreateTable(gDbFQN, gTableName, columnsStr)
   recordID = updateTableStats(statsDB)
 
-  # 12/8/24 DH: The script returns ID of last recrod added via 'gRecordIDfilename'
+  # 12/8/24 DH: The script returns ID of last record added via 'gRecordIDfilename'
   with open(gRecordIDfilename, "w") as outFile:
     outFile.write(f"{recordID}")
   

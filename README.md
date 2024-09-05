@@ -1,4 +1,16 @@
 # Huggin API
+
+* [Introduction](#introduction)
+* [Scripts](#scripts)
+  * [get-training-output](#get-training-output)
+  * [get-model-output](#get-model-output)
+  * [squad-interface.py](#squad-interfacepy)
+  * [legend.py](#legendpy)
+* [HuggingFace Transformers](#huggingface-transformers)
+* [LIME process](#lime-process)
+  * [Running 'lime.py'](#running-limepy)
+  * [Running 'inDeCeptionV3.py'](#running-indeceptionv3py)
+
 ## Introduction
 This is my Repo to learn about Transformer Neural Networks which has become a https://github.com/huggingface/transformers/tree/main/src/transformers API.
 
@@ -18,9 +30,30 @@ This is a BASH script that makes trying things (like fine-tuning from Non-Pretra
 
   * Non-Pretrained via '"pretrained_model": true' in cfg.json specified in 'run_qa.py' execution
 
-  * Ctrl-C in 'checkpointing.py::signal_handler(...)' allow fine-tuning SQUAD overnight (which took 2 weeks on my MacBook Pro with Flash Storage for 2 epochs)
+  * Ctrl-C in 'checkpointing.py::signal_handler(...)' allows fine-tuning SQUAD overnight (which took 2 weeks on my MacBook Pro with Flash Storage for 2 epochs)
 
-  * It uses a 'trainer_qa.py::QuestionAnsweringTrainer' 
+  * It uses a 'trainer_qa.py::QuestionAnsweringTrainer'
+
+    ```
+    NOTE: 'run_qa.py' maps SQUAD to format required by Trainer ie:
+
+    ----------------------------------------------------------------------------------------------------------------
+    PRE: 'prepare_train_features': Dataset({
+        features: ['id', 'title', 'context', 'question', 'answers'],
+        num_rows: 87599
+    })
+
+    POST: 'prepare_train_features': Dataset({
+        features: ['input_ids', 'token_type_ids', 'attention_mask', 'start_positions', 'end_positions'],
+        num_rows: 88524
+    })
+    ----------------------------------------------------------------------------------------------------------------
+
+    Therefore 2 epochs of SQUAD results in a total training steps: 14754 (ie 88524 * 2 / 12)
+      Number of epochs: 2
+      Training samples: 88524
+      Training batch size: 12
+    ```
 
   Hooking 'modeling_bert.py' to collect logits + node weights during optimization via 'huggin_utils.py' :
   * BertSelfAttention.forward()
@@ -134,10 +167,59 @@ or from SQUAD data (with 100,000+ samples so no point tracking same sample) like
 ![alt text](https://github.com/doughazell/ai/blob/main/huggingface/qa-output-16Aug.jpeg?raw=true)
 
 ### squad-interface.py
+There didn't seem to be an online DB to get the Context/Question/Correct Answer for SQUAD index (https://huggingface.co/datasets/rajpurkar/squad didn't provide a mechanism to search on index).  This will provide an indication of the grammar level of a "model/training state" by human inference of failures/successes.
 
+```
+huggingface$ python squad-interface.py
+  87599 samples + 10570 validation samples = 98169 total in 'squad'
+
+  Do you want to check for duplicate 'seq_ids'? [Y/n] 
+
+  Opened connection to DB:  /Users/doug/src/ai/bert/stack_trace.db
+
+  CHECKING FOR DUPLICATE 'seq_ids'
+  --------------------------------
+  RECORD NUMBER: 15
+
+  SET: 7 - startIdx: 0, endIdx: 2
+    ...
+    Ids in record 1 & 2: '[64745]'
+    Ids in record 2 & 0: ''
+    Ids in record 2 & 1: '[64745]'
+
+  TOGGLING TO SET: 8 at index 3
+  SET: 8 - startIdx: 3, endIdx: 14
+    ...
+    Ids in record 6 & 7: '[23581, 21533, 46079]'
+    ...
+    Ids in record 6 & 12: '[23581, 21533, 46079]'
+    ...
+    Ids in record 7 & 6: '[23581, 21533, 46079]'
+    ...
+    Ids in record 7 & 12: '[23581, 21533, 46079]'
+    ...
+    Ids in record 12 & 6: '[23581, 21533, 46079]'
+    Ids in record 12 & 7: '[23581, 21533, 46079]'
+    ...
+
+  What index do you want? (just press return for random index) 
+  Getting 'random' index: 17363
+
+  INDEX: 17363 (of 87599)
+  QUESTION: Who was the member of Parliament who brought a bill about Daylight Saving Time to the House of Commons in 1908?
+  CONTEXT: Modern DST was first proposed by the New Zealand entomologist George Hudson, whose shift-work job gave him leisure time to collect insects, and led him to value after-hours daylight. In 1895 he presented a paper to the Wellington Philosophical Society proposing a two-hour daylight-saving shift, and after considerable interest was expressed in Christchurch, he followed up in an 1898 paper. Many publications credit DST's proposal to the prominent English builder and outdoorsman William Willett, who independently conceived DST in 1905 during a pre-breakfast ride, when he observed with dismay how many Londoners slept through a large part of a summer's day. An avid golfer, he also disliked cutting short his round at dusk. His solution was to advance the clock during the summer months, a proposal he published two years later. The proposal was taken up by the Liberal Member of Parliament (MP) Robert Pearce, who introduced the first Daylight Saving Bill to the House of Commons on 12 February 1908. A select committee was set up to examine the issue, but Pearce's bill did not become law, and several other bills failed in the following years. Willett lobbied for the proposal in the UK until his death in 1915.
+  EXPECTED ANSWER: Robert Pearce
+  EXPECTED ANSWER START IDX: 899
+  TOKEN LEN (Bert vocab): 271
+
+```
+
+### legend.py
+Written to add a legend to the generated GraphViz graph from 'torchview'
+
+(See comments in file for details)
 
 ## HuggingFace Transformers
-* huggin_utils.py
 * Activation/Optimization
 * Logits via 'hidden_states'
 

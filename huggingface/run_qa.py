@@ -578,6 +578,12 @@ def main():
 
         # Create train feature from dataset
         with training_args.main_process_first(desc="train dataset map pre-processing"):
+            # 5/9/24 DH: ID where "num_rows: 87599" becomes "num_rows: 88524" (necessary for "Total training steps: 14754 = 88524 * 2 / 12")
+            #            (See file:///Users/doug/Desktop/devlogeD/2024/doc/b6-feb24.html#label-Training)
+            print("----------------------------------------------------------------------------------------------------------------")
+            print(f"PRE: 'prepare_train_features': {train_dataset}")
+            print()
+
             train_dataset = train_dataset.map(
                 # 25/3/24 DH: Get tokenized_examples = tokenizer(...) + {start_positions, end_positions} cross references (aka "labels")
                 prepare_train_features,
@@ -587,6 +593,14 @@ def main():
                 load_from_cache_file=not data_args.overwrite_cache,
                 desc="Running tokenizer on train dataset",
             )
+            # 5/9/24 DH:
+            print()
+            print(f"POST: 'prepare_train_features': {train_dataset}")
+            print()
+            print("NOTE: THIS DATASET MAPPING IN ONLY NEEDED FOR: 'QuestionAnsweringTrainer(..., train_dataset=train_dataset, ...)'")
+            print("----------------------------------------------------------------------------------------------------------------")
+            print()
+
         if data_args.max_train_samples is not None:
             # Number of samples might increase during Feature Creation, We select only specified max samples
             max_train_samples = min(len(train_dataset), data_args.max_train_samples)
@@ -799,6 +813,7 @@ def main():
         # 9/8/24 DH: Need to record 'data_args' + 'pretrained_modelFlag' for use with 'checkpointing.saveTrialParams()' here...
         #            (prior to possible Ctrl-C)
         #            (CHECKPOINT USAGE WILL OVERRIDE MODEL TYPE)
+        
         train_result = trainer.train(resume_from_checkpoint=checkpoint)
 
         trainer.save_model()  # Saves the tokenizer too for easy upload

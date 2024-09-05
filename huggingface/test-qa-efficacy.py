@@ -425,6 +425,9 @@ def main():
     raw_data = raw_datasets["train"][datasetsIdx]
     # 12/6/24 DH: Adding in user feedback for JSON data run
     ansDict = {}
+    # ---------------------
+    # 'getModelOutput(...)'
+    # ---------------------
     (ansDict['tokenLen'], ansDict['question'], ansDict['context'], ansDict['expAnswer'], 
      ansDict['answer'], ansDict['startIdx'], ansDict['endIdx']) = getModelOutput(raw_data, data_args, model_args, printOut=False)
     answerDictDict = {}
@@ -436,6 +439,9 @@ def main():
   # BUT random sample of Arrow Datasets (First entry is 0)
   elif data_args.dataset_name:
     iterations = 3
+    # ---------------------
+    # 'runRandSamples(...)'
+    # ---------------------
     answerDictDict = runRandSamples(data_args.dataset_name, raw_datasets, data_args, model_args, iterations)
 
   someCorrectFlag = displayResults(answerDictDict, training_args, iterations)
