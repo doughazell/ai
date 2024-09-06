@@ -104,12 +104,19 @@ in order to produce a PDF from Custom JSON data (which retrains several times wi
 
 ![alt text](https://github.com/doughazell/ai/blob/main/huggingface/qa-training-10Aug.jpeg?raw=true)
 
-or from SQUAD data (with 100,000+ samples so no point tracking same sample) like:
+or from SQUAD data (with 87,599 samples so no point tracking same sample) like:
 
 ![alt text](https://github.com/doughazell/ai/blob/main/huggingface/qa-training-15Aug.jpeg?raw=true)
 
 ### get-model-output
+This is a BASH script that enters Context+Question from random SQUAD entries (or first entry of the custom JSON) and keeps repeating until a correct answer is returned from the current training state of the model.  Then records the total numer of samples and the SQUAD indices used in a SQLite DB.  It includes:
 * test-qa-efficacy.py
+
+  ```
+  Hook 'modeling_bert.py' to collect logits via 'huggin_utils.py' (like 'get-training-output').
+
+  The weights from the current training state (having previously run 'get-training-output') will be displayed in the PDF output.
+  ```
 
   Keep re-running until an answer is returned that is correct (to test partial fine-tuning after an overnight run of about 1000 epochs of batches of 12)
 
@@ -220,8 +227,38 @@ Written to add a legend to the generated GraphViz graph from 'torchview'
 (See comments in file for details)
 
 ## HuggingFace Transformers
-* Activation/Optimization
-* Logits via 'hidden_states'
+AI seems to be a "Professor Biggins" domain (partly due to secrecy of an intelligence system) so I wanted to verify claims, in the meriad of blogs written about the Transformer architecture, about how it works by finding code implementation.  The Transformer architecture (in ["Attention is all you need"](https://arxiv.org/abs/1706.03762v1) paper from 2017 ) has both Encoder + Decoder, whereas ["Bidirectional Encoder Representations from Transformers" ](https://arxiv.org/abs/1810.04805) (Bert) has only Encoder and was my chosen model for Q&A understanding.
+
+(bullet points for later reference)
+
+### Natural Language Processing
+
+* Physics of this 4-D realm tends to enfoldment and integration (that I accept is the chosen mechanism to release dis-ease in Multiverse Light...Humanity is the Cosmic Sewage Treatment works...aka Classroom of Light)
+* Human world model (based largely on the zeitgeist of the Collective Unconscious) inherantly integrates concepts from differnt view points and is the result of the Perceptual Cascade ("Being and Becomming", Franklyn Sills, p.104).
+* Language is message passing waveforms between disparate brain segments which also can involve disparate brains via speech (in a Quantum World)
+* Text is phonetic speech that resonates with the zeitgeist clapotis effect and hence is adopted by a domain of society
+* Maths is a Complex Number of natural language
+
+### Query-Key-Value
+* Transformer is a tokenized, n-dimensionally recursive, arithmetic of natural language
+* Query + Key are all tokens so the different names for Transformer is probably a legacy of [Neural Network translation](https://arxiv.org/abs/1409.0473) theory
+* Many blogs indicate the heads are parallel rather than sequentional like Bert
+  * The [Transformer](https://arxiv.org/abs/1706.03762v1) paper also indicates parallel rather then seqentional, "On each of these projected versions of
+    queries, keys and values we then perform the attention function in parallel, yielding dv-dimensional
+    output values. These are concatenated, resulting in the final values, as depicted in Figure 2"
+
+### Activation/Optimization
+
+
+### Logits via 'hidden_states'
+
+
+### Pre-training/Fine-tuning
+My Ctrl-C checkpointing training script ('get-training-output') allowed testing the assertion that Pre-training of NLP is required prior to Fine-tuning the task specific additional layer like Q&A.
+
+IT IS NOT REQUIRED (and is ["Plum-Pudding"](https://en.wikipedia.org/wiki/Plum_pudding_model) renaissance).
+
+There appears to be an artifact of language specificity for the task specific layer and from my brief testing, Pre-training appears to be a hindrance to SQUAD Bert Q&A training (like knowing "textspeak" does not help you write better scientific papers). 
 
 # LIME process
 LIME (https://arxiv.org/abs/1602.04938) works by having a Binomial Distribution of image masking (ie removing segments of the full image) in order to perturb the image prior to calling 'keras.applications.inception_v3.InceptionV3().predict(perturbed_img)'.  Then get the RMS segment diff from the orig image to each of Binomially Distributed segment masks.  Finally correlate the RMS diff with the place of the predicted full image.  This then provides an order to segment importance of the final prediction (to compare how you would ID the same image and therefore gain confidence in the prediction).
