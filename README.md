@@ -242,15 +242,94 @@ AI seems to be a "Professor Biggins" domain (partly due to secrecy of an intelli
 ### Query-Key-Value
 * Transformer is a tokenized, n-dimensionally recursive, arithmetic of natural language
 * Query + Key are all tokens so the different names for Transformer is probably a legacy of [Neural Network translation](https://arxiv.org/abs/1409.0473) theory
-* Many blogs indicate the heads are parallel rather than sequentional like Bert
+* Many blogs indicate the heads are parallel rather than sequentional like [Bert](https://github.com/doughazell/ai/blob/main/huggingface/BertQA.jpeg)
   * The [Transformer](https://arxiv.org/abs/1706.03762v1) paper also indicates parallel rather then seqentional, "On each of these projected versions of
     queries, keys and values we then perform the attention function in parallel, yielding dv-dimensional
     output values. These are concatenated, resulting in the final values, as depicted in Figure 2"
 
 ### Activation/Optimization
+* Optimizer function (eg ADAM) is BACKWARD processing (aka Training)
 
+  OPTIMIZE LOGITS (via Loss backpropagated “Heavy Tailing”)
+
+* Activation function (eg GELU/ReLU) is FORWARD processing
+
+  ACTIVATE WEIGHTS to calc logits
+
+https://github.com/huggingface/transformers/blob/main/src/transformers/trainer.py#L3394 (line number likely to change)
+```
+Trainer::training_step(...):
+  model.train()
+  inputs = self._prepare_inputs(inputs)
+  ...
+  loss = self.compute_loss(model, inputs)
+  ...
+  self.accelerator.backward(loss, **kwargs)
+
+  return loss.detach() / self.args.gradient_accumulation_steps
+```
 
 ### Logits via 'hidden_states'
+https://github.com/huggingface/transformers/blob/main/src/transformers/models/bert/modeling_bert.py#L254
+```
+BertSelfAttention.forward(...):
+  mixed_query_layer = self.query(hidden_states)
+  ...
+  else:
+    key_layer = self.transpose_for_scores(self.key(hidden_states))
+    value_layer = self.transpose_for_scores(self.value(hidden_states))
+
+  query_layer = self.transpose_for_scores(mixed_query_layer)
+  ...
+  # Take the dot product between "query" and "key" to get the raw attention scores.
+  attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
+  ...
+  # Normalize the attention scores to probabilities.
+  attention_probs = nn.functional.softmax(attention_scores, dim=-1)
+  ...
+  context_layer = torch.matmul(attention_probs, value_layer)
+  ...
+  outputs = (context_layer, attention_probs) if output_attentions else (context_layer,)
+  ...
+  return outputs
+```
+
+'self.query(hidden_states)' gets resolved in 'Linear.forward()' :
+```
+(Pdb) self.query
+Linear(in_features=768, out_features=768, bias=True)
+
+Linear.forward():
+  return F.linear(input, self.weight, self.bias)
+
+In training run from 'get-training-output'
+------------------------------------------
+(Pdb) hidden_states.shape
+torch.Size([12, 384, 768])
+
+In non-training run from 'get-model-output'
+-------------------------------------------
+(Pdb) hidden_states.shape
+torch.Size([1, 242, 768])
+```
+
+https://github.com/huggingface/transformers/blob/main/src/transformers/models/bert/modeling_bert.py#L1991
+```
+(Pdb) input_ids.shape
+torch.Size([1, 242])
+
+(Pdb) input_ids.tolist()
+[[101, 2054, 2095, 2071, 2022, 4417, 2004, 2095, 2043, 3751, 7111, 2062, 8114, 2084, 7937, 3924, 1029, 102, 1999, 1996, 2280, ..., 4621, 1012, 102]]
+
+(Pdb) from transformers import AutoTokenizer
+(Pdb) tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
+(Pdb) inIds = input_ids[0]
+'[CLS] what year could be marked as year when electric railways more efficient than diesel ones? [SEP] in the former soviet union, electric traction eventually became somewhat more energy - efficient than diesel. partly due to inefficient generation of electricity in the ussr ( only 20. 8 % thermal efficiency in 1950 vs. 36. 2 % in 1975 ), in 1950 diesel traction was about twice as energy efficient as electric traction ( in terms of net tonne - km of freight per kg of fuel ). but as efficiency of electricity generation ( and thus of electric traction ) improved, by about 1965 electric railways became more efficient than diesel. after the mid 1970s electrics used about 25 % less fuel per ton - km. however diesels were mainly used on single track lines with a fair amount of traffic so that the lower fuel consumption of electrics may be in part due to better operating conditions on electrified lines ( such as double tracking ) rather than inherent energy efficiency. nevertheless, the cost of diesel fuel was about 1. 5 times more ( per unit of heat energy content ) than that of the fuel used in electric power plants ( that generated electricity ), thus making electric railways even more energy - cost effective. [SEP]'
+ 
+
+```
+
+
 
 
 ### Pre-training/Fine-tuning
