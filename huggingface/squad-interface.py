@@ -9,6 +9,9 @@
 SQUAD entries of interest
 -------------------------
 1) INDEX: 55351 - Misspelt 'Alatians' in Q when it should be, 'Alsatians'
+2) INDEX: 28250 - "Its present form in humans differed from that of the chimpanzees by only a few mutations and has been present for about 200,000 years, coinciding with the beginning of modern humans (Enard et al. 2002)"
+3) INDEX: 38353 - "What companies built their first overseas research and development centers in Israel?" = "Intel and Microsoft"
+
 """
 
 import sys, os, random, time
@@ -32,6 +35,9 @@ gRecordDictList = []
 
 # 9/9/24 DH: Upgrade to handle non-contiguous model-type records
 gRecordDLDict = {}
+
+# 10/9/24 DH: Preventing outputting combination twice
+gPrevOutput2D = []
 
 # ================================= SQUAD ===================================
 def getSQUADindex(dataset, idx, numSamples, tokenizer):
@@ -74,6 +80,7 @@ def getIndexFromUser():
 
 # =============================== OLD CODE ===================================
 # 15/8/24 DH: Passed to 'db_utils.iterateRecords(...)' and called for every record in 'stack_trace.db::sample_indices'
+# 10/9/24 DH: OLD
 def checkDuplicatesColHandler(record, recordNum):
   # Specific to 'stack_trace.db::sample_indices' schema
   id                = record[0]
@@ -138,6 +145,7 @@ def checkAdjacentIdsInSet(recordDictList, startIdx, endIdx):
   # END: --- "for idx in range(endIdx + 1 - startIdx)" ---
 
 # 17/8/24 DH: UPGRADE OF: 'checkAdjacentIdsInSet(...)' AND NOW BEEN UPGRADED ITSELF...
+# 10/9/24 DH: OLD
 def checkIdsInSetList(recordDictList, startIdx, endIdx):
   print(f"SET: {recordDictList[startIdx]['model_efficacy_id']} - startIdx: {startIdx}, endIdx: {endIdx}")
   print()
@@ -311,26 +319,42 @@ def getDLDRecordNum():
   
   return recordNum
 
+# 10/9/24 DH:
+def noPrevOutput(record1id, record2id):
+  global gPrevOutput2D
+
+  # [1,2]
+  # [2,1] = return FALSE
+  for entry in gPrevOutput2D:
+
+    # a more readable version than nested if-statements
+    if record1id in entry and record2id in entry:
+      return False
+
+  gPrevOutput2D.append([record1id, record2id])
+
+  return True
+
 # 9/9/24 DH:
 def checkIdsInList(modelRecordList):
   global gRecordDLDict
+  iCnt = 0
 
   for record1 in modelRecordList:
+    iCnt += 1
 
     for record2 in modelRecordList:
-      if record1 != record2:
+      if record1 != record2 and noPrevOutput(record1['id'], record2['id']):
         # https://docs.python.org/3/tutorial/datastructures.html#sets
         #   "a & b"  # letters in both a and b
         idsInBothRecordsSet = record1['seq_idsSet'] & record2['seq_idsSet']
-        if len(idsInBothRecordsSet) == 0:
-          idsInBothRecordsStr = ""
-        else:
+        if len(idsInBothRecordsSet) != 0:
           idsInBothRecordsStr = list(idsInBothRecordsSet)
-        
-        print(f"  Ids in record {record1['id']} & {record2['id']}: '{idsInBothRecordsStr}'")
+          print(f"  Ids in record {record1['id']} & {record2['id']}: '{idsInBothRecordsStr}'")
 
-  # END: --- "for record in modelRecordList" ---    
+  # END: --- "for record1 in modelRecordList" ---
 
+  return iCnt
 
 # UPGRADE OF: 'checkDupsByModelIDHandler()' to handle non-contiguous model-type records
 def checkDupsByConvergedIDsHandler(record, recordNum):
@@ -346,10 +370,16 @@ def checkDupsByConvergedIDsHandler(record, recordNum):
     print()
     for modelID in gRecordDLDict:
       print()
-      print(f"'model_efficacy_id': {modelID}")
-      checkIdsInList(gRecordDLDict[modelID])
-    
+      print(f"'model_efficacy_id': {modelID} (combinations printed once)")
+      modelRecordNum = checkIdsInList(gRecordDLDict[modelID])
+      print()
+      print(f"  'model_efficacy_id': {modelID} = {modelRecordNum} records")
+      print( "  -------------------")
+    # END: --- "if dldNum == recordNum" ---
+
     print()
+
+# ------------------------------- MISC ------------------------------------
 
 # 16/8/24 DH:
 def checkForSeqIDs(dupSeqIDs):
