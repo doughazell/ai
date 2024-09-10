@@ -5,6 +5,12 @@
 #
 ##############################################################################
 
+"""
+SQUAD entries of interest
+-------------------------
+1) INDEX: 55351 - Misspelt 'Alatians' in Q when it should be, 'Alsatians'
+"""
+
 import sys, os, random, time
 from ast import literal_eval
 
@@ -23,6 +29,9 @@ gTABLENAMEindices = "sample_indices"
 
 # Used to store a DictList of records from 'db_utils.iterateRecords(...)'
 gRecordDictList = []
+
+# 9/9/24 DH: Upgrade to handle non-contiguous model-type records
+gRecordDLDict = {}
 
 # ================================= SQUAD ===================================
 def getSQUADindex(dataset, idx, numSamples, tokenizer):
@@ -63,7 +72,7 @@ def getIndexFromUser():
   
   return datasetIdx
 
-# =============================== CHECK DUPLICATE SEQ_IDS ===================================
+# =============================== OLD CODE ===================================
 # 15/8/24 DH: Passed to 'db_utils.iterateRecords(...)' and called for every record in 'stack_trace.db::sample_indices'
 def checkDuplicatesColHandler(record, recordNum):
   # Specific to 'stack_trace.db::sample_indices' schema
@@ -88,7 +97,7 @@ def checkDuplicatesColHandler(record, recordNum):
   
   print()
 
-# 16/8/24 DH:
+# 16/8/24 DH: OLD CODE
 def checkAdjacentIdsInSet(recordDictList, startIdx, endIdx):
   print()
   print(f"Start last index: {startIdx}, model_efficacy_id: {recordDictList[startIdx]['model_efficacy_id']}")
@@ -128,8 +137,8 @@ def checkAdjacentIdsInSet(recordDictList, startIdx, endIdx):
       prevIdx = listIdx
   # END: --- "for idx in range(endIdx + 1 - startIdx)" ---
 
-# 17/8/24 DH:
-def checkIdsInSet(recordDictList, startIdx, endIdx):
+# 17/8/24 DH: UPGRADE OF: 'checkAdjacentIdsInSet(...)' AND NOW BEEN UPGRADED ITSELF...
+def checkIdsInSetList(recordDictList, startIdx, endIdx):
   print(f"SET: {recordDictList[startIdx]['model_efficacy_id']} - startIdx: {startIdx}, endIdx: {endIdx}")
   print()
   for idx1 in range(endIdx + 1 - startIdx):
@@ -151,9 +160,107 @@ def checkIdsInSet(recordDictList, startIdx, endIdx):
   # END: --- "for idx1 in range(endIdx + 1 - startIdx)" ---
   print()
 
-# 17/8/24 DH:
-def populateDictListHandler(record, recordNum):
+# 17/8/24 DH: OLD, NO LONGER USED (just kept for amusement in "bottom-up" coding rather than "middle-out")
+#             (now replaced by 'populateDictDict(...)' )
+def populateDictList(record, recordNum):
   global gRecordDictList
+
+  recordDict = createRecordDict(record)
+
+  gRecordDictList.append(recordDict)
+
+  # We have a list of ALL RECORDS
+  if len(gRecordDictList) == recordNum:
+    print()
+
+# 16/8/24 DH: Passed to 'db_utils.iterateRecords(...)' and called for every record in 'stack_trace.db::sample_indices'
+# 9/9/24 DH: OLD, NOW REPLACED BY 'checkDupsByConvergedIDsHandler(...)'
+def checkDupsByModelIDHandler(record, recordNum):
+  populateDictList(record, recordNum)
+
+  # We have a list of ALL RECORDS so now cross correlate 'seq_ids' from same 'model_efficacy_id'
+  if len(gRecordDictList) == recordNum:
+    startIdxList = [0, 0]
+    startIdxTop = 0
+    
+    currModelId = 0
+    dlIdx = 0
+    # 9/9/24 DH: Each record is a Dict
+    #            TODO: Make 'gRecordDictList' a 'gRecordDLDict'
+    for dict in gRecordDictList:
+
+      # 9/9/24 DH: Currently works by taking contiguous blocks of 'model_efficacy_id' 
+      #            HOWEVER THIS LEADS TO A BUG WHEN DIFF MODELS ARE TESTED CONCURRENTLY...!
+      if dict['model_efficacy_id'] != currModelId:
+        currModelId = dict['model_efficacy_id']
+        
+        if dlIdx != 0: # ie we have moved onto next set of 'model_efficacy_id' BUT NOT FIRST ENTRY
+          startLastSetIdx = startIdxList[startIdxTop]
+          endLastSetIdx = dlIdx - 1
+          #checkAdjacentIdsInSet(gRecordDictList, startLastSetIdx, endLastSetIdx)
+          checkIdsInSetList(gRecordDictList, startLastSetIdx, endLastSetIdx)
+
+          # Toggle top to prevent overwriting the last start index (which initially is '0')
+          print(f"TOGGLING TO SET: {currModelId} at index {dlIdx}")
+          startIdxTop = (startIdxTop + 1) % len(startIdxList)
+          startIdxList[startIdxTop] = dlIdx
+
+          # 9/9/24 DH: If we test multiple models concurrently then this CURRENTLY CAUSES a bug for incorrect total set check 
+          if (currModelId == 8):
+            print()
+            print(f"  *** {currModelId} has non contiguous record entries due to concurrent testing diff models... ***")
+            print( "      TODO: Rewrite 'checkDupsByModelIDHandler()' to use 'gRecordDictDict'")
+            print()
+
+      # END --- "if dict['model_efficacy_id'] != currModelId" ---
+
+      dlIdx += 1
+    # END: --- "for dict in gRecordDictList" ---
+
+    # Now test LAST 'model_efficacy_id' in set
+    startLastSetIdx = startIdxList[startIdxTop]
+    endLastSetIdx = dlIdx - 1
+    #checkAdjacentIdsInSet(gRecordDictList, startLastSetIdx, endLastSetIdx)
+    checkIdsInSetList(gRecordDictList, startLastSetIdx, endLastSetIdx)
+
+  # END: --- "if len(gRecordDictList) == recordNum" ---
+
+# =============================== END: OLD CODE ==============================
+
+# 9/9/24 DH:
+def parseCSV(seq_idsStr, error):
+  seq_idsList = []
+
+  csvList = seq_idsStr.split(",")
+
+  print()
+  print(f"'{error}' FOR 'literal_eval()':")
+  print(f"  '{csvList[:3]}...{csvList[-3:]}'")
+  print()
+  print("PREVIOUSLY THIS HAD OCCURED WITH: '<value>,,<value>'")
+  
+  print(f"ENTRY NUMBER: {len(csvList)}+2 (counting spaces rather than trees)")
+  print()
+  idx = 0
+  errorIdxOffset = 0
+  for value in csvList:
+    try:
+      iVal = int(value)
+      idx += 1
+      #print(f"{idx}) Adding: {iVal} (type {iVal.__class__})")
+      seq_idsList.append(iVal)
+    except ValueError as e:
+      print()
+      print(f"  {e}")
+      print(f"    (PREV: '{csvList[idx -1 + errorIdxOffset]}', '{csvList[idx + errorIdxOffset]}', POST: '{csvList[idx +1 + errorIdxOffset]}')")
+      errorIdxOffset += 1
+
+      print()
+
+  return seq_idsList
+
+# 9/9/24 DH: Refactor of 'populateDictList(...)' to accom non-contiguous model-type records
+def createRecordDict(record):
   recordDict = {}
 
   # Specific to 'stack_trace.db::sample_indices' schema
@@ -163,7 +270,11 @@ def populateDictListHandler(record, recordNum):
   seq_idsStr        = record[3]
   
   # https://docs.python.org/3/library/ast.html#ast.literal_eval
-  seq_idsList = literal_eval(seq_idsStr)
+  # 9/9/24 DH:
+  try:
+    seq_idsList = literal_eval(seq_idsStr)
+  except SyntaxError as e:
+    seq_idsList = parseCSV(seq_idsStr, e)
 
   # https://docs.python.org/3/tutorial/datastructures.html#sets "eliminating duplicate entries."
   seq_idsSet = set(seq_idsList)
@@ -174,50 +285,71 @@ def populateDictListHandler(record, recordNum):
   recordDict['seq_idsList'] = seq_idsList
   recordDict['seq_idsSet'] = seq_idsSet
 
-  gRecordDictList.append(recordDict)
+  return recordDict
 
-  # We have a list of ALL RECORDS
-  if len(gRecordDictList) == recordNum:
-    print()
+# 9/9/24 DH: UPGRADE OF: 'populateDictList(...)' to handle non-contiguous model-type records
+def populateDLDict(record):
+  global gRecordDLDict
 
-# 16/8/24 DH: Passed to 'db_utils.iterateRecords(...)' and called for every record in 'stack_trace.db::sample_indices'
-def checkDupsByModelIDHandler(record, recordNum):
-  populateDictListHandler(record, recordNum)
+  recordDict = createRecordDict(record)
 
-  # We have a list of ALL RECORDS so now cross correlate 'seq_ids' from same 'model_efficacy_id'
-  if len(gRecordDictList) == recordNum:
-    startIdxList = [0, 0]
-    startIdxTop = 0
-    
-    currModelId = 0
-    dlIdx = 0
-    for dict in gRecordDictList:
+  modelID = recordDict['model_efficacy_id']
+  if modelID not in gRecordDLDict:
+    gRecordDLDict[modelID] = []
+  
+  gRecordDLDict[modelID].append(recordDict)
 
-      if dict['model_efficacy_id'] != currModelId:
-        currModelId = dict['model_efficacy_id']
+# 9/9/24 DH:
+def getDLDRecordNum():
+  global gRecordDLDict
+  recordNum = 0
+
+  for listDict in gRecordDLDict:
+    for itemDict in gRecordDLDict[listDict]:
+      #print(f"'model_efficacy_id': {itemDict['model_efficacy_id']}")
+      recordNum += 1
+  
+  return recordNum
+
+# 9/9/24 DH:
+def checkIdsInList(modelRecordList):
+  global gRecordDLDict
+
+  for record1 in modelRecordList:
+
+    for record2 in modelRecordList:
+      if record1 != record2:
+        # https://docs.python.org/3/tutorial/datastructures.html#sets
+        #   "a & b"  # letters in both a and b
+        idsInBothRecordsSet = record1['seq_idsSet'] & record2['seq_idsSet']
+        if len(idsInBothRecordsSet) == 0:
+          idsInBothRecordsStr = ""
+        else:
+          idsInBothRecordsStr = list(idsInBothRecordsSet)
         
-        if dlIdx != 0: # ie we have moved onto next set of 'model_efficacy_id' BUT NOT FIRST ENTRY
-          startLastSetIdx = startIdxList[startIdxTop]
-          endLastSetIdx = dlIdx - 1
-          #checkAdjacentIdsInSet(gRecordDictList, startLastSetIdx, endLastSetIdx)
-          checkIdsInSet(gRecordDictList, startLastSetIdx, endLastSetIdx)
+        print(f"  Ids in record {record1['id']} & {record2['id']}: '{idsInBothRecordsStr}'")
 
-          # Toggle top to prevent overwriting the last start index (which initially is '0')
-          print(f"TOGGLING TO SET: {currModelId} at index {dlIdx}")
-          startIdxTop = (startIdxTop + 1) % len(startIdxList)
-          startIdxList[startIdxTop] = dlIdx
-      # END --- "if dict['model_efficacy_id'] != currModelId" ---
+  # END: --- "for record in modelRecordList" ---    
 
-      dlIdx += 1
-    # END: --- "for dict in gRecordDictList" ---
 
-    # Now test last 'model_efficacy_id' in set
-    startLastSetIdx = startIdxList[startIdxTop]
-    endLastSetIdx = dlIdx - 1
-    #checkAdjacentIdsInSet(gRecordDictList, startLastSetIdx, endLastSetIdx)
-    checkIdsInSet(gRecordDictList, startLastSetIdx, endLastSetIdx)
+# UPGRADE OF: 'checkDupsByModelIDHandler()' to handle non-contiguous model-type records
+def checkDupsByConvergedIDsHandler(record, recordNum):
+  global gRecordDLDict
 
-  # END: --- "if len(gRecordDictList) == recordNum" ---
+  populateDLDict(record)
+
+  dldNum = getDLDRecordNum()
+
+  if dldNum == recordNum:
+    # We have a list of ALL RECORDS so now cross correlate 'seq_ids' from same 'model_efficacy_id'
+    print(f"ssssssweeeet...'gRecordDLDict' number: {dldNum}")
+    print()
+    for modelID in gRecordDLDict:
+      print()
+      print(f"'model_efficacy_id': {modelID}")
+      checkIdsInList(gRecordDLDict[modelID])
+    
+    print()
 
 # 16/8/24 DH:
 def checkForSeqIDs(dupSeqIDs):
@@ -274,8 +406,10 @@ if __name__ == "__main__":
     
     print("CHECKING FOR DUPLICATE 'seq_ids'")
     print("--------------------------------")
-    db_utils.iterateRecords(statsDB, gTABLENAMEindices, handlerFunc=checkDupsByModelIDHandler)
-    #db_utils.iterateRecords(statsDB, gTABLENAMEindices, handlerFunc=populateDictListHandler)
+    # 9/9/24 DH: OLD, NOW REPLACED BY: 'checkDupsByConvergedIDsHandler'
+    #db_utils.iterateRecords(statsDB, gTABLENAMEindices, handlerFunc=checkDupsByModelIDHandler)
+
+    db_utils.iterateRecords(statsDB, gTABLENAMEindices, handlerFunc=checkDupsByConvergedIDsHandler)
 
     """
     # Find [23581, 21533, 46079] in mid-sequence for 'model_efficacy_id' '8' (and HENCE NOT CORRECT) in order to FIND WHICH ONE IS CORRECT

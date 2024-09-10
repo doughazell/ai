@@ -131,7 +131,17 @@ if __name__ == "__main__":
   if len(sys.argv) > 2 and "show" in sys.argv[2]:
     gShowFlag = True
   
-  graphLosses(lossDict)
+  # 6/9/24 DH:
+  lossDictLen = len(lossDict)
+  if lossDictLen > 1:
+    graphLosses(lossDict)
+  else:
+    print(f"Not calling 'graphLosses(lossDict)' since 'lossDict' only contains '{lossDictLen}' entries")
+    print("(this is often caused during 'dev' when the previous training run did not complete successfully)")
+    print()
+    print(f"...a previous '{gWeightsGraphDir}/losses-by-epochs.png' will be used.")
+    print()
+    exit(0)
 
   if not gShowFlag:
     print()

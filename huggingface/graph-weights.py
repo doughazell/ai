@@ -419,9 +419,21 @@ if __name__ == "__main__":
   # 26/5/24 DH: During the Ctrl-C checkpointing save delay (to prevent partial saving) we sometimes get multiple end full weights
   #             ('getWeightDiffs(...) uses "startEpoch = keyList[0]", "endEpoch = keyList[1]")
   keyList = list(weightDictListDict.keys())
-  startEpoch = keyList[0]
-  # 'endEpoch' is taken as 2nd in "weights-full.log" (see comment above)
-  endEpoch = keyList[1]
+  try:
+    startEpoch = keyList[0]
+    # 'endEpoch' is taken as 2nd in "weights-full.log" (see comment above)
+    endEpoch = keyList[1]
+  
+  # 6/9/24 DH:
+  except IndexError:
+    print(f"'{weightsLog}' DOES NOT CONTAIN any epochs")
+    print("(this is often caused during 'dev' when the previous training run did not complete successfully)")
+    print()
+    global gWeightsGraphDir
+    print(f"...a previous '{gWeightsGraphDir}/total-weight-change.png' will be used.")
+    print()
+    exit(0)
+
   if len(keyList) > 2:
     print(f"  (not graphing epochs: ", end='')
     for key in keyList[2:]:

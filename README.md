@@ -12,9 +12,9 @@
   * [Running 'inDeCeptionV3.py'](#running-indeceptionv3py)
 
 ## Introduction
-This is my Repo to learn about Transformer Neural Networks which has become a https://github.com/huggingface/transformers/tree/main/src/transformers API.
+This is my Repo to learn about Transformer Neural Networks which has become a [HuggingFace Transformers](https://github.com/huggingface/transformers/tree/main/src/transformers) API.
 
-This has been a major journey for me which started by learning about Keras Sequential networks for https://en.wikipedia.org/wiki/MNIST_database processing with https://github.com/doughazell/mnist-training-errors.  Then moved onto using https://nbviewer.org/url/arteagac.github.io/blog/lime_image.ipynb with https://github.com/doughazell/ai/blob/main/lime.py (diagram below of LIME process).
+This has been a major journey for me which started by learning about Keras Sequential networks for [MNIST](https://en.wikipedia.org/wiki/MNIST_database) image processing with ["mmist-training-errors"](https://github.com/doughazell/mnist-training-errors) repo.  Then moved onto using ["Local Interpretable Model-agnostic Explanations"](https://nbviewer.org/url/arteagac.github.io/blog/lime_image.ipynb) (LIME) with [lime.py](https://github.com/doughazell/ai/blob/main/lime.py) (diagram below of LIME process).
 
 ## Scripts
 * get-training-output
@@ -169,6 +169,9 @@ This is a BASH script that enters Context+Question from random SQUAD entries (or
 * graph-weights.py
 * graph-losses.py
 * graph-node-logits.py
+
+  **NOTE:** Logits are **currently only taken from Node 287** that was by far the largest changing node from Pre-trained to Q&A (which is different from non-Pre-trained, ie normally distributed, values)
+
 * create-gv-output.py
 
 ![alt text](https://github.com/doughazell/ai/blob/main/huggingface/qa-output-16Aug.jpeg?raw=true)
@@ -240,7 +243,7 @@ AI seems to be a "Professor Biggins" domain (partly due to secrecy of an intelli
 * Maths is a Complex Number of natural language
 
 ### Query-Key-Value
-* Transformer is a tokenized, n-dimensionally recursive, arithmetic of natural language
+* Transformer is a Huffman tokenized, n-dimensionally recursive, arithmetic of natural language
 * Query + Key are all tokens so the different names for Transformer is probably a legacy of [Neural Network translation](https://arxiv.org/abs/1409.0473) theory
 * Many blogs indicate the heads are parallel rather than sequentional like [Bert](https://github.com/doughazell/ai/blob/main/huggingface/BertQA.jpeg)
   * The [Transformer](https://arxiv.org/abs/1706.03762v1) paper also indicates parallel rather then seqentional, "On each of these projected versions of
@@ -324,9 +327,8 @@ torch.Size([1, 242])
 (Pdb) from transformers import AutoTokenizer
 (Pdb) tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
 (Pdb) inIds = input_ids[0]
+(Pdb) tokenizer.decode(inIds)
 '[CLS] what year could be marked as year when electric railways more efficient than diesel ones? [SEP] in the former soviet union, electric traction eventually became somewhat more energy - efficient than diesel. partly due to inefficient generation of electricity in the ussr ( only 20. 8 % thermal efficiency in 1950 vs. 36. 2 % in 1975 ), in 1950 diesel traction was about twice as energy efficient as electric traction ( in terms of net tonne - km of freight per kg of fuel ). but as efficiency of electricity generation ( and thus of electric traction ) improved, by about 1965 electric railways became more efficient than diesel. after the mid 1970s electrics used about 25 % less fuel per ton - km. however diesels were mainly used on single track lines with a fair amount of traffic so that the lower fuel consumption of electrics may be in part due to better operating conditions on electrified lines ( such as double tracking ) rather than inherent energy efficiency. nevertheless, the cost of diesel fuel was about 1. 5 times more ( per unit of heat energy content ) than that of the fuel used in electric power plants ( that generated electricity ), thus making electric railways even more energy - cost effective. [SEP]'
- 
-
 ```
 
 
