@@ -63,7 +63,12 @@ def graphLosses(lossDict):
   print(f"  \"{titleStr}\"")
 
   # 18/7/24 DH: Added to prevent "n.5" epoch intervals (which are meaningless)
-  plt.xticks(np.arange(0, len(xVals), step=2))
+  xValsLen = len(xVals)
+
+  # 11/9/24 DH: With 'checkpointing' the training epochs will be diff from current batch epoch, so axis values will get squashed
+  if xVals[-1] < xValsLen + 10:
+    plt.xticks(np.arange(0, xValsLen, step=2))
+
   plt.plot(xVals, yVals)
 
   # 26/5/24 DH: Adding best fit line to exponential decay of loss (modulated by form of Pretrained BERT)

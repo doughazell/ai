@@ -19,8 +19,14 @@ gCheckpointNum = 0
 gFileName = "weights"  
 gFileNameFull = "weights-full"
 gLossFilename = "loss-by-epochs"
+
 # 8/6/24 DH:
-gSelectedNodeFilename = "node287-logits"
+#gSelectedNodeFilename = "node287-logits"
+# 12/9/24 DH: Node to track gets selected by 'graph-weights.py' + IPC with "max-node.txt" via 'get-model-output' BASH script
+#             TODO: UPDATE 'graph-node-logits.py'
+gSelectedNodeFilename = "node-logits"
+gMaxNodeFilename = "max-node.txt"
+
 # 29/7/24 DH:
 gFileNameRounded = "weights-rounded"
 # 5/8/24 DH: Get % correct stats for 'test-qa-efficacy.py'
@@ -60,6 +66,26 @@ def archivePrevLogs(weightPath, file=False):
       print(f"  NOT COPIED: '{logFile}'")
     
   print()
+
+# 12/9/24 DH:
+def getTrackedNode():
+  trackedNode = 0
+
+  try:
+    # FROM: 'create-gv-training.py'
+    #lossesFilenameFile = f"{gCWD}/gv-graphs/losses_filename.txt"
+
+    with open(gMaxNodeFilename) as inFile:
+      trackedNode = inFile.readline()
+
+  except FileNotFoundError:
+    print()
+    print(f"Filename: {gMaxNodeFilename} NOT FOUND")
+    print("...exiting")
+    print()
+    sys.exit(69) # User defined return value
+
+  return trackedNode
 
 # 9/2/24 DH:
 def createLoggers(training_args, overwrite=True):
@@ -128,6 +154,10 @@ def createLoggers(training_args, overwrite=True):
   Path(weightPath).mkdir(parents=True, exist_ok=True)
   print(f"CREATED: '{weightPath}' IN: '{cwd}'")
 
+  # 12/9/24 DH: Track correct Node based on measured change in 'graph_weights.py::gNodeIDfilename = "max-node.txt"'
+  trackedNode = getTrackedNode()
+  checkpointing_config.gTrackedNode = int(trackedNode)
+
   # 25/5/24 DH: Prevent 'qa.py' overwriting log files from 'run_qa.py'
   if overwrite:
     # 5/6/24 DH: Save prev files + date before opening for writing (and hence overwriting the contents)
@@ -153,10 +183,11 @@ def createLoggers(training_args, overwrite=True):
     checkpointing_config.gLossFile.write(f"\n")
 
     # 8/6/24 DH: Open for both training + non-training runs
-    checkpointing_config.gSelectedNodeFilename = open(f"{weightPath}/{gSelectedNodeFilename}.log", 'w')
-    checkpointing_config.gSelectedNodeFilename.write(f"ALL LOGITS FROM NODE 287 IN A 'Bert' LAYER\n")
-    checkpointing_config.gSelectedNodeFilename.write(f"------------------------------------------\n")
-    checkpointing_config.gSelectedNodeFilename.write(f"\n")
+    # 12/9/24 DH: Chg 'gSelectedNodeFilename' to 'gSelectedNodeFile' (as distinct from the filename)
+    checkpointing_config.gSelectedNodeFile = open(f"{weightPath}/{gSelectedNodeFilename}.log", 'w')
+    checkpointing_config.gSelectedNodeFile.write(f"ALL LOGITS FROM NODE {trackedNode} IN A 'Bert' LAYER\n")
+    checkpointing_config.gSelectedNodeFile.write(f"------------------------------------------\n")
+    checkpointing_config.gSelectedNodeFile.write(f"\n")
 
     # 29/7/24 DH: CURRENTLY NOT adding to 'archivePrevLogs(weightPath)'
     checkpointing_config.gRoundedWeightsFile = open(f"{weightPath}/{gFileNameRounded}.log", 'w')
@@ -167,11 +198,12 @@ def createLoggers(training_args, overwrite=True):
   else: # non-training run
     archivePrevLogs(weightPath, file=gSelectedNodeFilename)
 
-    checkpointing_config.gSelectedNodeFilename = open(f"{weightPath}/{gSelectedNodeFilename}.log", 'w')
-    checkpointing_config.gSelectedNodeFilename.write(f"ALL LOGITS FROM NODE 287 IN A 'Bert' LAYER\n")
-    checkpointing_config.gSelectedNodeFilename.write(f"------------------------------------------\n")
-    checkpointing_config.gSelectedNodeFilename.write(f"\n")
-
+    # 12/9/24 DH: Chg 'gSelectedNodeFilename' to 'gSelectedNodeFile' (as distinct from the filename)
+    checkpointing_config.gSelectedNodeFile = open(f"{weightPath}/{gSelectedNodeFilename}.log", 'w')
+    checkpointing_config.gSelectedNodeFile.write(f"ALL LOGITS FROM NODE {trackedNode} IN A 'Bert' LAYER\n")
+    checkpointing_config.gSelectedNodeFile.write(f"------------------------------------------\n")
+    checkpointing_config.gSelectedNodeFile.write(f"\n")
+  # END --- "if overwrite" ---
 
 def getHighestCheckpoint():
   
@@ -258,7 +290,5 @@ def signal_handler(sig, frame):
 
       sigLogger = logging.getLogger("trainer_log")
       sigLogger.info(f"Saving checkpoint: {checkpointNum}")  
-
-      
 
       sys.exit(0)

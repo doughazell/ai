@@ -79,7 +79,8 @@ _SEQ_CLASS_EXPECTED_LOSS = 0.01
 from ..deprecated._archive_maps import BERT_PRETRAINED_MODEL_ARCHIVE_LIST  # noqa: F401, E402
 
 # 12/6/24 DH: Used to get logits cascaded in the model for selected nodes (that significantly change)
-gSelectedNode = 287
+# 12/9/24 DH: This is now set dynamically via 'huggin_utils'
+#gSelectedNode = 287
 
 def load_tf_weights_in_bert(model, config, tf_checkpoint_path):
     """Load tf checkpoints in a pytorch model."""
@@ -418,12 +419,16 @@ class BertSelfAttention(nn.Module):
           tokenNodeMatrix = list(list(outputs)[0][0].shape)
           tokenNum = tokenNodeMatrix[0]
           nodeNum = tokenNodeMatrix[1]
-          print(f"  {BertSelfAttention.cnt}/{self.config.num_hidden_layers} outputs[0]: {tokenNodeMatrix}")
+
+          # 12/9/24 DH: 'gSelectedNode' commented-out since now dynamic
+          trackedNode = huggin_utils.getTrackedNode()
+          
+          print(f"  BertSelfAttention::logSelectedNodeLogits() - {BertSelfAttention.cnt}/{self.config.num_hidden_layers} (Node {trackedNode}/{nodeNum}) from {tokenNodeMatrix}")
 
           allLogitsAllNodes = list(outputs)[0][0]
           logitNum = allLogitsAllNodes.shape[0]
-          # 12/6/24 DH: 'gSelectedNode' defined with the file imports
-          nodeForeachLogit = [allLogitsAllNodes[logit][gSelectedNode].item() for logit in range(logitNum)]
+          # 12/6/24 DH: 'gSelectedNode' defined as "global" above (below file imports)
+          nodeForeachLogit = [allLogitsAllNodes[logit][trackedNode].item() for logit in range(logitNum)]
 
           # 10/6/24 DH: Now sending 'tokenNum' since in TRAINING it is ALWAYS 384 but in NON-training it is TOKEN LENGTH
           huggin_utils.logSelectedNodeLogits(nodeForeachLogit, BertSelfAttention.cnt, bertLayerName="self", embedTokens=tokenNum)
@@ -545,9 +550,15 @@ class BertOutput(nn.Module):
         logitNum = hidden_states[0].shape[0]
         nodeNum = hidden_states[0].shape[1]
         allLogitsAllNodes = hidden_states[0]
-        nodeForeachLogit = [allLogitsAllNodes[logit][gSelectedNode].item() for logit in range(logitNum)]
+
+        # 13/9/24 DH: 'gSelectedNode' commented-out since now dynamic
+        trackedNode = huggin_utils.getTrackedNode()
+        nodeForeachLogit = [allLogitsAllNodes[logit][trackedNode].item() for logit in range(logitNum)]
 
         if (BertSelfAttention.cnt == self.config.num_hidden_layers):
+          allLallNshape = list(allLogitsAllNodes.shape)
+          space = ""
+          print(f"  BertOutput::forward() {space:20} - {BertSelfAttention.cnt}/{self.config.num_hidden_layers} (Node {trackedNode}/{nodeNum}) from {allLallNshape}")
           huggin_utils.logSelectedNodeLogits(nodeForeachLogit, BertSelfAttention.cnt, bertLayerName="out", embedTokens=logitNum)
 
           # Reset counter for next training/non-training run NOW NOT DONE IN 'BertSelfAttention'

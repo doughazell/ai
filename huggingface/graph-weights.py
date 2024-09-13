@@ -20,6 +20,9 @@ gTrainer_full_log = "weights-full.log"
 # 29/7/24 DH:
 gTrainer_rounded_log = "weights-rounded.log"
 
+# 11/9/24 DH: Hard-coded Bash-Python IPC "Named Pipe"
+gNodeIDfilename = "max-node.txt"
+
 # 12/5/24 DH: MUTABLE variables (don't need to be accessed with 'global' to prevent local scope overlay)
 #             (a task centric version of 'hugging_utils.py::weightMapDict')
 weightMapDict = {
@@ -321,6 +324,41 @@ def getWeightDiffs(percentChgDictListDict, lineType):
 
   return (percentChgDict, endEpoch)
 
+# 11/9/24 DH:
+def getLargestChgNode(startLineIdxDict, endLineIdxDict):
+  maxStartIdx = 0
+  maxStart = 0
+  maxEndIdx = 0
+  maxEnd = 0
+  
+  for key in startLineIdxDict:
+    #print(f"  Idx: {key} = {startLineIdxDict[key]}")
+    absChgVal = abs(startLineIdxDict[key])
+    if  absChgVal > maxStart:
+      maxStart = absChgVal
+      maxStartIdx = key
+
+  #print(f"Max start chg: {maxStartIdx} = {maxStart}")
+
+  for key in endLineIdxDict:
+    #print(f"  Idx: {key} = {endLineIdxDict[key]}")
+    absChgVal = abs(endLineIdxDict[key])
+    if  absChgVal > maxEnd:
+      maxEnd = absChgVal
+      maxEndIdx = key
+
+  #print(f"Max end chg: {maxEndIdx} = {maxEnd}")
+
+  if maxStart > maxEnd:
+    max = maxStart
+    maxIdx = maxStartIdx
+  else:
+    max = maxEnd
+    maxIdx = maxEndIdx
+
+  #print(f"Max idx: {maxIdx} = {max}")
+  return maxIdx
+
 # 22/5/24 DH: WRAPPER around 'getWeightDiffs()' for each line (ie start logits/end logits)
 def calcAndGraphTrgDiffs(percentChgDictListDict, lastGraph=True, showGraph=True):
   percentChgLineList = []
@@ -337,16 +375,20 @@ def calcAndGraphTrgDiffs(percentChgDictListDict, lastGraph=True, showGraph=True)
   # 7/6/24 DH: Now get largest +ve/-ve values from both start + end lines
   (startLineIdxDict, endLineIdxDict) = getLargestValues(percentChgLineList)
   
-  print()
-  print("  NO LONGER CALLING: 'displayLargestValues(...)'")
   #displayLargestValues(startLineIdxDict, endLineIdxDict)
+
+  # 11/9/24 DH: Fine-tuning BertQA from Pre-trained gave the largest chg for Node 287 (this is diff from Norm Distrib weights)
   print()
-  
+  largestChgNode = getLargestChgNode(startLineIdxDict, endLineIdxDict)
+  print(f"Largest chg node: {largestChgNode}")
+  print()
+
   # 25/7/24 DH: Added to calc 'startLineIdxDict', 'endLineIdxDict' without showing the graph from 'graph-weights-history.py'
   if showGraph:
     graphWeightsKeyed(percentChgLineList, "complete", lastGraph=lastGraph, lastEpoch=endEpoch)
 
-  return (startLineIdxDict, endLineIdxDict)
+  return (largestChgNode, startLineIdxDict, endLineIdxDict)
+
 
 # 24/7/24 DH: So can be called via "import graph_weights" (ie 'graph-weights-history.py')
 def assignPaths(weightsDir):
@@ -463,15 +505,19 @@ if __name__ == "__main__":
         del zeroWeightDLDict[zeroKey]
 
     zeroWeightDLDict[endEpoch] = weightDictListDict[endEpoch]
-    (startLineIdxDict, endLineIdxDict) = calcAndGraphTrgDiffs(zeroWeightDLDict)
+    (largestChgNode, startLineIdxDict, endLineIdxDict) = calcAndGraphTrgDiffs(zeroWeightDLDict)
 
   else:
-    (startLineIdxDict, endLineIdxDict) = calcAndGraphTrgDiffs(weightDictListDict)
+    (largestChgNode, startLineIdxDict, endLineIdxDict) = calcAndGraphTrgDiffs(weightDictListDict)
 
   if not gShowFlag:
     print()
     print("NOT SHOWING images (please add 'show' to cmd line args if images wanted)")
     print()
 
+  # 11/9/24 DH:
+  # Bash-Python IPC "Named Pipe" FROM: 'db_utils.py'
+  with open(gNodeIDfilename, "w") as outFile:
+    outFile.write(f"{largestChgNode}")
   
   

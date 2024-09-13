@@ -143,6 +143,7 @@ class TracingCompiler:
 
     # 16/5/24 DH:
     # -----------------------------------------------------------
+    """
     concreteFunc = concrete_function._call_flat(
         filtered_flat_args, captured_inputs=concrete_function.captured_inputs)  # pylint: disable=protected-access
 
@@ -150,10 +151,11 @@ class TracingCompiler:
     print(f"tracing_compiler.py - concreteFunc['accuracy']: {concreteFunc['accuracy'].numpy()}")
     
     return concreteFunc
+    """
     # -----------------------------------------------------------
 
-    #return concrete_function._call_flat(
-    #    filtered_flat_args, captured_inputs=concrete_function.captured_inputs)  # pylint: disable=protected-access
+    return concrete_function._call_flat(
+        filtered_flat_args, captured_inputs=concrete_function.captured_inputs)  # pylint: disable=protected-access
 
   @property
   def python_function(self):

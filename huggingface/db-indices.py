@@ -29,6 +29,11 @@ def insertSequenceRecord(statsDB):
 
 # This is written to be called from BASH (eg 'get-model-output')
 if __name__ == "__main__":
+  """
+  sqlite> select * from sample_indices;
+  id|model_efficacy_id|seq_num|seq_ids
+     <Arg 3>           <Arg 4> <Arg 5>
+  """
   if len(sys.argv) > 5:
     gDbFQN = sys.argv[1]
     gTableName = sys.argv[2]

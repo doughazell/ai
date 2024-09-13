@@ -1044,8 +1044,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           values of the `Model`'s metrics are returned. Example:
           `{'loss': 0.2, 'accuracy': 0.7}`.
         """
-        # 17/5/24 DH:
-
         x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
         # Run forward pass.
         with tf.GradientTape() as tape:
@@ -1248,7 +1246,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             """Runs a single training step."""
 
             def run_step(data):
-                # 17/5/24 DH: Comes back to here via 'distribute_lib.py(3696)_call_for_each_replica()'
                 outputs = model.train_step(data)
                 # Ensure counter is updated only if `train_step` succeeds.
                 with tf.control_dependencies(_minimum_control_deps(outputs)):
@@ -1268,15 +1265,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     run_step, jit_compile=True, reduce_retracing=True
                 )
             data = next(iterator)
-
-            # 16/5/24 DH:
-            print()
-            print("make_train_function()")
-            print("---------------------")
-            print(f"training.py::step_function():  data[0].shape: {data[0].shape}, data[1]: {data[1]}")
-            model.summary()
-            print()
-
             outputs = model.distribute_strategy.run(run_step, args=(data,))
             outputs = reduce_per_replica(
                 outputs,
@@ -1682,18 +1670,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             )
             logs = None
             for epoch, iterator in data_handler.enumerate_epochs():
-
                 self.reset_metrics()
                 callbacks.on_epoch_begin(epoch)
                 with data_handler.catch_stop_iteration():
                     for step in data_handler.steps():
-                        # 16/5/24 DH:
-                        import tensorflow.python.util.traceback_utils as utils
-                        utils.gCnt = 0
-                        utils.gCOpCnt = 0
-                        utils.gOpHdlrCnt = 0
-
-                        # 16/5/24 DH: Currently 'tensorflow/python/profiler/trace.py' => 'self._traceme = None'
                         with tf.profiler.experimental.Trace(
                             "train",
                             epoch_num=epoch,
@@ -1702,23 +1682,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                             _r=1,
                         ):
                             callbacks.on_train_batch_begin(step)
-
                             tmp_logs = self.train_function(iterator)
-
-                            # 16/5/24 DH:
-                            import numpy as np
-                            print(f"  training.py - loss: {np.round(tmp_logs['loss'].numpy(), decimals=2)}")
-                            print(f"  training.py - accuracy: {round(tmp_logs['accuracy'].numpy(), 2)}")
-
                             if data_handler.should_sync:
                                 context.async_wait()
                             # No error, now safe to assign to logs.
                             logs = tmp_logs
                             end_step = step + data_handler.step_increment
-
-                            # 16/5/24 DH:
-                            print("Calling 'on_train_batch_end(end_step, logs)'")
-
                             callbacks.on_train_batch_end(end_step, logs)
                             if self.stop_training:
                                 break

@@ -217,7 +217,9 @@ def createDotFile(cfgDir, hfDir):
   (qcaTableTxt, contextLabel, graphTokenLen) = getQCATableTxt(gvDir)
 
   # PRODUCED BY: 'graph-node-logits::graphLogitsByLayer(...)' WITH: 'weights/node287-logits.log' CREATED IN: 'checkpointing::createLoggers(...)'
-  img2 = f"{gCWD}/{nodeGraphsDir}/all_layers-287-{graphTokenLen}.png"
+  # 13/9/24 DH: Fine-tuning from non Pretrained model changes the largest changing Node
+  #img2 = f"{gCWD}/{nodeGraphsDir}/all_layers-287-{graphTokenLen}.png"
+  img2 = f"{gCWD}/{nodeGraphsDir}/all_layers-{graphTokenLen}.png"
 
   # PRODUCED BY: 'qa_lime::graphTokenVals(...)' AFTER: 'qa_lime::getModelOutput(...):' output = model(...)
   img3 = f"{gCWD}/{hfDir}/{h_utilsDir}/logits-by-token-{graphTokenLen}.png"

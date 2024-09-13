@@ -867,8 +867,19 @@ class Function(core.GenericFunction, trackable.Trackable):
   def __call__(self, *args, **kwds):
     # Implements GenericFunction.__call__.
     if self._run_functions_eagerly:
+      # 2/9/24 DH:
+      print()
+      print("Running Tensorflow 'eagerly'")
+      print()
+
       with trace.Trace(self._name, tf_function_call="eager"):
         return self._python_function(*args, **kwds)
+
+    # 2/9/24 DH:
+    else:
+      print()
+      print("Running Tensorflow 'graph'")
+      print()
 
     # Only count the statistics the first time, before initialization took
     # place.
@@ -941,9 +952,11 @@ class Function(core.GenericFunction, trackable.Trackable):
       initializers = []
 
       # 16/5/24 DH:
+      """
       print()
       print(f"polymorphic_function.py::Function._call() - Calling: {self._initialize}")
       print()
+      """
 
       self._initialize(args, kwds, add_initializers_to=initializers)
     finally:

@@ -16,7 +16,10 @@ from pathlib import Path
 
 # 8/6/24 DH: Hard-coded to prevent needing to add: "HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))" code
 # (ORIG LOG USED IN 'graph-logits.py': trainer_log = "seq2seq_qa_INtrainer.log")
-gTrainer_log = "weights/node287-logits.log"
+# 13/9/24 DH: Now tracked Node is selected by 'graph-weights.py' and IPC'd via 'max-node.txt'
+#gTrainer_log = "weights/node287-logits.log"
+gTrainer_log = "weights/node-logits.log"
+
 gOutputDir = None
 # 9/7/24 DH: Path refactor so can be run from any dir
 gCWD = Path.cwd()
@@ -299,7 +302,9 @@ def graphLogitsByLayer(recordsDict, layerNum, wantedTokenLen=None, lastGraph=Fal
   # 9/7/24 DH: Path refactor work when 'gv-graphs' is CWD subdir
   #allLayersImgName = f"{gOutputDir}/gv-graphs/all_layers-287-{wantedTokenLen}.png"
 
-  allLayersImgName = f"{gCWD}/gv-graphs/all_layers-287-{wantedTokenLen}.png"
+  # 13/9/24 DH: Fine-tuning from non Pretrained model changes the largest changing Node
+  #allLayersImgName = f"{gCWD}/gv-graphs/all_layers-287-{wantedTokenLen}.png"
+  allLayersImgName = f"{gCWD}/gv-graphs/all_layers-{wantedTokenLen}.png"
   print(f"   SAVING: {allLayersImgName}")
   print()
   plt.savefig(allLayersImgName, dpi=figDpi)

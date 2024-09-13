@@ -242,13 +242,11 @@ def parseCSV(seq_idsStr, error):
   csvList = seq_idsStr.split(",")
 
   print()
-  print(f"'{error}' FOR 'literal_eval()':")
-  print(f"  '{csvList[:3]}...{csvList[-3:]}'")
+  print(f"LINE ERROR: '{csvList[:3]}...{csvList[-3:]}'")
   print()
-  print("PREVIOUSLY THIS HAD OCCURED WITH: '<value>,,<value>'")
+  print("  (normally occurs with: '<value>,,<value>')")
   
-  print(f"ENTRY NUMBER: {len(csvList)}+2 (counting spaces rather than trees)")
-  print()
+  print(f"  Entries: {len(csvList)} from 'split(\",\")")
   idx = 0
   errorIdxOffset = 0
   for value in csvList:
@@ -258,12 +256,8 @@ def parseCSV(seq_idsStr, error):
       #print(f"{idx}) Adding: {iVal} (type {iVal.__class__})")
       seq_idsList.append(iVal)
     except ValueError as e:
-      print()
-      print(f"  {e}")
       print(f"    (PREV: '{csvList[idx -1 + errorIdxOffset]}', '{csvList[idx + errorIdxOffset]}', POST: '{csvList[idx +1 + errorIdxOffset]}')")
       errorIdxOffset += 1
-
-      print()
 
   return seq_idsList
 
@@ -366,6 +360,7 @@ def checkDupsByConvergedIDsHandler(record, recordNum):
 
   if dldNum == recordNum:
     # We have a list of ALL RECORDS so now cross correlate 'seq_ids' from same 'model_efficacy_id'
+    print()
     print(f"ssssssweeeet...'gRecordDLDict' number: {dldNum}")
     print()
     for modelID in gRecordDLDict:

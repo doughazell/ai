@@ -635,16 +635,23 @@ def logSelectedNodeLogits(nodeForeachLogit, bert_cnt, bertLayerName, embedTokens
   if Trainer.stateAPI:
     epochNum = Trainer.stateAPI.global_step
     
-    checkpointing_config.gSelectedNodeFilename.write(f"{epochNum}-{bert_cnt}-{bertLayerName}: {nodeForeachLogit}\n")
-    checkpointing_config.gSelectedNodeFilename.write("\n")
+    checkpointing_config.gSelectedNodeFile.write(f"{epochNum}-{bert_cnt}-{bertLayerName}: {nodeForeachLogit}\n")
+    checkpointing_config.gSelectedNodeFile.write("\n")
 
   else:
     # 9/6/24 DH: Save logits for non-training run
     #   'createLoggers(training_args, overwrite=True)' to open 'gSelectedNodeFilename' for non-training run
-    checkpointing_config.gSelectedNodeFilename.write(f"-{bert_cnt}-{bertLayerName}-{embedTokens}: {nodeForeachLogit}\n")
-    checkpointing_config.gSelectedNodeFilename.write("\n")
-    print(f"    Saved '{bert_cnt}-{embedTokens}' to 'gSelectedNodeFilename'")
+    # 12/9/24 DH: Chg 'gSelectedNodeFilename' to 'gSelectedNodeFile' (as distinct from the filename)
+    checkpointing_config.gSelectedNodeFile.write(f"-{bert_cnt}-{bertLayerName}-{embedTokens}: {nodeForeachLogit}\n")
+    checkpointing_config.gSelectedNodeFile.write("\n")
+    print(f"    Saved '{bert_cnt}-{embedTokens}' to 'gSelectedNodeFile'")
 
   # 11/6/24 DH: ..."do you flush?" (like 'Trainer.training_step()::checkpointing_config.gLossFile.flush()')
-  checkpointing_config.gSelectedNodeFilename.flush()
+  checkpointing_config.gSelectedNodeFile.flush()
 
+# 13/9/24 DH: ASCII-art time...
+"""                                     - [checkpointing_config.py] -
+modeling_bert.py -> huggin_utils.py -> |                             | <- checkpointing.py
+"""
+def getTrackedNode():
+  return checkpointing_config.gTrackedNode

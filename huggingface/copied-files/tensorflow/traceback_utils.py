@@ -159,7 +159,8 @@ def filter_traceback(fn):
       if "_create_c_op" in fn.__name__:
         global gCOpCnt
         gCOpCnt += 1
-        print(f"  #### {gCnt}-{gCOpCnt}) tensorflow: traceback_utils.py:LINE 151 - {fn}")
+        # 31/8/24 DH: Comment out when running "ai$ python lime.py"
+        #print(f"  #### {gCnt}-{gCOpCnt}) tensorflow: traceback_utils.py:LINE 151 - {fn}")
       elif "op_dispatch_handler" in fn.__name__:
         global gOpHdlrCnt
         gOpHdlrCnt += 1

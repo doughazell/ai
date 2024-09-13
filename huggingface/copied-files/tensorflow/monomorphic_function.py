@@ -1960,6 +1960,7 @@ class ConcreteFunction(core.ConcreteFunction, trackable.Trackable):
     """
     # 16/5/24 DH:
     # ---------------------------------------------------------------
+    """
     captInputs = nest.flatten(
         [x() if callable(x) else x for x in self._captured_inputs],
         expand_composites=True)
@@ -1969,11 +1970,12 @@ class ConcreteFunction(core.ConcreteFunction, trackable.Trackable):
     print()
 
     return captInputs
+    """
     # ---------------------------------------------------------------
 
-    #return nest.flatten(
-    #    [x() if callable(x) else x for x in self._captured_inputs],
-    #    expand_composites=True)
+    return nest.flatten(
+        [x() if callable(x) else x for x in self._captured_inputs],
+        expand_composites=True)
 
   @property
   def function_def(self):

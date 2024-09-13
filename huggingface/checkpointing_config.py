@@ -20,9 +20,12 @@ gFullWeightsFile = None
 # 25/5/24 DH: Used to save the loss for each epoch (for later graphing)
 gLossFile = None
 # 8/6/24 DH: Used to save 'BertSelfAttention' 384 logits for selected Node (currently 287)
-gSelectedNodeFilename = None
+# 12/9/24 DH: Chg 'gSelectedNodeFilename' to 'gSelectedNodeFile' (as distinct from the filename)
+gSelectedNodeFile = None
 # 29/7/24 DH: (Maybe we don't need this extra layer for accessing globals outside the file with Python 3)
 #   Used to save a rounded weight for each node for each epoch during training (in order to graph changes by epoch)
 gRoundedWeightsFile = None
+# 13/9/24 DH: Specify the Node to track which was originally 287 (when Fine-tuning from Pre-trained rather than Norm Distrib)
+gTrackedNode = None
 
 # ----------------- END: Runtime Cfg ---------------

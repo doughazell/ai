@@ -61,6 +61,8 @@ CORRECTLOG="correct-answers.log"
 IDXSLOG="dataset-idxs.log"
 RECORDid="efficacy-record-id.txt"
 usedIDXS=""
+# 11/9/24 DH:
+NODEid="max-node.txt"
 
 DBDIR="/Users/doug/src/ai/bert"
 DBNAME="stack_trace.db"
@@ -87,6 +89,94 @@ counter=0
 # ((expression)) The "expression" is evaluated according to the rules described under ARITHMETIC EVALUATION.
 #                This is exactly equivalent to let "expression".
 
+# 11/9/24 DH:
+getCorrectAnswer () {
+  testRuns=1
+  python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/${JSONCFG}
+  # 8/7/24 DH: Save "$?" since it changes after the conditional "test"
+  retVal=$?
+
+  # 13/9/24 DH: User defined error to prevent recycling until correct answer
+  if [ ${retVal} -eq 69 ]; then
+    return 69
+  fi
+
+  # 11/8/24 DH: Record SQUAD idx's used from 'dataset-idxs.log'
+  usedIDXS+=$(cat ${IDXSLOG})
+  echo
+  echo "USED INDICES: ${usedIDXS}"
+  echo
+
+  # 5/8/24 DH: Get % correct stats 
+  #   [ 'test-qa-efficacy::displayResults(...)' determines correct answers from 'test-qa-efficacy::runRandSamples(..., iterations)' 
+  #     BUT 'test-qa-efficacy.py' DOES NOT KNOW HOW TIMES IT IS CALLED BEFORE A CORRECT ANSWER IS FOUND, 
+  #     so it needs to populate 'checkpointing::gCorrectLogFilename'  ]
+  while [ ${retVal} -ne 0 ]
+  do
+    # 8/7/24 DH: 126 stops normal cycle that may never end in dev 
+    # (https://tldp.org/LDP/abs/html/exitcodes.html)
+    #   "The author of this document proposes restricting user-defined exit codes to the range 64 - 113 (in addition to 0, for success), 
+    #    to conform with the C/C++ standard"
+    if [ ${retVal} -eq 126 ]; then
+      echo "'126' returned so exiting..."
+      exit
+    fi
+
+    # "correct-answers.log" will be OLD DATA
+    echo "No correct answers found so rerunning (after ${testRuns} runs)..."
+    echo
+
+    #echo "Exiting during dev..."
+    #exit
+    #echo "Continuing during dev..."
+    #break
+
+    let testRuns++
+    python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/${JSONCFG}
+    retVal=$?
+
+    # 11/8/24 DH: Record SQUAD idx's used from 'dataset-idxs.log'
+    usedIDXS+=","$(cat ${IDXSLOG})
+    echo
+    echo "USED INDICES: ${usedIDXS}"
+    echo
+  done
+
+  # 13/9/24 DH:
+  return 0
+  
+}
+
+# 11/9/24 DH: 
+addStatsToDB () {
+  # 5/8/24 DH: Get number of correct answers (easier to read `` with list assingnment "()" than "$()" below)
+  #            https://www.gnu.org/software/bash/manual/html_node/Arrays.html
+  logVals=(`cat ${CORRECTLOG} | awk -F': ' '{print $2}'`)
+  correctNum=${logVals[0]}
+  iterNum=${logVals[1]}
+  echo
+  echo "Number correct: ${correctNum}"
+  echo "Iterations per run: ${iterNum}"
+  echo "Number of runs: ${testRuns}"
+
+  let totalSamples="testRuns * iterNum" # 8 secs per sample
+  let percentCorrect="correctNum * 100 / totalSamples"
+
+  echo "Proportion correct: ${correctNum}/${totalSamples} (${percentCorrect} %)"
+  echo
+
+  # (better to use "$()" than `` above, done for ease of reading with list assignment "()")
+  modelTypeState=$( python ${SCRIPTDIR}/model_type_state.py ${TLD} ${CFGDIR}/${JSONCFG} )
+
+  # 12/8/24 DH: ID of last record added is printed to '${RECORDid}' for Bash-Python "Named Pipe" IPC
+  python ${SCRIPTDIR}/db_utils.py ${DBDIR}/${DBNAME} ${TABLENAMEstats} ${modelTypeState} ${correctNum} ${totalSamples}
+
+  statsRecordID=$( cat ${RECORDid} )
+  # 12/8/24 DH: Add 'usedIDXS' to DB ('db-indices.py' WRAPPER AROUND 'db_utils.py')
+  python ${SCRIPTDIR}/db-indices.py ${DBDIR}/${DBNAME} ${TABLENAMEindices} ${statsRecordID} ${totalSamples} ${usedIDXS}
+
+}
+
 # ======================================= INDIV SCRIPTS ================================================
 # --------------------------------- NON-TRAINING SAMPLE -------------------------------
 let counter++
@@ -96,74 +186,14 @@ echo "----------------------"
 # 7/7/24 DH: Pass TLD (so script can be run from any dir NOT JUST FROM 'CFGDIR')
 echo ${TLD} > tld.txt
 
-testRuns=1
-python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/${JSONCFG}
-# 8/7/24 DH: Save "$?" since it changes after the conditional "test"
+# 11/9/24 DH: Refactor
+getCorrectAnswer
 retVal=$?
 
-# 11/8/24 DH: Record SQUAD idx's used from 'dataset-idxs.log'
-usedIDXS+=$(cat ${IDXSLOG})
-echo
-echo "USED INDICES: ${usedIDXS}"
-echo
-
-# 5/8/24 DH: Get % correct stats 
-#   [ 'test-qa-efficacy::displayResults(...)' determines correct answers from 'test-qa-efficacy::runRandSamples(..., iterations)' 
-#     BUT 'test-qa-efficacy.py' DOES NOT KNOW HOW TIMES IT IS CALLED BEFORE A CORRECT ANSWER IS FOUND, 
-#     so it needs to populate 'checkpointing::gCorrectLogFilename'  ]
-while [ ${retVal} -ne 0 ]
-do
-  # 8/7/24 DH: 126 stops normal cycle that may never end in dev (https://tldp.org/LDP/abs/html/exitcodes.html)
-  if [ ${retVal} -eq 126 ]; then
-    echo "'126' returned so exiting..."
-    exit
-  fi
-
-  # "correct-answers.log" will be OLD DATA
-  echo "No correct answers found so rerunning (after ${testRuns} runs)..."
-  echo
-
-  #echo "Exiting during dev..."
-  #exit
-  #echo "Continuing during dev..."
-  #break
-
-  let testRuns++
-  python ${SCRIPTDIR}/test-qa-efficacy.py ${CFGDIR}/${JSONCFG}
-  retVal=$?
-
-  # 11/8/24 DH: Record SQUAD idx's used from 'dataset-idxs.log'
-  usedIDXS+=","$(cat ${IDXSLOG})
-  echo
-  echo "USED INDICES: ${usedIDXS}"
-  echo
-done
-
-# 5/8/24 DH: Get number of correct answers (easier to read `` with list assingnment "()" than "$()" below)
-#            https://www.gnu.org/software/bash/manual/html_node/Arrays.html
-logVals=(`cat ${CORRECTLOG} | awk -F': ' '{print $2}'`)
-correctNum=${logVals[0]}
-iterNum=${logVals[1]}
-echo
-echo "Number correct: ${correctNum}"
-echo "Iterations per run: ${iterNum}"
-echo "Number of runs: ${testRuns}"
-
-let totalSamples="testRuns * iterNum" # 8 secs per sample
-let percentCorrect="correctNum * 100 / totalSamples"
-
-echo "Proportion correct: ${correctNum}/${totalSamples} (${percentCorrect} %)"
-echo
-
-# (better to use "$()" than `` above, done for ease of reading with list assignment "()")
-modelTypeState=$( python ${SCRIPTDIR}/model_type_state.py ${TLD} ${CFGDIR}/${JSONCFG} )
-
-# 12/8/24 DH: ID of last record added is printed to '${RECORDid}' for Bash-Python "Named Pipe" IPC
-python ${SCRIPTDIR}/db_utils.py ${DBDIR}/${DBNAME} ${TABLENAMEstats} ${modelTypeState} ${correctNum} ${totalSamples}
-
-statsRecordID=$( cat ${RECORDid} )
-# 12/8/24 DH: Add 'usedIDXS' to DB ('db-indices.py' WRAPPER AROUND 'db_utils.py')
-python ${SCRIPTDIR}/db-indices.py ${DBDIR}/${DBNAME} ${TABLENAMEindices} ${statsRecordID} ${totalSamples} ${usedIDXS}
+# 13/9/24 DH: Only populated DB if correct answer found (to prevent reversing DB during dev)
+if [ ${retVal} -eq 0 ]; then
+  addStatsToDB
+fi
 
 # --------------------------------- GRAPH TRAINING WEIGHTS + LOSSES -------------------------------
 let counter++
@@ -175,6 +205,10 @@ echo "-------------------"
 
 echo "ONLY saving graphs (not showing them)"
 python ${SCRIPTDIR}/graph-weights.py ${TLD}/weights
+
+# 11/9/24 DH: Fine-tuning BertQA from Pre-trained gave largest chg Node = 287 (Fine-tuning from Norm Distrib is diff)
+#             'NODEid' would be set by 'get-training-output::graph-weights.py'
+maxNode=$( cat ${NODEid} )
 
 # 21/6/24 DH: Add 'graph-losses.py'
 let counter++
