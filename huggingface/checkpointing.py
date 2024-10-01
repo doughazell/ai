@@ -23,7 +23,6 @@ gLossFilename = "loss-by-epochs"
 # 8/6/24 DH:
 #gSelectedNodeFilename = "node287-logits"
 # 12/9/24 DH: Node to track gets selected by 'graph-weights.py' + IPC with "max-node.txt" via 'get-model-output' BASH script
-#             TODO: UPDATE 'graph-node-logits.py'
 gSelectedNodeFilename = "node-logits"
 gMaxNodeFilename = "max-node.txt"
 

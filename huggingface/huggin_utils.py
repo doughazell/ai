@@ -650,8 +650,8 @@ def logSelectedNodeLogits(nodeForeachLogit, bert_cnt, bertLayerName, embedTokens
   checkpointing_config.gSelectedNodeFile.flush()
 
 # 13/9/24 DH: ASCII-art time...
-"""                                     - [checkpointing_config.py] -
-modeling_bert.py -> huggin_utils.py -> |                             | <- checkpointing.py
+"""                                       - [checkpointing_config.py] -
+modeling_bert.py <-> huggin_utils.py <-> |                             | <- checkpointing.py
 """
 def getTrackedNode():
   return checkpointing_config.gTrackedNode

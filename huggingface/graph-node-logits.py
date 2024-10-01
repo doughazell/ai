@@ -125,6 +125,19 @@ def displayLogits(recordsDict):
 
 # ------------------------------------------------ GRAPHING --------------------------------------------------
 
+# 13/9/24 DH:
+def getTitleStr(layerName, lineType):
+  # 12/5/24 DH: Providing more feedback to output stage
+  # 10/6/24 DH: Change title based on epoch for training OR token length for non-training
+  # 13/9/24 DH: Now tracked Node is IPC'd via 'max-node.txt'
+  
+  import checkpointing
+  nodeId = checkpointing.getTrackedNode()
+
+  titleStr = f"Logits from Bert Model, {layerName}, node {nodeId} by {lineType}"
+
+  return titleStr
+
 # Taken from: 'ai/huggingface/graph-logits.py'
 def graphLogitsByLayer(recordsDict, layerNum, wantedTokenLen=None, lastGraph=False):
   # 4/9/23 DH: Display all graphs simultaneously with 'plt.show(block=False)' (which needs to be cascaded)
@@ -274,9 +287,8 @@ def graphLogitsByLayer(recordsDict, layerNum, wantedTokenLen=None, lastGraph=Fal
   #             (currently only populated for NON-TRAINING run log lines, so SHOULD BE OK for TRAINING run log lines)
   layerName = plotAllLayersLines(allLayerLinesList)
 
-  # 12/5/24 DH: Providing more feedback to output stage
-  # 10/6/24 DH: Change title based on epoch for training OR token length for non-training
-  titleStr = f"Logits from Bert Model, {layerName}, node 287 by {lineType}"
+  # 13/9/24 DH: Tracked Node is now set dynamically (to handle Fine-tuning from Norm Distrib)
+  titleStr = getTitleStr(layerName, lineType)
 
   plt.title(titleStr)
   plt.xlabel("Logit/Token ID")
@@ -316,7 +328,7 @@ def graphLogitsByLayer(recordsDict, layerNum, wantedTokenLen=None, lastGraph=Fal
 # -------------------------------------------------END: GRAPHING ---------------------------------------------
 
 if __name__ == "__main__":
-  # 'gTrainer_log = "weights/node287-logits.log"' centric
+  # 'gTrainer_log = "weights/node-logits.log"' centric
   (recordsDict, tokenLens) = collectLogits()
 
   displayLogits(recordsDict)
