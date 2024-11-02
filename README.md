@@ -343,15 +343,15 @@ There appears to be an artifact of language specificity for the task specific la
 
 # LIME process
 LIME (https://arxiv.org/abs/1602.04938) works by 
-* Binomial Distribution of image masking in order to **perturb the image**
+* Binomial Distribution of image masking in order to get sample of **variously perturbed image**
 
-  ie removing segments of the full image
+  ie variously removing segments of the full image
   
-* **predict** the perturbed image with :
+* **predict** the contents of each perturbed image with :
 
   'keras.applications.inception_v3.InceptionV3().predict(perturbed_img)'
 
-* calc the **RMS** from the orig image for **each segment** of Binomially Distributed segment masks
+* calc the **RMS** from the orig image for **each segment** of Binomially Distributed segment mask set
 * **correlate** the RMS diff with the place of the **predicted full image**
 
 This then provides an order to segment importance of the final prediction (to compare how you would ID the same image and therefore gain confidence in the prediction).
