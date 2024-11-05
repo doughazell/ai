@@ -346,17 +346,34 @@ LIME (https://arxiv.org/abs/1602.04938) works by
 * Binomial Distribution of image masking in order to get sample of **variously perturbed image**
 
   ie variously removing segments of the full image
+
+  * [self.perturbations = np.random.binomial(...)](https://github.com/doughazell/ai/blob/main/lime.py#L297)
   
 * **predict** the contents of each perturbed image with :
 
-  'keras.applications.inception_v3.InceptionV3().predict(perturbed_img)'
+  ```
+  pred = self.inceptionV3_model.predict(perturbed_img[np.newaxis,:,:,:])
+  ```
+  * [self.predictions.append(pred)](https://github.com/doughazell/ai/blob/main/lime.py#L367)
 
 * calc the **RMS** from the orig image for **each segment** of Binomially Distributed segment mask set
+
+  * [self.weights = np.sqrt( np.exp( -(distances**2) / kernel_width**2 ) )](https://github.com/doughazell/ai/blob/main/lime.py#L403)
+
 * **correlate** the RMS diff with the place of the **predicted full image**
+
+  ```
+  Xvals = self.perturbations
+  yVals = self.predictions[:,:,class_to_explain]
+  LinearRegression::fit(X=Xvals, y=yVals, sample_weight=self.weights)
+  ```
+
+  * [self.coeff = LinearRegression::coef](https://github.com/doughazell/ai/blob/main/lime.py#L476)
+  * [top_feature = np.argsort(limeImage.coeff)[-num_top_feature]](https://github.com/doughazell/ai/blob/main/lime_utils.py#L294)
 
 This then provides an order to segment importance of the final prediction (to compare how you would ID the same image and therefore gain confidence in the prediction).
 
-A good place to start with understanding LIME is:
+### lime.py::runLimeAnalysis()
 ```
 'lime.py::runLimeAnalysis()'
 
