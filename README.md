@@ -358,7 +358,7 @@ LIME (https://arxiv.org/abs/1602.04938) works by
 
 * calc the **RMS** from the orig image for **each segment** of Binomially Distributed segment mask set
 
-  * [self.weights = np.sqrt( np.exp( -(distances**2) / kernel_width**2 ) )](https://github.com/doughazell/ai/blob/main/lime.py#L403)
+  * [self.weights = np.sqrt( np.exp( -(distances^2) / kernel_width^2 ) )](https://github.com/doughazell/ai/blob/main/lime.py#L403)
 
 * **correlate** the RMS diff with the place of the **predicted full image**
 
