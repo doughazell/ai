@@ -370,6 +370,7 @@ LIME (https://arxiv.org/abs/1602.04938) works by
   Xvals = self.perturbations
   yVals = self.predictions[:,:,class_to_explain]
   LinearRegression::fit(X=Xvals, y=yVals, sample_weight=self.weights)
+                            28n,       n,                   n           (28 segments + 'n' masks)
   ```
 
   * [self.coeff = LinearRegression::coef](https://github.com/doughazell/ai/blob/main/lime.py#L476)
@@ -410,7 +411,7 @@ This then provides an order to segment importance of the final prediction (to co
     -------------------------------------
 ```
 
-## Diagram overview
+### Diagram overview
 * Top Row: Get mask from Binomial Distribution of which of 28 segments to include
 
   eg Top prediction of first perturbation: [1 1 1 1 0 0 1 0 1 0 1 0 0 1 1 1 0 0 1 0 0 1 0 0 0 0 0 1] = conch 
