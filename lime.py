@@ -42,6 +42,10 @@ important is each segment for the prediction of labrador.
 
 """
 
+# 1/11/24 DH: 
+# https://github.com/doughazell/ai/commit/db11ee2f0d0f92879c356b32fc9d2d8dfcf46cf3#commitcomment-125973581, Aug 30, 2023, arteagac:
+# "@doughazell , thank you for sharing this implementation. This is indeed a very useful feature to display the top features identified by LIME."
+
 import numpy as np
 import keras
 from keras.applications.imagenet_utils import decode_predictions
@@ -285,7 +289,11 @@ class Lime(object):
 
     # 21/8/23 DH:
     #num_perturb = 150
-    self.num_perturb = 100
+    #self.num_perturb = 100
+
+    # 5/11/24 DH: Gaining granularity of top classicication probability distribution
+    self.num_perturb = 1000
+
     self.probSuccess = 0.5
 
     # 4/9/23 DH: https://numpy.org/doc/stable/reference/random/generated/numpy.random.binomial.html
@@ -476,7 +484,7 @@ class Lime(object):
     self.coeff = simpler_model.coef_[0]
 
     print()
-    print("Multiple LinearRegression() coeffs (from weights):",self.coeff.shape)
+    print(f"Multiple LinearRegression() coeffs: {self.coeff.shape} (from weights: {self.weights.shape})")
     sortedCoeffs = np.argsort(self.coeff)
     print(" eg...lowest:",self.coeff[sortedCoeffs[0]],", highest:",self.coeff[sortedCoeffs[-1]])
     print(" (100 pertubation masks for 28 segments leads to a linear correlation line of importance of each",
@@ -518,7 +526,13 @@ def runLimeAnalysis():
 
   # 30/8/23 DH: Interface to utils "wrapper" by sending a copy of the Lime object with necessary attribs
   #             ...nicely fractal...
-  limeImage.lime_utils.displayTopFeatures(limeImage)
+  limeImage.lime_utils.displayTopFeatures(limeImage, last=False)
+
+  # 5/11/24 DH:
+  limeImage.lime_utils.displayTopClassProbs(limeImage)
+
+  # 7/11/24 DH:
+  limeImage.lime_utils.displayImgSegments(limeImage)
 
 # 29/8/23 DH:
 if __name__ == '__main__':

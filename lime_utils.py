@@ -167,7 +167,8 @@ class LimeUtils(object):
     # 4/9/23 DH: Display all graphs simultaneously with 'plt.show(block=False)' (which needs to be cascaded)
     plt.figure()
 
-    plt.hist(tally, bins = np.arange(0,100))
+    # 9/11/24 DH: This needs to be dynamic to sample size
+    plt.hist(tally, bins = np.arange(0,limeImage.perturbations.shape[0]))
 
     # https://matplotlib.org/3.6.2/api/_as_gen/matplotlib.pyplot.bar.html
     #plt.bar(np.arange(0,39), tally)
@@ -231,6 +232,9 @@ class LimeUtils(object):
       mask[segments == active] = 1
 
     cnt = 0
+    # ==========================
+    #     Crude pixel digits
+    # ==========================
     self.createDigitLabels()
 
     # 13/9/23 DH: 'last_features' is just list of last segment indices
@@ -248,6 +252,8 @@ class LimeUtils(object):
       (digitLabelSizeX, digitLabelSizeY) = self.digitLabelsDict[num_top_features-cnt].shape
 
       # 28/8/23 DH: *** NOTE: The image 'y' axis is the 2-D array 'x' index ***
+      #
+      # 8/11/24 DH: Pixel copy the 'self.digitLabelsDict' element to the 'mask' (which is then overlaid to the 'img' below)
       for x in range(digitLabelSizeX):
         for y in range(digitLabelSizeY):
           mask[midPoint[1]+x][midPoint[0]+y] = self.digitLabelsDict[num_top_features-cnt][x][y]
@@ -317,6 +323,7 @@ class LimeUtils(object):
 
       # 4/9/23 DH: Only display the last image which has the segment order marked
       if num_top_feature == 1:
+        # https://scikit-image.org/docs/stable/api/skimage.segmentation.html#skimage.segmentation.mark_boundaries
         img3 = skimage.segmentation.mark_boundaries(img2, limeImage.imgSegmentMask)
         plt.figure()
         skimage.io.imshow( img3 )
@@ -537,6 +544,193 @@ class LimeUtils(object):
     #plt.show()
     plt.show(block=False)
 
+  # 5/11/24 DH:
+  def displayTopClassProbs(self, limeImage):
+    print()
+    print("displayTopClassProbs()")
+    print("----------------------")
+    print(f"Xvals: {limeImage.Xvals.shape}")
+    print(f"yVals: {limeImage.yVals.shape}")
+    print()
+
+    plt.figure()
+    plt.scatter(range(limeImage.Xvals.shape[0]), limeImage.yVals, color="black")
+    plt.title("Probability of top classification for full image for each mask\n")
+    plt.xlabel("Mask version")
+    plt.ylabel("Probability of top classification")
+
+    plt.savefig('prob_topclassification.png')
+
+    plt.show(block=False)
+  
+  # 7/11/24 DH:
+  def displayImgSegments(self, limeImage):
+    plt.figure()
+    
+    # 7/11/24 DH: This takes 2-D array of integers and returns coloured segments
+    """
+    site-packages/skimage/io/_io.py(146)imshow()
+    site-packages/skimage/io/manage_plugins.py(170)call_plugin()
+    site-packages/skimage/io/_plugins/matplotlib_plugin.py(113)imshow()
+
+    https://github.com/scikit-image/scikit-image/blob/v0.24.0/skimage/io/_plugins/matplotlib_plugin.py#L122
+    """
+    skimage.io.imshow( limeImage.imgSegmentMask )
+
+    # DEBUG: Print out small section of multiple segments
+    # ---------------------------------------------------
+    print(f"imgSegmentMask: {limeImage.imgSegmentMask.shape}")
+
+    xStart = 0
+    xDiff = 30
+
+    yStart = 35
+    yDiff = 15
+    print(f"X = {xStart}:{xStart+xDiff}")
+    print(f"Y = {yStart}:{yStart+yDiff}")
+
+    # 8/11/24 DH: Tierred slice notation "eg [:5][:5]" DID NOT PRODUCE a "Top Left" 5x5 array (it printed first 5 rows BUT WITH "..." mid points)    
+    for line in limeImage.imgSegmentMask[yStart : yStart+yDiff]:
+      for idx in range(xDiff):
+        print(f"{line[xStart+idx]},", end='')
+      print()
+    
+    endX = limeImage.imgSegmentMask.shape[0]
+    endY = limeImage.imgSegmentMask.shape[1]
+
+    print()
+    print(f"0,0: {limeImage.imgSegmentMask[0][0]}")
+    print(f"{endX -1},{endY -1}: {limeImage.imgSegmentMask[endX -1][endY -1]}")
+    print()
+    # ------------------------------------- END DEBUG -------------------------------------
+
+    # 2-D array of integers (segment "pixel") to 1-D ordered list of numbers
+    sortedSegmentNums = np.unique( np.sort(limeImage.imgSegmentMask) )
+
+    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.figtext.html
+    #
+    #            0.0, 0.0 = "Bottom Left" (skimage starts "Top Left")
+    #             X ,  Y
+    #plt.figtext(0.64, 0.7, "8")
+    plt.figtext(0.25, 0.88, "10")
+
+    xLeft = 0.14
+    xRight = 0.8
+    yTop = 0.95
+    yBottom = 0.06
+
+    # DEBUG
+    # -----
+    """
+    # Top Left
+    plt.figtext(xLeft, yTop, "X")
+    # Top Right
+    plt.figtext(xRight, yTop, "X")
+    # Bottom Left
+    plt.figtext(xLeft, yBottom, "X")
+    # Bottom Right
+    plt.figtext(xRight, yBottom, "X")
+    """
+    # --------------------------
+
+    for num in sortedSegmentNums:
+      (midX, midY) = self.getSegmentMidpointFigText(limeImage, num)
+      print(f"  {num} - midX: {midX}, midY: {midY}")
+
+      #                        1       2                           1       2
+      # Segment X increases: Left -> Right, FigText X increases: Left -> Right
+      xFigText = ((xRight - xLeft) * (midX / endX)) + xLeft
+
+      #                       3        4                            4       3
+      # Segment Y increases: Top -> Bottom, FigText Y increases: Bottom -> Top
+      yFigText = (-(yTop - yBottom) * (midY / endY)) + yTop
+
+      if (num != 10):
+        plt.figtext(xFigText, yFigText, num)
+
+    # 9/11/24 DH: Get around 'plt.figtext' not being scalable with the image
+    plt.savefig('numbered_segments.png')
+
+    plt.show()
+  
+  # 8/11/24 DH:
+  def getSegmentMidpointFigText(self, limeImage, segNum):
+
+    # Now need to set 'startX' & 'startY' for each segment (not just "Top Left" one)
+    (startX, startY) = self.getSegmentStarts(limeImage, segNum)
+
+    endX = startX
+    endY = startY
+
+    rowNum = 0
+    for row in limeImage.imgSegmentMask:
+
+      # 8/11/24 DH: This needs to be RESET FOR EVERY ROW (otherwise ONLY THE FIRST ROW is checked...ffs...!!!)
+      #             (the Python vs C looping pseudo-code mental model)
+      colNum = 0 
+      for col in row:
+        
+        try:
+          if (limeImage.imgSegmentMask[rowNum][colNum] == segNum):
+            if (colNum > endX):
+              endX = colNum
+            if (rowNum > endY):
+              endY = rowNum
+          
+        except IndexError:
+          pass
+
+        colNum += 1
+      # END: --- "for col in row" ---
+      
+      rowNum += 1
+      
+    # END: --- "for row in limeImage.imgSegmentMask" ---
+    
+    #print(f"Segment {segNum}: from X:{startX}, Y:{startY} to X:{endX}, Y:{endY}")
+
+    # Now return the mid-point
+    midDeltaX = round( (endX - startX) / 2 )
+    midDeltaY = round( (endY - startY) / 2 )
+
+    midX = startX + midDeltaX
+    midY = startY + midDeltaY
+
+    return (midX, midY)
+    
+
+  # 8/11/24 DH:
+  def getSegmentStarts(self, limeImage, segNum):
+    searchStartX = limeImage.imgSegmentMask.shape[0]
+    searchStartY = limeImage.imgSegmentMask.shape[1]
+
+    rowNum = 0
+    for row in limeImage.imgSegmentMask:
+
+      # 8/11/24 DH: This needs to be RESET FOR EVERY ROW (otherwise ONLY THE FIRST ROW is checked...ffs...!!!)
+      #             (the Python vs C looping pseudo-code mental model)
+      colNum = 0 
+      for col in row:
+        
+        try:
+          if (limeImage.imgSegmentMask[rowNum][colNum] == segNum):
+            if (colNum < searchStartX):
+              searchStartX = colNum
+            if (rowNum < searchStartY):
+              searchStartY = rowNum
+          
+        except IndexError:
+          pass
+
+        colNum += 1
+      # END: --- "for col in row" ---
+      
+      rowNum += 1
+      
+    # END: --- "for row in limeImage.imgSegmentMask" ---
+
+    return (searchStartX, searchStartY)
+
   # 5/9/23 DH: Testing whether complete mask to correlate LinearRegression makes a difference
   def getMaskForLinearRegression(self, xMask, yVals, index_start=0):
 
@@ -549,3 +743,8 @@ class LimeUtils(object):
       Xvals[i][index_start:] = xMask[i][index_start:]
 
     return Xvals
+  
+  # ==================================== DUMP =================================
+  """
+  
+  """
