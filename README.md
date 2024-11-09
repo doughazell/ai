@@ -343,20 +343,42 @@ There appears to be an artifact of language specificity for the task specific la
 
 # LIME process
 LIME (https://arxiv.org/abs/1602.04938) works by 
-* Binomial Distribution of image masking in order to **perturb the image**
+* Binomial Distribution of image masking in order to get sample of **variously perturbed image**
 
-  ie removing segments of the full image
+  ie variously removing segments of the full image
+
+  * [self.perturbations = np.random.binomial(...)](https://github.com/doughazell/ai/blob/main/lime.py#L297)
   
-* **predict** the perturbed image with :
+* **predict** the contents of each perturbed image with :
 
-  'keras.applications.inception_v3.InceptionV3().predict(perturbed_img)'
+  ```
+  pred = self.inceptionV3_model.predict(perturbed_img[np.newaxis,:,:,:])
+  ```
+  * [self.predictions.append(pred)](https://github.com/doughazell/ai/blob/main/lime.py#L367)
 
-* calc the **RMS** from the orig image for **each segment** of Binomially Distributed segment masks
+* calc the **RMS** from the orig image for **each segment** of Binomially Distributed segment mask set
+
+  ```
+  distances = sklearn.metrics.pairwise_distances(X=self.perturbations,Y=original_image, metric='cosine').ravel()
+  kernel_width = 0.25
+  ```
+  * [self.weights = np.sqrt( np.exp( -(distances^2) / kernel_width^2 ) )](https://github.com/doughazell/ai/blob/main/lime.py#L403)
+
 * **correlate** the RMS diff with the place of the **predicted full image**
+
+  ```
+  Xvals = self.perturbations
+  yVals = self.predictions[:,:,class_to_explain]
+  LinearRegression::fit(X=Xvals, y=yVals, sample_weight=self.weights)
+                            28n,       n,                   n           (28 segments + 'n' masks)
+  ```
+
+  * [self.coeff = LinearRegression::coef](https://github.com/doughazell/ai/blob/main/lime.py#L476)
+  * [top_feature = np.argsort(limeImage.coeff)[-num_top_feature]](https://github.com/doughazell/ai/blob/main/lime_utils.py#L294)
 
 This then provides an order to segment importance of the final prediction (to compare how you would ID the same image and therefore gain confidence in the prediction).
 
-A good place to start with understanding LIME is:
+### lime.py::runLimeAnalysis()
 ```
 'lime.py::runLimeAnalysis()'
 
@@ -389,7 +411,7 @@ A good place to start with understanding LIME is:
     -------------------------------------
 ```
 
-## Diagram overview
+### Diagram overview
 * Top Row: Get mask from Binomial Distribution of which of 28 segments to include
 
   eg Top prediction of first perturbation: [1 1 1 1 0 0 1 0 1 0 1 0 0 1 1 1 0 0 1 0 0 1 0 0 0 0 0 1] = conch 
