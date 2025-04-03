@@ -22,6 +22,14 @@ This has been a major journey for me which started by learning about Keras Seque
 * squad-interface.py
 * legend.py
 
+### 'get-***-output' scripts
+'get-training-output' + 'get-model-output' are run from the directory containing the Huggingface 'output_dir' eg 'previous_output_dir-Google-BERT'.
+
+To run a test on a SQUAD Checkpoint in '~/ai/tmp/non-pretrainedSQUAD':
+```
+non-pretrainedSQUAD$ ../../huggingface/get-model-output
+```
+
 ### get-training-output
 This is a BASH script that makes trying things (like fine-tuning from Non-Pretrained) easy and includes:
 * run_qa.py 
