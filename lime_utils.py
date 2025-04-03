@@ -3,7 +3,19 @@ import numpy as np
 
 # 30/8/23 DH:
 import copy
+
+# 11/11/24 DH:
 import skimage.io
+
+"""
+import sys, os
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(SCRIPT_DIR,"scikit-image"))
+
+#breakpoint()
+#from .scikit_image import skimage
+"""
+
 import skimage.segmentation
 
 # 12/9/23 DH: ImportError: cannot import name 'LimeUtils' from partially initialized module 'lime_utils' 
@@ -563,7 +575,8 @@ class LimeUtils(object):
 
     plt.show(block=False)
   
-  # 7/11/24 DH:
+  # ------------------------------------ Numbered segments -------------------------------
+  # 7/11/24 DH: https://datacarpentry.org/image-processing/03-skimage-images.html
   def displayImgSegments(self, limeImage):
     plt.figure()
     
@@ -635,20 +648,25 @@ class LimeUtils(object):
 
     for num in sortedSegmentNums:
       (midX, midY) = self.getSegmentMidpointFigText(limeImage, num)
-      print(f"  {num} - midX: {midX}, midY: {midY}")
+
+      # 10/11/24 DH: Compare how simple + better than 'highlight_image(...)' from Aug 2023 
+      #              (https://github.com/doughazell/ai/blob/main/lime_utils.py#L259)
 
       #                        1       2                           1       2
       # Segment X increases: Left -> Right, FigText X increases: Left -> Right
       xFigText = ((xRight - xLeft) * (midX / endX)) + xLeft
 
-      #                       3        4                            4       3
-      # Segment Y increases: Top -> Bottom, FigText Y increases: Bottom -> Top
+      #                                   3       4                             4       3
+      # Segment Y increases COUNTER FIG: Top -> Bottom, FigText Y increases: Bottom -> Top
       yFigText = (-(yTop - yBottom) * (midY / endY)) + yTop
 
       if (num != 10):
         plt.figtext(xFigText, yFigText, num)
 
     # 9/11/24 DH: Get around 'plt.figtext' not being scalable with the image
+    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html#matplotlib.pyplot.savefig
+    # "This is the pyplot wrapper for Figure.savefig"
+    #fig.savefig('numbered_segments.png')
     plt.savefig('numbered_segments.png')
 
     plt.show()
@@ -730,6 +748,7 @@ class LimeUtils(object):
     # END: --- "for row in limeImage.imgSegmentMask" ---
 
     return (searchStartX, searchStartY)
+  # ------------------------------- END: Numbered segments -------------------------------
 
   # 5/9/23 DH: Testing whether complete mask to correlate LinearRegression makes a difference
   def getMaskForLinearRegression(self, xMask, yVals, index_start=0):

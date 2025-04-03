@@ -49,8 +49,11 @@ important is each segment for the prediction of labrador.
 import numpy as np
 import keras
 from keras.applications.imagenet_utils import decode_predictions
+
+# 11/11/24 DH:
 import skimage.io
 import skimage.segmentation
+
 import copy
 import sklearn
 import sklearn.metrics
