@@ -413,7 +413,12 @@ class BertSelfAttention(nn.Module):
         # -------------------------------------------------------------------------------------------------------------------
         # 9/6/24 DH: Refactor to record from multiple Layers
         def logSelectedNodeLogits(outputs):
-          import huggin_utils
+
+          # 9/5/25 DH: Handle when used by non-Huggin API code (eg https://pypi.org/project/bert-extractive-summarizer/)
+          try:
+            import huggin_utils
+          except ImportError:
+            return
 
           # Using double 'list()' to de-tensor the value
           tokenNodeMatrix = list(list(outputs)[0][0].shape)
@@ -428,7 +433,11 @@ class BertSelfAttention(nn.Module):
           allLogitsAllNodes = list(outputs)[0][0]
           logitNum = allLogitsAllNodes.shape[0]
           # 12/6/24 DH: 'gSelectedNode' defined as "global" above (below file imports)
-          nodeForeachLogit = [allLogitsAllNodes[logit][trackedNode].item() for logit in range(logitNum)]
+          # 11/5/25 DH: Handle non-Huggin API code
+          try:
+            nodeForeachLogit = [allLogitsAllNodes[logit][trackedNode].item() for logit in range(logitNum)]
+          except RuntimeError:
+            return # From 'inner function: logSelectedNodeLogits()'
 
           # 10/6/24 DH: Now sending 'tokenNum' since in TRAINING it is ALWAYS 384 but in NON-training it is TOKEN LENGTH
           huggin_utils.logSelectedNodeLogits(nodeForeachLogit, BertSelfAttention.cnt, bertLayerName="self", embedTokens=tokenNum)
@@ -544,7 +553,12 @@ class BertOutput(nn.Module):
 
         # 12/6/24 DH: Now moving 1 layer back from 'qa_outputs' to find logit bi-forkation point
         # -----------------------------------------------------------------------------------------------
-        import huggin_utils
+
+        # 9/5/25 DH: Handle when used by non-Huggin API code (eg https://pypi.org/project/bert-extractive-summarizer/)
+        try:
+          import huggin_utils
+        except ImportError:
+          return hidden_states
 
         # Accom non-training run having only 1 ENTRY PER BATCH
         logitNum = hidden_states[0].shape[0]
@@ -553,7 +567,11 @@ class BertOutput(nn.Module):
 
         # 13/9/24 DH: 'gSelectedNode' commented-out since now dynamic
         trackedNode = huggin_utils.getTrackedNode()
-        nodeForeachLogit = [allLogitsAllNodes[logit][trackedNode].item() for logit in range(logitNum)]
+        # 11/5/25 DH: Handle non-Huggin API code
+        try:
+          nodeForeachLogit = [allLogitsAllNodes[logit][trackedNode].item() for logit in range(logitNum)]
+        except RuntimeError:
+          return hidden_states
 
         if (BertSelfAttention.cnt == self.config.num_hidden_layers):
           allLallNshape = list(allLogitsAllNodes.shape)
@@ -759,6 +777,10 @@ class BertPooler(nn.Module):
         first_token_tensor = hidden_states[:, 0]
         pooled_output = self.dense(first_token_tensor)
         pooled_output = self.activation(pooled_output)
+        
+        # 10/5/25 DH:
+        print(f"BertPooler.forward(): {pooled_output.shape}")
+
         return pooled_output
 
 
