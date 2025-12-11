@@ -43,7 +43,7 @@ def initHF_env(jsonFile):
   #
   # ADDITION FOR 'hf_hack_pad.py'
   # -----------------------------
-  # 16/5/25 DH: 'checkpointing_config.gGraphDir' is needed by 'qa_lime.py::graphTokenVals(...)' which is init'd to "None"
+  # 16/5/25 DH: 'checkpointing_config.gGraphDir' is needed by 'qa_lime.py::graphTokenVals(...)' which is init'd to "None" before set in:
   checkpointing.createLoggers(training_args, overwrite=False)
 
   # Set seed before initializing model.
@@ -71,7 +71,8 @@ def initHF_env(jsonFile):
       token=model_args.token,
     )
   
-  return (model_args, data_args, training_args, raw_datasets)
+  # 29/5/25 DH: Needs to be the same order as 'runRandSamples(...)' params (to prevent future careless bugs...!)
+  return (model_args, training_args, data_args, raw_datasets)
 
 def runRandSamples(model_args, training_args, data_args, raw_datasets):
   # 15/5/25 DH: FROM: 'test-qa-efficacy.py'
@@ -109,9 +110,9 @@ def runBertSQUAD():
 
   jsonFile = os.path.abspath(f"{CFGDIR}/{JSONCFG}")
 
-  (model_args, data_args, training_args, raw_datasets) = initHF_env(jsonFile)
+  (model_args, training_args, data_args, raw_datasets) = initHF_env(jsonFile)
   print("------")
-  
+
   runRandSamples(model_args, training_args, data_args, raw_datasets)
 
 

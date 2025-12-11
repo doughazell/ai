@@ -364,7 +364,7 @@ LIME (https://arxiv.org/abs/1602.04938) works by
   ```
   * [self.predictions.append(pred)](https://github.com/doughazell/ai/blob/main/lime.py#L367)
 
-* calc the **RMS** from the orig image for **each segment** of Binomially Distributed segment mask set
+* calc the **total RMS** from the orig image for **every segment** of Binomially Distributed segment mask set
 
   ```
   distances = sklearn.metrics.pairwise_distances(X=self.perturbations,Y=original_image, metric='cosine').ravel()
@@ -378,11 +378,19 @@ LIME (https://arxiv.org/abs/1602.04938) works by
   Xvals = self.perturbations
   yVals = self.predictions[:,:,class_to_explain]
   LinearRegression::fit(X=Xvals, y=yVals, sample_weight=self.weights)
-                            28n,       n,                   n           (28 segments + 'n' masks)
+                            28n,       n,                   n  <28 segments + 'n' masks>
   ```
 
   * [self.coeff = LinearRegression::coef](https://github.com/doughazell/ai/blob/main/lime.py#L476)
   * [top_feature = np.argsort(limeImage.coeff)[-num_top_feature]](https://github.com/doughazell/ai/blob/main/lime_utils.py#L294)
+
+  ```
+  POSSIBLE MECHANISM OF ACTION:
+  The 'weights' provides a metric of total img diff to quantify the place of the full img prediction.
+  Somehow, this vectors each segment from the 100 test cases (with a binomial distrib of variation) using the total img dff.
+  The <binomial distrib + linear regression> seems to cause a topographical map that is orthogonal to the mask (like a 3D poster).
+  Maybe this cancels out the commonality over the 100 test cases to highlight the segment order.
+  ```
 
 This then provides an order to segment importance of the final prediction (to compare how you would ID the same image and therefore gain confidence in the prediction).
 

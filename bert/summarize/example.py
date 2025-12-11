@@ -25,7 +25,9 @@ The Chrysler Building was the headquarters of the American automaker until 1953,
 Walter Chrysler had set out to build the tallest building in the world, a competition at that time with another Manhattan skyscraper under construction at 40 Wall Street at the south end of Manhattan. He kept secret the plans for the spire that would grace the top of the building, building it inside the structure and out of view of the public until 40 Wall Street was complete.
 Once the competitor could rise no higher, the spire of the Chrysler building was raised into view, giving it the title.
 '''
-
+# ---------------------------------------------------------------------------
+# Get + use Bert summary model
+# ---------------------------------------------------------------------------
 model = Summarizer()
 
 # 'model()' returns a string
@@ -34,6 +36,10 @@ print(result)
 print()
 
 #breakpoint()
+
+# ---------------------------------------------------------------------------
+# Create a graphic of the Bert summary model
+# ---------------------------------------------------------------------------
 
 from transformers import AutoTokenizer
 from torchview import draw_graph
