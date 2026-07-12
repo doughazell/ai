@@ -386,6 +386,7 @@ LIME (https://arxiv.org/abs/1602.04938) works by
 
   ```
   POSSIBLE MECHANISM OF ACTION:
+  -----------------------------
   The 'weights' provides a metric of total img diff to quantify the place of the full img prediction.
   Somehow, this vectors each segment from the 100 test cases (with a binomial distrib of variation) using the total img dff.
   The <binomial distrib + linear regression> seems to cause a topographical map that is orthogonal to the mask (like a 3D poster).

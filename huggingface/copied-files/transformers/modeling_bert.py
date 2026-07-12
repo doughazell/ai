@@ -779,7 +779,7 @@ class BertPooler(nn.Module):
         pooled_output = self.activation(pooled_output)
         
         # 10/5/25 DH:
-        print(f"BertPooler.forward(): {pooled_output.shape}")
+        #print(f"BertPooler.forward(): {pooled_output.shape}")
 
         return pooled_output
 
